@@ -1,0 +1,26 @@
+{
+  "name": "ponos",
+  "version": "0.0.0",
+  "description": "An opinionated queue based worker server for node.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Runnable/ponos.git"
+  },
+  "keywords": [
+    "worker",
+    "queue",
+    "rabbit",
+    "job",
+    "message"
+  ],
+  "author": "Ryan Sandor Richards <sandor.richards@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Runnable/ponos/issues"
+  },
+  "homepage": "https://github.com/Runnable/ponos"
+}
