@@ -22,5 +22,11 @@
   "bugs": {
     "url": "https://github.com/Runnable/ponos/issues"
   },
-  "homepage": "https://github.com/Runnable/ponos"
+  "homepage": "https://github.com/Runnable/ponos",
+  "dependencies": {
+    "101": "^1.0.0",
+    "bluebird": "^2.9.34",
+    "loadenv": "^1.1.0",
+    "runnable-hermes": "^4.0.0"
+  }
 }
