@@ -18,11 +18,11 @@ var tasks = {
 function resolvePromise () { return Promise.resolve(); }
 function worker (job, done) {}; // eslint-disable-line no-unused-vars
 
-describe('Ponos Server', function () {
+describe('Server', function () {
   var server;
   before(function () { sinon.stub(Worker, 'create'); });
   beforeEach(function () {
-    server = ponos.server({ queues: Object.keys(tasks) });
+    server = new ponos.Server({ queues: Object.keys(tasks) });
     sinon.stub(server.hermes, 'connectAsync', resolvePromise);
     sinon.stub(server.hermes, 'subscribeAsync', resolvePromise);
   });
@@ -39,17 +39,18 @@ describe('Ponos Server', function () {
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
     it('should take a Hermes client', function () {
-      var s = ponos.server({ hermes: noop });
+      var s = new ponos.Server({ hermes: noop });
       assert.ok(s);
+      assert.equal(s.hermes, noop);
     });
     it('should require a list of queues', function () {
       assert.throws(function () {
-        ponos.server();
+        new ponos.Server();
       }, /missing.+queues/);
     });
     it('should require a string list of queues', function () {
       assert.throws(function () {
-        ponos.server({ queues: [{}] });
+        new ponos.Server({ queues: [{}] });
       }, /queues.+string/);
     });
   });
@@ -78,7 +79,7 @@ describe('Ponos Server', function () {
   });
 
   describe('start', function () {
-    describe('missing tasks', function () {
+    describe('without tasks', function () {
       it('should fail', function () {
         return assert.isRejected(server.start(), /handler not defined/);
       });
