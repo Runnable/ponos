@@ -3,6 +3,8 @@ node_js:
 - "0.10"
 - "0.12"
 sudo: false
+services:
+- rabbitmq
 env:
 - LOG_LEVEL_STDOUT=error
 script:
