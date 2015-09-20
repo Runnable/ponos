@@ -8,5 +8,5 @@ env:
 script:
 - npm run lint
 - npm run coverage
-after_success:
 - npm run coverage-check
+- npm run functional
