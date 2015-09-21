@@ -70,6 +70,7 @@ function myWorker (job) {
     // Note: w/o this catch, the error would simply propagate to the worker and
     // be handled.
     .catch(function (err) {
+      logErrorToService(err);
       // If the error is 'recoverable' (e.g., network fluke, temporary outage),
       // we want to be able to retry.
       if (err.isRecoverable) {
