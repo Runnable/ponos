@@ -4,12 +4,12 @@ An opinionated queue based worker server for node.
 
 For ease of use we provide options to set the host, port, username, and password to the RabbitMQ server. If not present in options, the server will attempt to use the following environment variables and final defaults:
 
-options         | environment               | default
-----------------|---------------------------|--------------
-`opts.hostname` | `PONOS_RABBITMQ_HOSTNAME` | `'localhost'`
-`opts.port`     | `PONOS_RABBITMQ_PORT`     | `'5672'`
-`opts.username` | `PONOS_RABBITMQ_USERNAME` | `'guest'`
-`opts.password` | `PONOS_RABBITMQ_PASSWORD` | `'guest'`
+options         | environment         | default
+----------------|---------------------|--------------
+`opts.hostname` | `RABBITMQ_HOSTNAME` | `'localhost'`
+`opts.port`     | `RABBITMQ_PORT`     | `'5672'`
+`opts.username` | `RABBITMQ_USERNAME` | `'guest'`
+`opts.password` | `RABBITMQ_PASSWORD` | `'guest'`
 
 ## Usage
 
@@ -103,8 +103,8 @@ server.setAllTasks(tasks);
 
 // Start the server!
 server.start()
-  .then(function () { console.log("Server started!"); })
-  .catch(function (err) { console.error("Server failed", err); })
+  .then(function () { console.log('Server started!'); })
+  .catch(function (err) { console.error('Server failed', err); })
 
 // Or, start using your own hermes client
 var hermes = require('runnable-hermes');
