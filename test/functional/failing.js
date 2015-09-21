@@ -54,7 +54,13 @@ describe('Basic Failing Task', function () {
   // Before we run the test, let's assert that our task fails with the job.
   // This should be _rejected_ with an error.
   before(function () {
-    return assert.isRejected(testWorker(job), /message.+required/);
+    var testWorkerPromise = testWorker(job)
+      .catch(function (err) {
+        // extra assertion that it's still a TaskFatalError
+        assert.instanceOf(err, TaskFatalError);
+        throw err;
+      });
+    return assert.isRejected(testWorkerPromise, /message.+required/);
   });
 
   it('should fail once and not be re-run', function (done) {
