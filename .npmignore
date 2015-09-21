@@ -1,0 +1,7 @@
+.eslintignore
+.eslintrc
+.gitignore
+.istanbul.yml
+.travis.yml
+coverage
+test
