@@ -11,17 +11,78 @@ options         | environment               | default
 `opts.username` | `PONOS_RABBITMQ_USERNAME` | `'guest'`
 `opts.password` | `PONOS_RABBITMQ_PASSWORD` | `'guest'`
 
-### Usage
+## Usage
 
 From a high level, Ponos is used to create a worker server that responds to jobs provided from RabbitMQ. The user defines handlers for each queue's jobs that are invoked by Ponos.
 
 Ponos has built in support for retrying and catching specific errors, which are described below.
 
-### Workers
+## Workers
 
-// TODO(bryan)
+Workers need to be defined as a function that takes a Object `job` an returns a promise. For example:
 
-### Example
+```javascript
+function myWorker (job) {
+  return Promise.resolve()
+    .then(function () {
+      return doSomeWork(job);
+    });
+}
+```
+
+This worker takes the `job`, does work with it, and returns the result. Since (in theory) this does not throw any errors, the worker will see this resolution and acknowledge the job.
+
+### Worker Errors
+
+Ponos's worker is designed to retry any error that is not specifically a fatal error. A fatal error is defined with the `TaskFatalError` class. If a worker rejects with a `TaskFatalError`, the worker will automatically assume the job can _never_ be completed and will acknowledge the job.
+
+As an example, a `TaskFatalError` can be used to fail a task given an invalid job:
+
+```javascript
+var TaskFatalError = require('ponos').TaskFatalError;
+function myWorker (job) {
+  return Promise.resolve()
+    .then(function () {
+      if (!job.host) { throw new TaskFatalError('host is required'); }
+    })
+    .then(function () {
+      return doSomethingWithHost(job);
+    })
+    .catch(function (err) {
+      myErrorReporter(err);
+      throw err;
+    });
+}
+```
+
+This worker will reject the promise with a `TaskFatalError`. Ponos will log the error itself, acknowledge the job to remove it from the queue, and continue with other jobs. It is up to the user to additionally catch the error and log it to any other external service.
+
+Finally, as was mentioned before, Ponos will retry any other errors. Ponos provides a `TaskError` class you may use, or you may throw normal `Error`s. If you do, the worker will catch these and retry according to the server's configuration (retry delay, back-off, max delay, etc.).
+
+```javascript
+var TaskError = require('ponos').TaskError;
+var TaskFatalError = require('ponos').TaskFatalError;
+function myWorker (job) {
+  return Promise.resolve()
+    .then(function () {
+      return externalService.something(job);
+    })
+    // Note: w/o this catch, the error would simply propagate to the worker and
+    // be handled.
+    .catch(function (err) {
+      // If the error is 'recoverable' (e.g., network fluke, temporary outage),
+      // we want to be able to retry.
+      if (err.isRecoverable) {
+        throw new Error('hit a momentary issue. try again.');
+      } else {
+        // maybe we know we can't recover from this
+        throw new TaskFatalError('cannot recover. acknowledge and remove job');
+      }
+    });
+}
+```
+
+## Full Example
 
 ```javascript
 var ponos = require('ponos');
