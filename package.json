@@ -9,7 +9,7 @@
     "functional": "mocha --recursive --reporter spec test/functional",
     "lint": "eslint .",
     "test": "npm run lint && npm run unit && npm run functional",
-    "unit": "mocha --recursive --reporter spec test/unit"
+    "unit": "mocha --bail --recursive --reporter spec test/unit"
   },
   "repository": {
     "type": "git",
