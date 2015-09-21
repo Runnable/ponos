@@ -104,7 +104,7 @@ server.setAllTasks(tasks);
 // Start the server!
 server.start()
   .then(function () { console.log('Server started!'); })
-  .catch(function (err) { console.error('Server failed', err); })
+  .catch(function (err) { console.error('Server failed', err); });
 
 // Or, start using your own hermes client
 var hermes = require('runnable-hermes');
