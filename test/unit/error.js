@@ -8,7 +8,7 @@ var sinon = require('sinon');
 var error = require('../../lib/error');
 var log = require('../../lib/logger');
 
-describe('PonosError', function () {
+describe('PonosErrorCat', function () {
   it('should log to the logger with err', function () {
     sinon.stub(log, 'error');
     var err = new Error('foobar');
