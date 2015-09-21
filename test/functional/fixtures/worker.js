@@ -20,9 +20,6 @@ module.exports = function (job) {
     })
     .then(function () {
       module.exports.emitter.emit('task', { data: job.message });
-    })
-    .catch(function (err) {
-      module.exports.emitter.emit('error', err);
     });
 };
 

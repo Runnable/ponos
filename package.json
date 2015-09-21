@@ -4,7 +4,7 @@
   "description": "An opinionated queue based worker server for node.",
   "main": "index.js",
   "scripts": {
-    "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit",
+    "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "functional": "mocha --recursive --reporter spec test/functional",
     "lint": "eslint .",

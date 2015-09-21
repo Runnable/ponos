@@ -23,13 +23,8 @@ describe('Basic Example', function () {
 
   it('should queue a task that triggers an event', function (done) {
     testWorkerEmitter.on('task', function (data) {
-      testWorkerEmitter.removeAllListeners('task');
       assert.equal(data.data, 'hello world');
       done();
-    });
-    testWorkerEmitter.on('error', function (err) {
-      testWorkerEmitter.removeAllListeners('task');
-      done(err);
     });
     var data = {
       queue: 'ponos-test:two',

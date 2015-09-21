@@ -7,7 +7,6 @@ var sinon = require('sinon');
 
 var TaskError = require('../../lib/errors/task-error');
 var TaskFatalError = require('../../lib/errors/task-fatal-error');
-var TaskMaxRetriesError = require('../../lib/errors/task-max-retries-error');
 var Promise = require('bluebird');
 var Worker = require('../../lib/worker');
 var assign = require('101/assign');
@@ -39,12 +38,12 @@ describe('Worker', function () {
     });
     it('should run the job if runNow is true (default)', function () {
       Worker.create(opts);
-      assert.ok(Worker.prototype.run.calledOnce);
+      assert.ok(Worker.prototype.run.calledOnce, '.run called');
     });
     it('should hold the job if runNow is not true', function () {
       var testOpts = assign({ runNow: false }, opts);
       Worker.create(testOpts);
-      assert.notOk(Worker.prototype.run.calledOnce);
+      assert.notOk(Worker.prototype.run.calledOnce, '.run not called');
     });
   });
 
@@ -76,46 +75,19 @@ describe('Worker', function () {
         });
         after(function () { process.env.WORKER_MAX_RETRY_DELAY = prevDelay; });
 
-        it('should exponentially back off', function () {
+        it('should exponentially back off up to max', function () {
           var initDelay = worker.retryDelay;
           taskHandler = sinon.stub();
           taskHandler.onFirstCall().throws(new Error('foobar'));
+          taskHandler.onSecondCall().throws(new Error('foobar'));
+          taskHandler.onThirdCall().throws(new Error('foobar'));
           doneHandler = sinon.stub();
           return assert.isFulfilled(worker.run())
             .then(function () {
               assert.notEqual(initDelay, worker.retryDelay, 'delay increased');
-              assert.equal(taskHandler.callCount, 2, 'task was called twice');
+              assert.equal(worker.retryDelay, 4, 'delay increased to max');
+              assert.equal(taskHandler.callCount, 4, 'task was called twice');
               assert.ok(doneHandler.calledOnce, 'done was called once');
-            });
-        });
-      });
-
-      describe('with max retries (count)', function () {
-        var prevDelay;
-        var prevCount;
-        before(function () {
-          prevDelay = process.env.WORKER_MAX_RETRY_DELAY;
-          prevCount = process.env.WORKER_MAX_RETRIES;
-          process.env.WORKER_MAX_RETRY_DELAY = 2;
-          process.env.WORKER_MAX_RETRIES = 2;
-        });
-        after(function () {
-          process.env.WORKER_MAX_RETRY_DELAY = prevDelay;
-          process.env.WORKER_MAX_RETRIES = prevCount;
-        });
-        it('should log TaskMaxRetriesError and call done', function () {
-          taskHandler = sinon.stub().throws(new Error('foobar'));
-          doneHandler = sinon.stub();
-          return assert.isFulfilled(worker.run())
-            .then(function () {
-              assert.equal(worker.attempt, 3, 'attempts increased');
-              assert.equal(taskHandler.callCount, 2, 'task was called twice');
-              assert.ok(doneHandler.calledOnce, 'done was called once');
-              assert.ok(error.log.calledOnce, 'error called');
-              assert.instanceOf(
-                error.log.getCall(0).args.pop(),
-                TaskMaxRetriesError);
-              delete process.env.WORKER_MAX_RETRY_DELAY;
             });
         });
       });

@@ -10,5 +10,4 @@ env:
 script:
 - npm run lint
 - npm run coverage
-- npm run coverage-check
 - npm run functional
