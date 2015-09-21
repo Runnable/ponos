@@ -15,11 +15,11 @@ var TaskFatalError = ponos.TaskFatalError;
 module.exports = function (job) {
   return Promise.resolve()
     .then(function () {
-      if (!job.queue) { throw new TaskFatalError('queue is required'); }
+      if (!job.eventName) { throw new TaskFatalError('eventName is required'); }
       if (!job.message) { throw new TaskFatalError('message is required'); }
     })
     .then(function () {
-      module.exports.emitter.emit('task', { data: job.message });
+      module.exports.emitter.emit(job.eventName, { data: job.message });
     });
 };
 

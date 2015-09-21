@@ -26,10 +26,10 @@ describe('Basic Example', function () {
       assert.equal(data.data, 'hello world');
       done();
     });
-    var data = {
-      queue: 'ponos-test:two',
+    var job = {
+      eventName: 'task',
       message: 'hello world'
     };
-    server.hermes.publish('ponos-test:one', data);
+    server.hermes.publish('ponos-test:one', job);
   });
 });
