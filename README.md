@@ -1,5 +1,10 @@
 # Ponos
 
+[![travis]](https://travis-ci.org/Runnable/ponos)
+[![coveralls]](https://coveralls.io/github/Runnable/ponos?branch=master)
+[![dependencies]](https://david-dm.org/Runnable/ponos)
+[![devdependencies]](https://david-dm.org/Runnable/ponos#info=devDependencies)
+
 An opinionated queue based worker server for node.
 
 For ease of use we provide options to set the host, port, username, and password to the RabbitMQ server. If not present in options, the server will attempt to use the following environment variables and final defaults:
@@ -120,3 +125,8 @@ server.setAllTasks()
 ## License
 
 MIT
+
+[travis]: https://img.shields.io/travis/Runnable/ponos.svg?style=flat-square "Build Status"
+[coveralls]: https://coveralls.io/repos/Runnable/ponos/badge.svg?branch=master&service=github "Coverage Status"
+[dependencies]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square "Dependency Status"
+[devdependencies]: https://img.shields.io/david/strongloop/express.svg?style=flat-square "Dev Dependency Status"
