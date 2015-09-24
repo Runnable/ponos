@@ -129,4 +129,4 @@ MIT
 [travis]: https://img.shields.io/travis/Runnable/ponos.svg?style=flat-square "Build Status"
 [coveralls]: https://coveralls.io/repos/Runnable/ponos/badge.svg?branch=master&service=github "Coverage Status"
 [dependencies]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square "Dependency Status"
-[devdependencies]: https://img.shields.io/david/strongloop/express.svg?style=flat-square "Dev Dependency Status"
+[devdependencies]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square "Dev Dependency Status"
