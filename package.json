@@ -6,6 +6,7 @@
   "scripts": {
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
+    "coveralls": "cat ./coverage/lcov.info | coveralls",
     "functional": "mocha --recursive --reporter spec test/functional",
     "lint": "eslint .",
     "test": "npm run lint && npm run unit && npm run functional",
@@ -40,6 +41,7 @@
     "async": "^1.4.2",
     "chai": "^3.3.0",
     "chai-as-promised": "^5.1.0",
+    "coveralls": "^2.11.4",
     "eslint": "^1.5.1",
     "istanbul": "^0.3.20",
     "mocha": "^2.3.3",
