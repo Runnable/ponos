@@ -1,8 +1,8 @@
 # Ponos
 
-[![Build Status]([1])]([2])
-[![Dependency Status]([3])]([4])
-[![Dev Dependency Status]([5])]([6])
+[![1]](https://travis-ci.org/Runnable/ponos)
+[![2]](https://david-dm.org/Runnable/ponos)
+[![3]](https://david-dm.org/Runnable/ponos#info=devDependencies)
 
 An opinionated queue based worker server for node.
 
@@ -125,9 +125,6 @@ server.setAllTasks()
 
 MIT
 
-[1]: https://img.shields.io/travis/Runnable/ponos.svg?style=flat-square
-[2]: https://travis-ci.org/Runnable/ponos "Ponos on Travis CI"
-[3]: https://david-dm.org/Runnable/ponos
-[4]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square
-[5]: https://david-dm.org/Runnable/ponos#info=devDependencies
-[6]: https://img.shields.io/david/strongloop/express.svg?style=flat-square
+[1]: https://img.shields.io/travis/Runnable/ponos.svg?style=flat-square "Build Status"
+[2]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square "Dependency Status"
+[3]: https://img.shields.io/david/strongloop/express.svg?style=flat-square "Dev Dependency Status"
