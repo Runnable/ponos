@@ -45,6 +45,22 @@ describe('Worker', function () {
       Worker.create(testOpts);
       assert.notOk(Worker.prototype.run.calledOnce, '.run not called');
     });
+    it('should default the timeout to an hour', function () {
+      var w = Worker.create(opts);
+      assert.equal(w.msTimeout, 60 * 60 * 1000, 'set the timeout correctly');
+    });
+    describe('with worker timeout', function () {
+      var prevTimeout;
+      before(function () {
+        prevTimeout = process.env.WORKER_TIMEOUT;
+        process.env.WORKER_TIMEOUT = 4;
+      });
+      after(function () { process.env.WORKER_MAX_RETRY_DELAY = prevTimeout; });
+      it('should use the environment timeout', function () {
+        var w = Worker.create(opts);
+        assert.equal(w.msTimeout, 4 * 1000, 'set the timeout correctly');
+      });
+    });
   });
 
   describe('run', function () {
