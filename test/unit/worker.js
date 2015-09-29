@@ -5,9 +5,10 @@ chai.use(require('chai-as-promised'));
 var assert = chai.assert;
 var sinon = require('sinon');
 
+var Promise = require('bluebird');
 var TaskError = require('../../lib/errors/task-error');
 var TaskFatalError = require('../../lib/errors/task-fatal-error');
-var Promise = require('bluebird');
+var TimeoutError = Promise.TimeoutError;
 var Worker = require('../../lib/worker');
 var assign = require('101/assign');
 var error = require('../../lib/error');
@@ -132,6 +133,16 @@ describe('Worker', function () {
       it('should retry if task throws TaskError', function () {
         taskHandler = sinon.stub();
         taskHandler.onFirstCall().throws(new TaskError('foobar'));
+        doneHandler = sinon.stub();
+        return assert.isFulfilled(worker.run())
+          .then(function () {
+            assert.equal(taskHandler.callCount, 2, 'task was called twice');
+            assert.ok(doneHandler.calledOnce, 'done was called once');
+          });
+      });
+      it('should retry if task throws TimeoutError', function () {
+        taskHandler = sinon.stub();
+        taskHandler.onFirstCall().throws(new TimeoutError());
         doneHandler = sinon.stub();
         return assert.isFulfilled(worker.run())
           .then(function () {
