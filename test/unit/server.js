@@ -6,10 +6,12 @@ var assert = chai.assert;
 var sinon = require('sinon');
 
 var Promise = require('bluebird');
-var Worker = require('../../lib/worker');
 var hermes = require('runnable-hermes');
 var noop = require('101/noop');
+
 var ponos = require('../../');
+var Worker = require('../../lib/worker');
+var log = require('../../lib/logger');
 
 var tasks = {
   'test-queue-01': worker,
@@ -45,6 +47,7 @@ describe('Server', function () {
         USERNAME: 'luke',
         PASSWORD: 'skywalker'
       };
+
       before(function () {
         Object.keys(envs).forEach(function (k) {
           var oldVal = process.env['RABBITMQ_' + k];
@@ -52,11 +55,13 @@ describe('Server', function () {
           envs[k] = oldVal;
         });
       });
+
       after(function () {
         Object.keys(envs).forEach(function (k) {
           process.env['RABBITMQ_' + k] = envs[k];
         });
       });
+
       it('should create a hermes client with those options', function () {
         var s = new ponos.Server({ queues: Object.keys(tasks) });
         assert.ok(s);
@@ -76,6 +81,7 @@ describe('Server', function () {
       assert.ok(s);
       assert.equal(s.hermes, noop);
     });
+
     it('should default rabbit mq vars', function () {
       var s = new ponos.Server({ queues: Object.keys(tasks) });
       assert.ok(s);
@@ -89,15 +95,31 @@ describe('Server', function () {
         queues: [ 'test-queue-01', 'test-queue-02' ]
       });
     });
+
     it('should require a list of queues', function () {
       assert.throws(function () {
         new ponos.Server();
       }, /missing.+queues/);
     });
+
     it('should require a string list of queues', function () {
       assert.throws(function () {
         new ponos.Server({ queues: [{}] });
       }, /queues.+string/);
+    });
+
+    it('should use the default logger', function () {
+      var s = new ponos.Server({ queues: Object.keys(tasks) });
+      assert.equal(s.log, log);
+    });
+
+    it('should use the provided logger', function () {
+      var customLogger = {};
+      var s = new ponos.Server({
+        queues: Object.keys(tasks),
+        log: customLogger
+      });
+      assert.equal(s.log, customLogger);
     });
   });
 
@@ -156,7 +178,8 @@ describe('Server', function () {
               queue: 'test-queue-01',
               job: {},
               task: worker,
-              done: noop
+              done: noop,
+              log: server.log
             });
           });
       });
