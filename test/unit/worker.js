@@ -11,7 +11,6 @@ var TaskFatalError = require('../../lib/errors/task-fatal-error');
 var TimeoutError = Promise.TimeoutError;
 var Worker = require('../../lib/worker');
 var assign = require('101/assign');
-var error = require('../../lib/error');
 
 describe('Worker', function () {
   var opts;
@@ -70,9 +69,7 @@ describe('Worker', function () {
     beforeEach(function () {
       opts.runNow = false;
       worker = Worker.create(opts);
-      sinon.stub(error, 'log');
     });
-    afterEach(function () { error.log.restore(); });
 
     describe('successful runs', function () {
       it('should run the task and call done', function () {

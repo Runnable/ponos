@@ -179,7 +179,8 @@ describe('Server', function () {
               job: {},
               task: worker,
               done: noop,
-              log: server.log
+              log: server.log,
+              errorCat: server.errorCat
             });
           });
       });
