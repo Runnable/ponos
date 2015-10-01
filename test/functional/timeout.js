@@ -56,7 +56,7 @@ describe('Basic Timeout Task', function () {
     var prevTimeout;
     before(function () {
       prevTimeout = process.env.WORKER_TIMEOUT;
-      process.env.WORKER_TIMEOUT = 1;
+      process.env.WORKER_TIMEOUT = 1000;
     });
     after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
 

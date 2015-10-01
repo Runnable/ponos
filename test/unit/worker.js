@@ -54,7 +54,7 @@ describe('Worker', function () {
       var prevTimeout;
       before(function () {
         prevTimeout = process.env.WORKER_TIMEOUT;
-        process.env.WORKER_TIMEOUT = 4;
+        process.env.WORKER_TIMEOUT = 4000;
       });
       after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
 
@@ -89,7 +89,7 @@ describe('Worker', function () {
         var prevTimeout;
         before(function () {
           prevTimeout = process.env.WORKER_TIMEOUT;
-          process.env.WORKER_TIMEOUT = 0.01;
+          process.env.WORKER_TIMEOUT = 10;
         });
         after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
 
