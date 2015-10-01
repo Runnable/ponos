@@ -5,9 +5,10 @@ chai.use(require('chai-as-promised'));
 var assert = chai.assert;
 var sinon = require('sinon');
 
+var Promise = require('bluebird');
 var TaskError = require('../../lib/errors/task-error');
 var TaskFatalError = require('../../lib/errors/task-fatal-error');
-var Promise = require('bluebird');
+var TimeoutError = Promise.TimeoutError;
 var Worker = require('../../lib/worker');
 var assign = require('101/assign');
 var error = require('../../lib/error');
@@ -45,6 +46,23 @@ describe('Worker', function () {
       Worker.create(testOpts);
       assert.notOk(Worker.prototype.run.calledOnce, '.run not called');
     });
+    it('should default the timeout to not exist', function () {
+      var w = Worker.create(opts);
+      assert.equal(w.msTimeout, 0, 'set the timeout correctly');
+    });
+    describe('with worker timeout', function () {
+      var prevTimeout;
+      before(function () {
+        prevTimeout = process.env.WORKER_TIMEOUT;
+        process.env.WORKER_TIMEOUT = 4000;
+      });
+      after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
+
+      it('should use the environment timeout', function () {
+        var w = Worker.create(opts);
+        assert.equal(w.msTimeout, 4 * 1000, 'set the timeout correctly');
+      });
+    });
   });
 
   describe('run', function () {
@@ -65,6 +83,30 @@ describe('Worker', function () {
             assert.ok(taskHandler.calledOnce, 'task was called once');
             assert.ok(doneHandler.calledOnce, 'done was called once');
           });
+      });
+
+      describe('with worker timeout', function () {
+        var prevTimeout;
+        before(function () {
+          prevTimeout = process.env.WORKER_TIMEOUT;
+          process.env.WORKER_TIMEOUT = 10;
+        });
+        after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
+
+        it('should timeout the job', function () {
+          // we are going to replace the handler w/ a stub
+          taskHandler = function () {
+            taskHandler = sinon.stub();
+            return Promise.resolve().delay(25);
+          };
+          doneHandler = sinon.stub();
+          return assert.isFulfilled(worker.run())
+            .then(function () {
+              // this is asserting taskHandler called once, but was twice
+              assert.ok(taskHandler.calledOnce, 'task was called once');
+              assert.ok(doneHandler.calledOnce, 'done was called once');
+            });
+        });
       });
 
       describe('with max retry delay', function () {
@@ -116,6 +158,16 @@ describe('Worker', function () {
       it('should retry if task throws TaskError', function () {
         taskHandler = sinon.stub();
         taskHandler.onFirstCall().throws(new TaskError('foobar'));
+        doneHandler = sinon.stub();
+        return assert.isFulfilled(worker.run())
+          .then(function () {
+            assert.equal(taskHandler.callCount, 2, 'task was called twice');
+            assert.ok(doneHandler.calledOnce, 'done was called once');
+          });
+      });
+      it('should retry if task throws TimeoutError', function () {
+        taskHandler = sinon.stub();
+        taskHandler.onFirstCall().throws(new TimeoutError());
         doneHandler = sinon.stub();
         return assert.isFulfilled(worker.run())
           .then(function () {

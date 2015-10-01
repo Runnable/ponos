@@ -1,6 +1,6 @@
 {
   "name": "ponos",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "An opinionated queue based worker server for node.",
   "main": "index.js",
   "scripts": {
