@@ -21,12 +21,8 @@ var _Bunyan = require('bunyan');
  *  decreasing intervals, throwing TimeoutErrors, until it passes.
  */
 describe('Basic Timeout Task', function () {
-  this.timeout(3500);
   var server;
-  var prevTimeout;
   before(function (done) {
-    prevTimeout = process.env.WORKER_TIMEOUT;
-    process.env.WORKER_TIMEOUT = 1;
     sinon.spy(_Worker.prototype, 'run');
     sinon.spy(_Bunyan.prototype, 'warn');
     var tasks = {
@@ -44,7 +40,6 @@ describe('Basic Timeout Task', function () {
   after(function (done) {
     server.stop()
       .then(function () {
-        process.env.WORKER_TIMEOUT = prevTimeout;
         _Worker.prototype.run.restore();
         _Bunyan.prototype.warn.restore();
         done();
@@ -56,40 +51,53 @@ describe('Basic Timeout Task', function () {
     message: 'hello world'
   };
 
-  it('should fail twice and pass the third time', function (done) {
-    testWorkerEmitter.on('did-not-time-out', function () {
-      // setTimeout so the worker can resolve
-      setTimeout(function () {
-        // this signals to us that we are done!
-        assert.ok(_Worker.prototype.run.calledThrice, '.run called thrice');
-        /*
-         *  We can get the promise and assure that it was fulfilled!
-         *  It was run three times and all three should be fulfilled.
-         */
-        [
-          _Worker.prototype.run.firstCall.returnValue,
-          _Worker.prototype.run.secondCall.returnValue,
-          _Worker.prototype.run.thirdCall.returnValue
-        ].forEach(function (p) { assert.isFulfilled(p); });
-        // and, make sure the error module has logged the TimeoutError twice
-        // have to do a bit of weird filtering, but this is correct. Long story
-        // short, log.warn is called a couple times, but we just want to make
-        // sure the 'task timed out' message is just twice (the number of times
-        // this worker failed).
-        var errors = _Bunyan.prototype.warn.args.reduce(function (memo, args) {
-          var checkArgs = args.filter(function (arg) {
-            return /task timed out/i.test(arg);
-          });
-          if (checkArgs.length) { memo.push(args.shift().err); }
-          return memo;
-        }, []);
-        errors.forEach(function (err) {
-          assert.instanceOf(err, TimeoutError);
-        });
-        done();
-      }, 50);
+  describe('with a timeout', function () {
+    this.timeout(3500);
+    var prevTimeout;
+    before(function () {
+      prevTimeout = process.env.WORKER_TIMEOUT;
+      process.env.WORKER_TIMEOUT = 1;
     });
+    after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
 
-    server.hermes.publish('ponos-test:one', job);
+    it('should fail twice and pass the third time', function (done) {
+      testWorkerEmitter.on('did-not-time-out', function () {
+        // setTimeout so the worker can resolve
+        setTimeout(function () {
+          // this signals to us that we are done!
+          assert.ok(_Worker.prototype.run.calledThrice, '.run called thrice');
+          /*
+           *  We can get the promise and assure that it was fulfilled!
+           *  It was run three times and all three should be fulfilled.
+           */
+          [
+            _Worker.prototype.run.firstCall.returnValue,
+            _Worker.prototype.run.secondCall.returnValue,
+            _Worker.prototype.run.thirdCall.returnValue
+          ].forEach(function (p) { assert.isFulfilled(p); });
+          /*
+           * and, make sure the error module has logged the TimeoutError twice
+           * have to do a bit of weird filtering, but this is correct. Long
+           * story short, log.warn is called a couple times, but we just want to
+           * make sure the 'task timed out' message is just twice (the number of
+           * times this worker failed).
+           */
+          var bunyanCalls = _Bunyan.prototype.warn.args;
+          var errors = bunyanCalls.reduce(function (memo, args) {
+            var checkArgs = args.filter(function (arg) {
+              return /task timed out/i.test(arg);
+            });
+            if (checkArgs.length) { memo.push(args.shift().err); }
+            return memo;
+          }, []);
+          errors.forEach(function (err) {
+            assert.instanceOf(err, TimeoutError);
+          });
+          done();
+        }, 50);
+      });
+
+      server.hermes.publish('ponos-test:one', job);
+    });
   });
 });
