@@ -85,6 +85,30 @@ describe('Worker', function () {
           });
       });
 
+      describe('with worker timeout', function () {
+        var prevTimeout;
+        before(function () {
+          prevTimeout = process.env.WORKER_TIMEOUT;
+          process.env.WORKER_TIMEOUT = 0.01;
+        });
+        after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
+
+        it('should timeout the job', function () {
+          // we are going to replace the handler w/ a stub
+          taskHandler = function () {
+            taskHandler = sinon.stub();
+            return Promise.resolve().delay(25);
+          };
+          doneHandler = sinon.stub();
+          return assert.isFulfilled(worker.run())
+            .then(function () {
+              // this is asserting taskHandler called once, but was twice
+              assert.ok(taskHandler.calledOnce, 'task was called once');
+              assert.ok(doneHandler.calledOnce, 'done was called once');
+            });
+        });
+      });
+
       describe('with max retry delay', function () {
         var prevDelay;
         before(function () {
