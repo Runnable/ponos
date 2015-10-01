@@ -56,7 +56,7 @@ describe('Worker', function () {
         prevTimeout = process.env.WORKER_TIMEOUT;
         process.env.WORKER_TIMEOUT = 4;
       });
-      after(function () { process.env.WORKER_MAX_RETRY_DELAY = prevTimeout; });
+      after(function () { process.env.WORKER_TIMEOUT = prevTimeout; });
 
       it('should use the environment timeout', function () {
         var w = Worker.create(opts);
