@@ -16,6 +16,15 @@ options         | environment         | default
 `opts.username` | `RABBITMQ_USERNAME` | `'guest'`
 `opts.password` | `RABBITMQ_PASSWORD` | `'guest'`
 
+Other options for Ponos are as follows:
+
+Environment              | default | description
+-------------------------|---------|------------
+`WORKER_MAX_RETRY_DELAY` | `0`     | The maximum time, in milliseconds, that the worker will wait before retrying a task. The timeout will exponentially increase from `MIN_RETRY_DELAY` to `MAX_RETRY_DELAY` if the latter is set higher than the former. If this value is not set, the worker will not exponentially back off.
+`WORKER_MIN_RETRY_DELAY` | `1`     | Time, in milliseconds, the worker will wait at minimum will wait before retrying a task.
+`WORKER_TIMEOUT`         | `0`     | Timeout, in milliseconds, at which the worker task will be retried.
+
+
 ## Usage
 
 From a high level, Ponos is used to create a worker server that responds to jobs provided from RabbitMQ. The user defines handlers for each queue's jobs that are invoked by Ponos.
