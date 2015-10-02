@@ -7,7 +7,7 @@ sudo: false
 services:
 - rabbitmq
 env:
-- LOG_LEVEL_STDOUT=error
+- LOG_LEVEL=error
 script:
 - npm run lint
 - npm run coverage

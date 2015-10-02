@@ -36,19 +36,23 @@ describe('Worker', function () {
         Worker.create(testOpts);
       }, /job is required.+Worker/);
     });
+
     it('should run the job if runNow is true (default)', function () {
       Worker.create(opts);
       assert.ok(Worker.prototype.run.calledOnce, '.run called');
     });
+
     it('should hold the job if runNow is not true', function () {
       var testOpts = assign({ runNow: false }, opts);
       Worker.create(testOpts);
       assert.notOk(Worker.prototype.run.calledOnce, '.run not called');
     });
+
     it('should default the timeout to not exist', function () {
       var w = Worker.create(opts);
       assert.equal(w.msTimeout, 0, 'set the timeout correctly');
     });
+
     describe('with worker timeout', function () {
       var prevTimeout;
       before(function () {
@@ -60,6 +64,13 @@ describe('Worker', function () {
       it('should use the environment timeout', function () {
         var w = Worker.create(opts);
         assert.equal(w.msTimeout, 4 * 1000, 'set the timeout correctly');
+      });
+
+      it('should throw when given a non-integer', function () {
+        opts.msTimeout = 'foobar';
+        assert.throws(function () {
+          Worker.create(opts);
+        });
       });
     });
   });

@@ -23,6 +23,7 @@ describe('Basic Failing Task', function () {
   var server;
   before(function (done) {
     sinon.spy(_Worker.prototype, 'run');
+    sinon.spy(_Worker.prototype, '_reportError');
     var tasks = {
       'ponos-test:one': testWorker
     };
@@ -39,6 +40,7 @@ describe('Basic Failing Task', function () {
     server.stop()
       .then(function () {
         _Worker.prototype.run.restore();
+        _Worker.prototype._reportError.restore();
         done();
       });
   });
@@ -79,7 +81,7 @@ describe('Basic Failing Task', function () {
          */
         var workerRunPromise = _Worker.prototype.run.firstCall.returnValue;
         assert.isFulfilled(workerRunPromise);
-        var err = testWorker.errorCat.report.firstCall.args[0];
+        var err = _Worker.prototype._reportError.firstCall.args[0];
         assert.instanceOf(err, TaskFatalError);
         assert.match(err, /message.+required/);
         done();

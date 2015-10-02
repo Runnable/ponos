@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/Runnable/ponos",
   "dependencies": {
-    "101": "^1.0.0",
+    "101": "^1.1.1",
     "bluebird": "^2.10.1",
     "bunyan": "^1.5.1",
     "error-cat": "^1.3.4",
