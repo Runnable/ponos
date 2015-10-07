@@ -131,17 +131,23 @@ describe('Server', function () {
 
     it('should reject when a queue is missing a task handler', function () {
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        queues: [ 'a', 'b' ]
+        opts: {
+          queues: [ 'a', 'b' ]
+        }
       });
       var s = new ponos.Server({ queues: [ 'a', 'b' ] });
       s.setTask('b', noop)
         .then(function () {
-          assert.isRejected(s._assertHaveAllTasks());
+          assert.isRejected(s._assertHaveAllTasks(), /handler not defined/);
         });
     });
 
     it('should accept when all queues have task handlers', function () {
-      sinon.stub(hermes, 'hermesSingletonFactory').returns({ queues: ['a'] });
+      sinon.stub(hermes, 'hermesSingletonFactory').returns({
+        opts: {
+          queues: ['a']
+        }
+      });
       var s = new ponos.Server({ queues: ['a'] });
       s.setTask('a', noop)
         .then(function () {
@@ -157,7 +163,9 @@ describe('Server', function () {
     beforeEach(function () {
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
-        queues: queues
+        opts: {
+          queues: queues
+        }
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
@@ -187,7 +195,9 @@ describe('Server', function () {
     beforeEach(function () {
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
-        queues: queues
+        opts: {
+          queues: queues
+        }
       });
       server = new ponos.Server({ queues: queues });
       sinon.stub(server, '_subscribe');
