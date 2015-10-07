@@ -11,7 +11,7 @@ var noop = require('101/noop');
 
 var ponos = require('../../');
 var Worker = require('../../lib/worker');
-var log = require('../../lib/logger');
+var ponosDefaultLogger = require('../../lib/logger');
 
 var tasks = {
   'test-queue-01': worker,
@@ -113,7 +113,7 @@ describe('Server', function () {
 
     it('should use the default logger', function () {
       var s = new ponos.Server({ queues: Object.keys(tasks) });
-      assert.equal(s.log, log);
+      assert.equal(s.log, ponosDefaultLogger);
     });
 
     it('should use the provided logger', function () {
