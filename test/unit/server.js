@@ -415,7 +415,6 @@ describe('Server', function () {
       server.hermes.closeAsync.returns(Promise.reject(closeError));
       return assert.isRejected(server.stop())
         .then(function () {
-          console.log(server.errorCat.report.callCount);
           assert.ok(server.errorCat.report.calledWith(closeError));
         });
     });

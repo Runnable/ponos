@@ -70,7 +70,14 @@ describe('Worker', function () {
         opts.msTimeout = 'foobar';
         assert.throws(function () {
           Worker.create(opts);
-        });
+        }, /not an integer/);
+      });
+
+      it('should throw when given a negative timeout', function () {
+        opts.msTimeout = -230;
+        assert.throws(function () {
+          Worker.create(opts);
+        }, /is negative/);
       });
     });
   });
