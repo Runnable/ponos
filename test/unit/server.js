@@ -391,7 +391,7 @@ describe('Server', function () {
           });
       });
 
-      it('should report start errors', function() {
+      it('should report start errors', function () {
         var startError = new Error('I don\'t want to...');
         server.hermes.connectAsync.returns(Promise.reject(startError));
         assert.isRejected(server.start())
@@ -410,7 +410,7 @@ describe('Server', function () {
         });
     });
 
-    it('should report and rethrow stop errors', function() {
+    it('should report and rethrow stop errors', function () {
       var closeError = new Error('Hermes is tired...');
       server.hermes.closeAsync.returns(Promise.reject(closeError));
       return assert.isRejected(server.stop())
