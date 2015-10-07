@@ -15,6 +15,9 @@ options         | environment         | default
 `opts.port`     | `RABBITMQ_PORT`     | `'5672'`
 `opts.username` | `RABBITMQ_USERNAME` | `'guest'`
 `opts.password` | `RABBITMQ_PASSWORD` | `'guest'`
+`opts.log`      | *N/A*               | Basic [bunyan](https://github.com/trentm/node-bunyan) instance with `stdout` stream (for logging)
+`opts.errorCat` | *N/A*               | Basic [error-cat](https://github.com/runnable/error-cat) instance (for rollbar error reporting)
+
 
 Other options for Ponos are as follows:
 
@@ -95,6 +98,29 @@ function myWorker (job) {
       }
     });
 }
+```
+
+## Worker Options
+Currently workers can be defined with a `msTimeout` option. This value defaults to
+`process.env.WORKER_TIMEOUT || 0`. One can set a specific millisecond timeout for
+a worker like so:
+
+```js
+server.setTask('my-queue', workerFunction, { msTimeout: 1234 });
+```
+
+Or one can set this option via `setAllTasks`:
+
+```js
+server.setAllTasks({
+  // This will use the default timeout...
+  'queue-1': queueOneTaskFn,
+  // This will use the specified timeout...
+  'queue-2': {
+    task: queueTwoTaskFn,
+    msTimeout: 1337
+  }
+});
 ```
 
 ## Full Example

@@ -14,8 +14,6 @@ var testWorkerEmitter = testWorker.emitter;
 
 // require the Worker class so we can verify the task is running
 var _Worker = require('../../lib/worker');
-// require the error module so we can see the error printed
-var _PonosErrorCat = require('../../lib/error');
 
 /*
  *  In this example, we are going to pass an invalid job to the worker that will
@@ -25,7 +23,7 @@ describe('Basic Failing Task', function () {
   var server;
   before(function (done) {
     sinon.spy(_Worker.prototype, 'run');
-    sinon.stub(_PonosErrorCat, 'log');
+    sinon.spy(_Worker.prototype, '_reportError');
     var tasks = {
       'ponos-test:one': testWorker
     };
@@ -42,7 +40,7 @@ describe('Basic Failing Task', function () {
     server.stop()
       .then(function () {
         _Worker.prototype.run.restore();
-        _PonosErrorCat.log.restore();
+        _Worker.prototype._reportError.restore();
         done();
       });
   });
@@ -83,9 +81,11 @@ describe('Basic Failing Task', function () {
          */
         var workerRunPromise = _Worker.prototype.run.firstCall.returnValue;
         assert.isFulfilled(workerRunPromise);
-        // and, make sure the error module has logged the error
-        assert.ok(_PonosErrorCat.log.calledOnce, 'error.log called');
-        var err = _PonosErrorCat.log.firstCall.args[0];
+        assert.ok(
+          _Worker.prototype._reportError.calledOnce,
+          'worker._reportError called once'
+        );
+        var err = _Worker.prototype._reportError.firstCall.args[0];
         assert.instanceOf(err, TaskFatalError);
         assert.match(err, /message.+required/);
         done();

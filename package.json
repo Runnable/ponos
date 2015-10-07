@@ -10,7 +10,7 @@
     "functional": "mocha --recursive --reporter spec test/functional",
     "lint": "eslint .",
     "test": "npm run lint && npm run unit && npm run functional",
-    "unit": "mocha --bail --recursive --reporter spec test/unit"
+    "unit": "mocha --timeout 5000 --bail --recursive --reporter spec test/unit"
   },
   "repository": {
     "type": "git",
@@ -30,12 +30,12 @@
   },
   "homepage": "https://github.com/Runnable/ponos",
   "dependencies": {
-    "101": "^1.0.0",
+    "101": "^1.1.1",
     "bluebird": "^2.10.1",
     "bunyan": "^1.5.1",
     "error-cat": "^1.3.4",
     "loadenv": "^1.1.0",
-    "runnable-hermes": "^5.3.0"
+    "runnable-hermes": "^5.4.0"
   },
   "devDependencies": {
     "async": "^1.4.2",
