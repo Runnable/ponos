@@ -82,6 +82,55 @@ describe('Worker', function () {
     });
   });
 
+  describe('_reportError', function() {
+    var worker;
+    var queue = 'some-queue-name';
+    var job = { foo: 'barrz' };
+
+    beforeEach(function () {
+      worker = Worker.create(opts);
+      sinon.stub(worker.errorCat, 'report');
+      worker.queue = queue;
+      worker.job = job
+    });
+
+    afterEach(function () {
+      worker.errorCat.report.restore();
+    });
+
+    it('should set data on the error', function() {
+      var error = new Error('an error');
+      worker._reportError(error);
+      assert.isObject(error.data);
+    });
+
+    it('should set queue data', function () {
+      var error = new Error('an error');
+      worker._reportError(error);
+      assert.equal(error.data.queue, queue);
+    });
+
+    it('should set job data', function () {
+      var error = new Error('an error');
+      worker._reportError(error);
+      assert.deepEqual(error.data.job, job);
+    });
+
+    it('should not remove given data', function () {
+      var error = new Error('an error');
+      error.data = { custom: 'foo' };
+      worker._reportError(error);
+      assert.equal(error.data.custom, 'foo');
+    });
+
+    it('should report the error via error-cat', function () {
+      var error = new Error('an error');
+      worker._reportError(error);
+      assert.ok(worker.errorCat.report.calledOnce);
+      assert.ok(worker.errorCat.report.calledWith(error));
+    });
+  });
+
   describe('run', function () {
     var worker;
     beforeEach(function () {
@@ -151,43 +200,97 @@ describe('Worker', function () {
     });
 
     describe('errored behavior', function () {
+      beforeEach(function () {
+        doneHandler = sinon.stub();
+        sinon.stub(worker.log, 'error');
+        sinon.stub(worker.log, 'warn');
+        sinon.stub(worker, '_reportError');
+      });
+
+      afterEach(function () {
+        worker.log.error.restore();
+        worker.log.warn.restore();
+        worker._reportError.restore();
+      });
+
       it('should catch TaskFatalError, not retry, and call done', function () {
         taskHandler = sinon.stub().throws(new TaskFatalError('foobar'));
-        doneHandler = sinon.stub();
         return assert.isFulfilled(worker.run())
           .then(function () {
             assert.ok(taskHandler.calledOnce, 'task was called once');
             assert.ok(doneHandler.calledOnce, 'done was called once');
           });
       });
+
       it('should retry if task throws Error', function () {
         taskHandler = sinon.stub();
         taskHandler.onFirstCall().throws(new Error('foobar'));
-        doneHandler = sinon.stub();
         return assert.isFulfilled(worker.run())
           .then(function () {
             assert.equal(taskHandler.callCount, 2, 'task was called twice');
             assert.ok(doneHandler.calledOnce, 'done was called once');
           });
       });
+
       it('should retry if task throws TaskError', function () {
         taskHandler = sinon.stub();
         taskHandler.onFirstCall().throws(new TaskError('foobar'));
-        doneHandler = sinon.stub();
         return assert.isFulfilled(worker.run())
           .then(function () {
             assert.equal(taskHandler.callCount, 2, 'task was called twice');
             assert.ok(doneHandler.calledOnce, 'done was called once');
           });
       });
+
       it('should retry if task throws TimeoutError', function () {
         taskHandler = sinon.stub();
         taskHandler.onFirstCall().throws(new TimeoutError());
-        doneHandler = sinon.stub();
         return assert.isFulfilled(worker.run())
           .then(function () {
             assert.equal(taskHandler.callCount, 2, 'task was called twice');
             assert.ok(doneHandler.calledOnce, 'done was called once');
+          });
+      });
+
+      it('should log TaskFatalError', function () {
+        var fatalError = new TaskFatalError('foobar');
+        taskHandler = sinon.stub().throws(fatalError);
+        return assert.isFulfilled(worker.run())
+          .then(function () {
+            assert.ok(worker.log.error.calledOnce);
+            assert.deepEqual(worker.log.error.firstCall.args[0], {
+              err: fatalError
+            });
+          });
+      });
+
+      it('should report TaskFatalError', function () {
+        var fatalError = new TaskFatalError('foobar');
+        taskHandler = sinon.stub().throws(fatalError);
+        return assert.isFulfilled(worker.run())
+          .then(function () {
+            assert.ok(worker._reportError.calledWith(fatalError));
+          });
+      });
+
+      it('should log all other errors', function () {
+        var otherError = new Error('stfunoob');
+        taskHandler = sinon.stub();
+        taskHandler.onFirstCall().throws(otherError);
+        return assert.isFulfilled(worker.run())
+          .then(function () {
+            assert.ok(worker.log.warn.calledOnce, 'log called once');
+            assert.equal(worker.log.warn.firstCall.args[0].err, otherError);
+          });
+      });
+
+      it('should report all other errors', function () {
+        var otherError = new Error('stfunoob');
+        taskHandler = sinon.stub();
+        taskHandler.onFirstCall().throws(otherError);
+        return assert.isFulfilled(worker.run())
+          .then(function () {
+            assert.ok(worker._reportError.calledWith(otherError));
           });
       });
     });
