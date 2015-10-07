@@ -82,7 +82,7 @@ describe('Worker', function () {
     });
   });
 
-  describe('_reportError', function() {
+  describe('_reportError', function () {
     var worker;
     var queue = 'some-queue-name';
     var job = { foo: 'barrz' };
@@ -91,14 +91,14 @@ describe('Worker', function () {
       worker = Worker.create(opts);
       sinon.stub(worker.errorCat, 'report');
       worker.queue = queue;
-      worker.job = job
+      worker.job = job;
     });
 
     afterEach(function () {
       worker.errorCat.report.restore();
     });
 
-    it('should set data on the error', function() {
+    it('should set data on the error', function () {
       var error = new Error('an error');
       worker._reportError(error);
       assert.isObject(error.data);

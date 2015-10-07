@@ -81,6 +81,10 @@ describe('Basic Failing Task', function () {
          */
         var workerRunPromise = _Worker.prototype.run.firstCall.returnValue;
         assert.isFulfilled(workerRunPromise);
+        assert.ok(
+          _Worker.prototype._reportError.calledOnce,
+          'worker._reportError called once'
+        );
         var err = _Worker.prototype._reportError.firstCall.args[0];
         assert.instanceOf(err, TaskFatalError);
         assert.match(err, /message.+required/);
