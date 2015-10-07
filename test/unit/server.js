@@ -367,6 +367,7 @@ describe('Server', function () {
             assert.equal(server.hermes.subscribeAsync.callCount, 2);
           });
       });
+
       it('should enqueue a function that creates workers', function () {
         return assert.isFulfilled(server.start())
           .then(function () {
@@ -387,6 +388,15 @@ describe('Server', function () {
               log: server.log,
               errorCat: server.errorCat
             });
+          });
+      });
+
+      it('should report start errors', function() {
+        var startError = new Error('I don\'t want to...');
+        server.hermes.connectAsync.returns(Promise.reject(startError));
+        assert.isRejected(server.start())
+          .then(function () {
+            assert.ok(server.errorCat.report.calledWith(startError));
           });
       });
     });
