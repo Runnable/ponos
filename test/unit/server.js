@@ -17,7 +17,6 @@ var tasks = {
   'test-queue-01': worker,
   'test-queue-02': worker
 };
-function resolvePromise () { return Promise.resolve(); }
 function worker (job, done) {}; // eslint-disable-line no-unused-vars
 
 describe('Server', function () {
@@ -25,12 +24,16 @@ describe('Server', function () {
   beforeEach(function () { sinon.stub(Worker, 'create'); });
   beforeEach(function () {
     server = new ponos.Server({ queues: Object.keys(tasks) });
-    sinon.stub(server.hermes, 'connectAsync', resolvePromise);
-    sinon.stub(server.hermes, 'subscribeAsync', resolvePromise);
+    sinon.stub(server.hermes, 'connectAsync').returns(Promise.resolve());
+    sinon.stub(server.hermes, 'subscribeAsync').returns(Promise.resolve());
+    sinon.stub(server.hermes, 'closeAsync').returns(Promise.resolve());
+    sinon.spy(server.errorCat, 'report');
   });
   afterEach(function () {
     server.hermes.connectAsync.restore();
     server.hermes.subscribeAsync.restore();
+    server.hermes.closeAsync.restore();
+    server.errorCat.report.restore();
   });
   afterEach(function () { Worker.create.restore(); });
 
@@ -391,10 +394,19 @@ describe('Server', function () {
 
   describe('stop', function () {
     it('should close the hermes connection', function () {
-      sinon.stub(server.hermes, 'closeAsync', resolvePromise);
       return assert.isFulfilled(server.stop())
         .then(function () {
           assert.ok(server.hermes.closeAsync.calledOnce);
+        });
+    });
+
+    it('should report and rethrow stop errors', function() {
+      var closeError = new Error('Hermes is tired...');
+      server.hermes.closeAsync.returns(Promise.reject(closeError));
+      return assert.isRejected(server.stop())
+        .then(function () {
+          console.log(server.errorCat.report.callCount);
+          assert.ok(server.errorCat.report.calledWith(closeError));
         });
     });
   });
