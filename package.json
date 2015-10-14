@@ -4,6 +4,7 @@
   "description": "An opinionated queue based worker server for node.",
   "main": "index.js",
   "scripts": {
+    "changelog": "github-changes -o Runnable -r ponos -a --only-pulls --use-commit-body --order-semver",
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
@@ -43,6 +44,7 @@
     "chai-as-promised": "^5.1.0",
     "coveralls": "^2.11.4",
     "eslint": "^1.5.1",
+    "github-changes": "^1.0.0",
     "istanbul": "^0.3.20",
     "mocha": "^2.3.3",
     "sinon": "^1.17.0"
