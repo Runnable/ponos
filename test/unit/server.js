@@ -130,8 +130,9 @@ describe('Server', function () {
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
     it('should reject when a queue is missing a task handler', function () {
+      // runnable-hermes 6.0.0 moved .opts to ._opts
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        opts: {
+        _opts: {
           queues: [ 'a', 'b' ]
         }
       });
@@ -143,8 +144,9 @@ describe('Server', function () {
     });
 
     it('should accept when all queues have task handlers', function () {
+      // runnable-hermes 6.0.0 moved .opts to ._opts
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        opts: {
+        _opts: {
           queues: ['a']
         }
       });
@@ -161,9 +163,10 @@ describe('Server', function () {
     var queues = ['a'];
 
     beforeEach(function () {
+      // runnable-hermes 6.0.0 moved .opts to ._opts
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
-        opts: {
+        _opts: {
           queues: queues
         }
       });
@@ -193,9 +196,10 @@ describe('Server', function () {
     var queues = [ 'a', 'b' ];
 
     beforeEach(function () {
+      // runnable-hermes 6.0.0 moved .opts to ._opts
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
-        opts: {
+        _opts: {
           queues: queues
         }
       });
