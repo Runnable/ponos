@@ -130,11 +130,9 @@ describe('Server', function () {
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
     it('should reject when a queue is missing a task handler', function () {
-      // runnable-hermes 6.0.0 moved .opts to ._opts
+      // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        _opts: {
-          queues: [ 'a', 'b' ]
-        }
+        getQueues: sinon.stub().returns([ 'a', 'b' ])
       });
       var s = new ponos.Server({ queues: [ 'a', 'b' ] });
       s.setTask('b', noop)
@@ -144,11 +142,9 @@ describe('Server', function () {
     });
 
     it('should accept when all queues have task handlers', function () {
-      // runnable-hermes 6.0.0 moved .opts to ._opts
+      // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        _opts: {
-          queues: ['a']
-        }
+        getQueues: sinon.stub().returns(['a'])
       });
       var s = new ponos.Server({ queues: ['a'] });
       s.setTask('a', noop)
@@ -163,12 +159,10 @@ describe('Server', function () {
     var queues = ['a'];
 
     beforeEach(function () {
-      // runnable-hermes 6.0.0 moved .opts to ._opts
+      // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
-        _opts: {
-          queues: queues
-        }
+        getQueues: sinon.stub().returns(queues)
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
@@ -196,12 +190,10 @@ describe('Server', function () {
     var queues = [ 'a', 'b' ];
 
     beforeEach(function () {
-      // runnable-hermes 6.0.0 moved .opts to ._opts
+      // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
-        _opts: {
-          queues: queues
-        }
+        getQueues: sinon.stub().returns(queues)
       });
       server = new ponos.Server({ queues: queues });
       sinon.stub(server, '_subscribe');
