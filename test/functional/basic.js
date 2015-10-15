@@ -15,9 +15,7 @@ describe('Basic Example', function () {
       'ponos-test:one': testWorker
     };
     server = new ponos.Server({ queues: Object.keys(tasks) });
-    server.setAllTasks(tasks)
-      .then(server.start())
-      .then(function () { done(); });
+    server.setAllTasks(tasks).start().asCallback(done);
   });
   after(function (done) { server.stop().then(function () { done(); }); });
 

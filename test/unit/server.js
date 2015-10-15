@@ -25,13 +25,13 @@ describe('Server', function () {
   beforeEach(function () {
     server = new ponos.Server({ queues: Object.keys(tasks) });
     sinon.stub(server.hermes, 'connectAsync').returns(Promise.resolve());
-    sinon.stub(server.hermes, 'subscribeAsync').returns(Promise.resolve());
+    sinon.stub(server.hermes, 'subscribe').returns(Promise.resolve());
     sinon.stub(server.hermes, 'closeAsync').returns(Promise.resolve());
     sinon.spy(server.errorCat, 'report');
   });
   afterEach(function () {
     server.hermes.connectAsync.restore();
-    server.hermes.subscribeAsync.restore();
+    server.hermes.subscribe.restore();
     server.hermes.closeAsync.restore();
     server.errorCat.report.restore();
   });
@@ -135,10 +135,8 @@ describe('Server', function () {
         getQueues: sinon.stub().returns([ 'a', 'b' ])
       });
       var s = new ponos.Server({ queues: [ 'a', 'b' ] });
-      s.setTask('b', noop)
-        .then(function () {
-          assert.isRejected(s._assertHaveAllTasks(), /handler not defined/);
-        });
+      s.setTask('b', noop);
+      assert.isRejected(s._assertHaveAllTasks(), /handler not defined/);
     });
 
     it('should accept when all queues have task handlers', function () {
@@ -147,10 +145,8 @@ describe('Server', function () {
         getQueues: sinon.stub().returns(['a'])
       });
       var s = new ponos.Server({ queues: ['a'] });
-      s.setTask('a', noop)
-        .then(function () {
-          assert.isFulfilled(s._assertHaveAllTasks());
-        });
+      s.setTask('a', noop);
+      assert.isFulfilled(s._assertHaveAllTasks());
     });
   });
 
@@ -166,19 +162,20 @@ describe('Server', function () {
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
+      sinon.stub(server.hermes, 'subscribe');
       sinon.stub(server, '_runWorker');
-      sinon.stub(server.hermes, 'subscribeAsync').returns(true);
     });
 
     afterEach(function () {
+      server.hermes.subscribe.restore();
       hermes.hermesSingletonFactory.restore();
     });
 
     it('should apply the correct callback for the given queue', function () {
       server._subscribe('a');
-      assert.ok(server.hermes.subscribeAsync.calledOnce);
-      assert.ok(server.hermes.subscribeAsync.calledWith('a'));
-      var hermesCallback = server.hermes.subscribeAsync.firstCall.args[1];
+      assert.ok(server.hermes.subscribe.calledOnce);
+      assert.ok(server.hermes.subscribe.calledWith('a'));
+      var hermesCallback = server.hermes.subscribe.firstCall.args[1];
       var job = { foo: 'bar' };
       hermesCallback(job, noop);
       assert.ok(server._runWorker.calledWith('a', job, noop));
@@ -222,7 +219,7 @@ describe('Server', function () {
     beforeEach(function () {
       sinon.stub(hermes, 'hermesSingletonFactory').returns({ subscribe: noop });
       server = new ponos.Server({ queues: ['a'] });
-      return server.setTask('a', taskHandler, { msTimeout: msTimeout });
+      server.setTask('a', taskHandler, { msTimeout: msTimeout });
     });
 
     afterEach(function () {
@@ -282,40 +279,33 @@ describe('Server', function () {
 
   describe('setTask', function () {
     var queue = Object.keys(tasks)[0];
-    it('should accept tasks, and not subscribe', function () {
-      return assert.isFulfilled(server.setTask(queue, worker))
-        .then(function () {
-          assert.notOk(server.hermes.subscribeAsync.calledOnce);
-          assert.isFunction(server._tasks[queue]);
-        });
+    it('should set the task handler', function () {
+      server.setTask(queue, worker);
+      assert.isFunction(server._tasks[queue]);
     });
 
-    it('should reject if the provided task is not a function', function () {
-      return assert.isRejected(server.setTask(queue, 'not-a-function'));
+    it('should throw if the provided task is not a function', function () {
+      assert.throws(function () {
+        server.setTask(queue, 'not-a-function');
+      }, /not a function/);
     });
 
     it('should set default worker options', function () {
-      return assert.isFulfilled(server.setTask(queue, worker))
-        .then(function () {
-          assert.deepEqual(server._workerOptions[queue], {});
-        });
+      server.setTask(queue, worker);
+      assert.deepEqual(server._workerOptions[queue], {});
     });
 
     it('should set worker options for tasks', function () {
       var opts = { msTimeout: 2000 };
-      return assert.isFulfilled(server.setTask(queue, worker, opts))
-        .then(function () {
-          assert.deepEqual(server._workerOptions[queue], opts);
-        });
+      server.setTask(queue, worker, opts);
+      assert.deepEqual(server._workerOptions[queue], opts);
     });
 
     it('should pick only provided options that are valid', function () {
       var opts = { msTimeout: 2000, foo: 'bar', not: 'athing' };
       var expectedOpts = { msTimeout: 2000 };
-      return assert.isFulfilled(server.setTask(queue, worker, opts))
-        .then(function () {
-          assert.deepEqual(server._workerOptions[queue], expectedOpts);
-        });
+      server.setTask(queue, worker, opts);
+      assert.deepEqual(server._workerOptions[queue], expectedOpts);
     });
   });
 
@@ -328,31 +318,27 @@ describe('Server', function () {
 
     it('should set multiple tasks', function () {
       var numTasks = Object.keys(tasks).length;
-      return assert.isFulfilled(server.setAllTasks(tasks))
-        .then(function () {
-          assert.equal(server.setTask.callCount, numTasks);
-          assert.equal(Object.keys(server._tasks).length, numTasks);
-        });
+      server.setAllTasks(tasks);
+      assert.equal(server.setTask.callCount, numTasks);
+      assert.equal(Object.keys(server._tasks).length, numTasks);
     });
 
     describe('with option objects', function () {
-      it('should reject if a task is not defined', function () {
+      it('should throw if a task is not defined', function () {
         var tasks = {};
         tasks[queue] = { msTimeout: 2000 };
-        return assert.isRejected(server.setAllTasks(tasks))
-          .then(function () {
-            assert.equal(server.setTask.callCount, 0);
-          });
+        assert.throws(function () {
+          server.setAllTasks(tasks);
+        }, /No task function defined/);
+        assert.equal(server.setTask.callCount, 0);
       });
 
       it('should pass options when calling setTask', function () {
         var tasks = {};
         var opts = tasks[queue] = { task: noop, msTimeout: 2000 };
-        return assert.isFulfilled(server.setAllTasks(tasks))
-          .then(function () {
-            assert.ok(server.setTask.calledOnce);
-            assert.deepEqual(server.setTask.firstCall.args[2], opts);
-          });
+        server.setAllTasks(tasks);
+        assert.ok(server.setTask.calledOnce);
+        assert.deepEqual(server.setTask.firstCall.args[2], opts);
       });
     });
   });
@@ -370,16 +356,16 @@ describe('Server', function () {
       it('should subscribe to all queues', function () {
         return assert.isFulfilled(server.start())
           .then(function () {
-            assert.equal(server.hermes.subscribeAsync.callCount, 2);
+            assert.equal(server.hermes.subscribe.callCount, 2);
           });
       });
 
       it('should enqueue a function that creates workers', function () {
         return assert.isFulfilled(server.start())
           .then(function () {
-            assert.equal(server.hermes.subscribeAsync.callCount, 2);
+            assert.equal(server.hermes.subscribe.callCount, 2);
             // get the function that was placed for the queue
-            var fn = server.hermes.subscribeAsync.getCall(0).args.pop();
+            var fn = server.hermes.subscribe.getCall(0).args.pop();
             assert.isFunction(fn);
             assert.equal(Worker.create.callCount, 0);
             // call the function that was enqueued

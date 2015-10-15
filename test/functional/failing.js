@@ -28,8 +28,7 @@ describe('Basic Failing Task', function () {
       'ponos-test:one': testWorker
     };
     server = new ponos.Server({ queues: Object.keys(tasks) });
-    server.setAllTasks(tasks)
-      .then(server.start())
+    server.setAllTasks(tasks).start()
       .then(function () {
         assert.notOk(_Worker.prototype.run.called, '.run should not be called');
         done();
