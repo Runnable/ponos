@@ -151,8 +151,7 @@ var hermes = require('runnable-hermes');
 var server = new ponos.Server({ hermes: hermes.hermesSingletonFactory({...}) });
 
 // You can also nicely chain the promises!
-server.setAllTasks()
-  .then(server.start())
+server.start()
   .then(function () { /*...*/ })
   .catch(function (err) { /*...*/ });
 ```
