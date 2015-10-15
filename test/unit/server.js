@@ -25,13 +25,13 @@ describe('Server', function () {
   beforeEach(function () {
     server = new ponos.Server({ queues: Object.keys(tasks) });
     sinon.stub(server.hermes, 'connectAsync').returns(Promise.resolve());
-    sinon.stub(server.hermes, 'subscribeAsync').returns(Promise.resolve());
+    sinon.stub(server.hermes, 'subscribe').returns(Promise.resolve());
     sinon.stub(server.hermes, 'closeAsync').returns(Promise.resolve());
     sinon.spy(server.errorCat, 'report');
   });
   afterEach(function () {
     server.hermes.connectAsync.restore();
-    server.hermes.subscribeAsync.restore();
+    server.hermes.subscribe.restore();
     server.hermes.closeAsync.restore();
     server.errorCat.report.restore();
   });
@@ -162,19 +162,20 @@ describe('Server', function () {
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
+      sinon.stub(server.hermes, 'subscribe');
       sinon.stub(server, '_runWorker');
-      sinon.stub(server.hermes, 'subscribeAsync').returns(true);
     });
 
     afterEach(function () {
+      server.hermes.subscribe.restore();
       hermes.hermesSingletonFactory.restore();
     });
 
     it('should apply the correct callback for the given queue', function () {
       server._subscribe('a');
-      assert.ok(server.hermes.subscribeAsync.calledOnce);
-      assert.ok(server.hermes.subscribeAsync.calledWith('a'));
-      var hermesCallback = server.hermes.subscribeAsync.firstCall.args[1];
+      assert.ok(server.hermes.subscribe.calledOnce);
+      assert.ok(server.hermes.subscribe.calledWith('a'));
+      var hermesCallback = server.hermes.subscribe.firstCall.args[1];
       var job = { foo: 'bar' };
       hermesCallback(job, noop);
       assert.ok(server._runWorker.calledWith('a', job, noop));
@@ -278,9 +279,8 @@ describe('Server', function () {
 
   describe('setTask', function () {
     var queue = Object.keys(tasks)[0];
-    it('should accept tasks, and not subscribe', function () {
+    it('should set the task handler', function () {
       server.setTask(queue, worker);
-      assert.notOk(server.hermes.subscribeAsync.calledOnce);
       assert.isFunction(server._tasks[queue]);
     });
 
@@ -356,16 +356,16 @@ describe('Server', function () {
       it('should subscribe to all queues', function () {
         return assert.isFulfilled(server.start())
           .then(function () {
-            assert.equal(server.hermes.subscribeAsync.callCount, 2);
+            assert.equal(server.hermes.subscribe.callCount, 2);
           });
       });
 
       it('should enqueue a function that creates workers', function () {
         return assert.isFulfilled(server.start())
           .then(function () {
-            assert.equal(server.hermes.subscribeAsync.callCount, 2);
+            assert.equal(server.hermes.subscribe.callCount, 2);
             // get the function that was placed for the queue
-            var fn = server.hermes.subscribeAsync.getCall(0).args.pop();
+            var fn = server.hermes.subscribe.getCall(0).args.pop();
             assert.isFunction(fn);
             assert.equal(Worker.create.callCount, 0);
             // call the function that was enqueued
