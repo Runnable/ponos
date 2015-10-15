@@ -8,7 +8,7 @@
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
-    "functional": "mocha --timeout 15000 --recursive --reporter spec test/functional",
+    "functional": "mocha --recursive --reporter spec test/functional",
     "lint": "eslint .",
     "test": "npm run lint && npm run unit && npm run functional",
     "unit": "mocha --timeout 5000 --bail --recursive --reporter spec test/unit"
