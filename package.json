@@ -8,6 +8,7 @@
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
+    "format": "standard --format",
     "functional": "mocha --recursive --reporter spec test/functional",
     "lint": "eslint .",
     "test": "npm run lint && npm run unit && npm run functional",
@@ -30,6 +31,16 @@
     "url": "https://github.com/Runnable/ponos/issues"
   },
   "homepage": "https://github.com/Runnable/ponos",
+  "standard": {
+    "globals": [
+      "describe",
+      "it",
+      "before",
+      "after",
+      "beforeEach",
+      "afterEach"
+    ]
+  },
   "dependencies": {
     "101": "^1.1.1",
     "bluebird": "^2.10.1",
@@ -48,6 +59,7 @@
     "github-changes": "^1.0.0",
     "istanbul": "^0.3.20",
     "mocha": "^2.3.3",
-    "sinon": "^1.17.0"
+    "sinon": "^1.17.0",
+    "standard": "^5.3.1"
   }
 }

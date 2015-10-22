@@ -1,10 +1,10 @@
-'use strict';
+'use strict'
 
-var EventEmitter = require('events').EventEmitter;
-var ponos = require('../../../');
-var Promise = require('bluebird');
+var EventEmitter = require('events').EventEmitter
+var ponos = require('../../../')
+var Promise = require('bluebird')
 
-var TaskFatalError = ponos.TaskFatalError;
+var TaskFatalError = ponos.TaskFatalError
 
 /**
  * A simple worker that will publish a message to a queue.
@@ -15,12 +15,12 @@ var TaskFatalError = ponos.TaskFatalError;
 module.exports = function (job) {
   return Promise.resolve()
     .then(function () {
-      if (!job.eventName) { throw new TaskFatalError('eventName is required'); }
-      if (!job.message) { throw new TaskFatalError('message is required'); }
+      if (!job.eventName) { throw new TaskFatalError('eventName is required') }
+      if (!job.message) { throw new TaskFatalError('message is required') }
     })
     .then(function () {
-      module.exports.emitter.emit(job.eventName, { data: job.message });
-    });
-};
+      module.exports.emitter.emit(job.eventName, { data: job.message })
+    })
+}
 
-module.exports.emitter = new EventEmitter();
+module.exports.emitter = new EventEmitter()
