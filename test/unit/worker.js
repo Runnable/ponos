@@ -11,6 +11,7 @@ var TaskFatalError = require('../../lib/errors/task-fatal-error');
 var TimeoutError = Promise.TimeoutError;
 var Worker = require('../../lib/worker');
 var assign = require('101/assign');
+var noop = require('101/noop');
 
 describe('Worker', function () {
   var opts;
@@ -51,6 +52,21 @@ describe('Worker', function () {
     it('should default the timeout to not exist', function () {
       var w = Worker.create(opts);
       assert.equal(w.msTimeout, 0, 'set the timeout correctly');
+    });
+
+    it('should use the given logger', function (done) {
+      var log = { info: noop };
+      opts.log = log;
+      var w = Worker.create(opts);
+      assert.equal(w.log, log);
+      done();
+    });
+
+    it('should use the given errorCat', function (done) {
+      opts.errorCat = 'mew';
+      var w = Worker.create(opts);
+      assert.equal(w.errorCat, 'mew');
+      done();
     });
 
     describe('with worker timeout', function () {
