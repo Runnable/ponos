@@ -211,6 +211,66 @@ describe('Server', function () {
     });
   });
 
+  describe('_unsubscribe', function () {
+    var server;
+    var queues = ['a'];
+
+    beforeEach(function () {
+      // runnable-hermes 6.1.0 introduced .getQueues
+      sinon.stub(hermes, 'hermesSingletonFactory').returns({
+        unsubscribe: noop,
+        getQueues: sinon.stub().returns(queues)
+      });
+      server = new ponos.Server({ queues: queues });
+      server.setAllTasks({ a: noop });
+      sinon.stub(server.hermes, 'unsubscribe');
+      sinon.stub(server, '_runWorker');
+    });
+
+    afterEach(function () {
+      server.hermes.unsubscribe.restore();
+      hermes.hermesSingletonFactory.restore();
+    });
+
+    it('should apply the correct callback for the given queue', function () {
+      server._unsubscribe('a');
+      assert.ok(server.hermes.unsubscribe.calledOnce);
+      assert.ok(server.hermes.unsubscribe.calledWith('a'));
+      var job = { foo: 'bar' };
+      assert.ok(server._runWorker.notCalled);
+    });
+  });
+
+  describe('_unsubscribeAll', function () {
+    var server;
+    var queues = [ 'a', 'b' ];
+
+    beforeEach(function () {
+      // runnable-hermes 6.1.0 introduced .getQueues
+      sinon.stub(hermes, 'hermesSingletonFactory').returns({
+        subscribe: noop,
+        unsubscribe: noop,
+        getQueues: sinon.stub().returns(queues)
+      });
+      server = new ponos.Server({ queues: queues });
+      sinon.stub(server, '_unsubscribe');
+      return server.setAllTasks({ a: noop, b: noop });
+    });
+
+    afterEach(function () { hermes.hermesSingletonFactory.restore(); });
+
+    it('should call `_unsubscribe` for each queue', function (done) {
+      server._unsubscribeAll()
+        .then(function () {
+          assert.ok(server._unsubscribe.calledTwice);
+          assert.ok(server._unsubscribe.calledWith('a'));
+          assert.ok(server._unsubscribe.calledWith('b'));
+          done();
+        })
+        .catch(done);
+    });
+  });
+
   describe('_runWorker', function () {
     var server;
     var taskHandler = function () { return 'yuss'; };
