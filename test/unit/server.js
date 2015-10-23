@@ -236,7 +236,6 @@ describe('Server', function () {
       server._unsubscribe('a');
       assert.ok(server.hermes.unsubscribe.calledOnce);
       assert.ok(server.hermes.unsubscribe.calledWith('a'));
-      var job = { foo: 'bar' };
       assert.ok(server._runWorker.notCalled);
     });
   });
