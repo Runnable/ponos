@@ -215,17 +215,15 @@ describe('Server', function () {
     beforeEach(function () {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        unsubscribe: noop,
+        unsubscribe: sinon.stub(),
         getQueues: sinon.stub().returns(queues)
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
-      sinon.stub(server.hermes, 'unsubscribe');
       sinon.stub(server, '_runWorker');
     });
 
     afterEach(function () {
-      server.hermes.unsubscribe.restore();
       hermes.hermesSingletonFactory.restore();
     });
 
@@ -244,8 +242,6 @@ describe('Server', function () {
     beforeEach(function () {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        subscribe: noop,
-        unsubscribe: noop,
         getQueues: sinon.stub().returns(queues)
       });
       server = new ponos.Server({ queues: queues });
