@@ -5,3 +5,4 @@
 .travis.yml
 coverage
 test
+resources/mocha-bootstrap.js
