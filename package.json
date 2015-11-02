@@ -26,6 +26,9 @@
     "message"
   ],
   "author": "Ryan Sandor Richards <sandor.richards@gmail.com>",
+  "contributors": [
+    "Bryan Kendall <bryan@runnable.com>"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Runnable/ponos/issues"
