@@ -62,7 +62,7 @@ describe('Basic Timeout Task', function () {
     it('should fail twice and pass the third time', function (done) {
       testWorkerEmitter.on('did-not-time-out', function () {
         // setTimeout so the worker can resolve
-        setTimeout(function () {
+        process.nextTick(function () {
           // this signals to us that we are done!
           assert.ok(_Worker.prototype.run.calledThrice, '.run called thrice');
           /*
@@ -93,7 +93,7 @@ describe('Basic Timeout Task', function () {
             assert.instanceOf(err, TimeoutError);
           });
           done();
-        }, 50);
+        });
       });
 
       server.hermes.publish('ponos-test:one', job);
