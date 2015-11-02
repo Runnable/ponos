@@ -16,7 +16,7 @@ var tasks = {
   'test-queue-01': worker,
   'test-queue-02': worker
 };
-function worker (job, done) {}; // eslint-disable-line no-unused-vars
+function worker (job, done) {} // eslint-disable-line no-unused-vars
 
 describe('Server', function () {
   var server;
@@ -100,13 +100,13 @@ describe('Server', function () {
 
     it('should require a list of queues', function () {
       assert.throws(function () {
-        new ponos.Server();
+        return new ponos.Server();
       }, /missing.+queues/);
     });
 
     it('should require a string list of queues', function () {
       assert.throws(function () {
-        new ponos.Server({ queues: [{}] });
+        return new ponos.Server({ queues: [{}] });
       }, /queues.+string/);
     });
 
@@ -436,7 +436,7 @@ describe('Server', function () {
       });
 
       it('should report start errors', function () {
-        var startError = new Error('I don\'t want to...');
+        var startError = new Error("I don't want to...");
         server.hermes.connectAsync.returns(Promise.reject(startError));
         assert.isRejected(server.start())
           .then(function () {
