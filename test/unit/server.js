@@ -1,7 +1,6 @@
 'use strict';
 
 var chai = require('chai');
-chai.use(require('chai-as-promised'));
 var assert = chai.assert;
 var sinon = require('sinon');
 
@@ -199,15 +198,13 @@ describe('Server', function () {
 
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
-    it('should call `_subscribe` for each queue', function (done) {
-      server._subscribeAll()
+    it('should call `_subscribe` for each queue', function () {
+      return assert.isFulfilled(server._subscribeAll())
         .then(function () {
           assert.ok(server._subscribe.calledTwice);
           assert.ok(server._subscribe.calledWith('a'));
           assert.ok(server._subscribe.calledWith('b'));
-          done();
-        })
-        .catch(done);
+        });
     });
   });
 

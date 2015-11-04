@@ -1,7 +1,6 @@
 'use strict';
 
 var chai = require('chai');
-chai.use(require('chai-as-promised'));
 var assert = chai.assert;
 
 var TaskError = require('../../../lib/errors/task-error');
