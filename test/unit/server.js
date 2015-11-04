@@ -218,17 +218,15 @@ describe('Server', function () {
     beforeEach(function () {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        unsubscribe: noop,
+        unsubscribe: sinon.stub(),
         getQueues: sinon.stub().returns(queues)
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
-      sinon.stub(server.hermes, 'unsubscribe');
       sinon.stub(server, '_runWorker');
     });
 
     afterEach(function () {
-      server.hermes.unsubscribe.restore();
       hermes.hermesSingletonFactory.restore();
     });
 
@@ -259,14 +257,15 @@ describe('Server', function () {
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
     it('should call `_unsubscribe` for each queue', function (done) {
-      server._unsubscribeAll()
-        .then(function () {
-          assert.ok(server._unsubscribe.calledTwice);
-          assert.ok(server._unsubscribe.calledWith('a'));
-          assert.ok(server._unsubscribe.calledWith('b'));
-          done();
-        })
-        .catch(done);
+      assert.isFulfilled(
+        server._unsubscribeAll()
+          .then(function () {
+            assert.ok(server._unsubscribe.calledTwice);
+            assert.ok(server._unsubscribe.calledWith('a'));
+            assert.ok(server._unsubscribe.calledWith('b'));
+            done();
+          })
+      );
     });
   });
 
