@@ -254,14 +254,12 @@ describe('Server', function () {
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
     it('should call `_unsubscribe` for each queue', function () {
-      return assert.isFulfilled(
-        server._unsubscribeAll()
-          .then(function () {
-            assert.ok(server._unsubscribe.calledTwice);
-            assert.ok(server._unsubscribe.calledWith('a'));
-            assert.ok(server._unsubscribe.calledWith('b'));
-          })
-      );
+      return assert.isFulfilled(server._unsubscribeAll())
+        .then(function () {
+          assert.ok(server._unsubscribe.calledTwice);
+          assert.ok(server._unsubscribe.calledWith('a'));
+          assert.ok(server._unsubscribe.calledWith('b'));
+        });
     });
   });
 
