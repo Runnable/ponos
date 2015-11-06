@@ -223,7 +223,6 @@ describe('Server', function () {
       });
       server = new ponos.Server({ queues: queues });
       server.setAllTasks({ a: noop });
-      sinon.stub(server, '_runWorker');
     });
 
     afterEach(function () {
@@ -234,7 +233,6 @@ describe('Server', function () {
       server._unsubscribe('a');
       assert.ok(server.hermes.unsubscribe.calledOnce);
       assert.ok(server.hermes.unsubscribe.calledWith('a'));
-      assert.ok(server._runWorker.notCalled);
     });
   });
 
@@ -256,14 +254,13 @@ describe('Server', function () {
 
     afterEach(function () { hermes.hermesSingletonFactory.restore(); });
 
-    it('should call `_unsubscribe` for each queue', function (done) {
-      assert.isFulfilled(
+    it('should call `_unsubscribe` for each queue', function () {
+      return assert.isFulfilled(
         server._unsubscribeAll()
           .then(function () {
             assert.ok(server._unsubscribe.calledTwice);
             assert.ok(server._unsubscribe.calledWith('a'));
             assert.ok(server._unsubscribe.calledWith('b'));
-            done();
           })
       );
     });
