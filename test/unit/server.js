@@ -1,7 +1,6 @@
 'use strict'
 
 var chai = require('chai')
-chai.use(require('chai-as-promised'))
 var assert = chai.assert
 var sinon = require('sinon')
 
@@ -203,15 +202,68 @@ describe('Server', function () {
 
     afterEach(function () { hermes.hermesSingletonFactory.restore() })
 
-    it('should call `_subscribe` for each queue', function (done) {
-      server._subscribeAll()
+    it('should call `_subscribe` for each queue', function () {
+      return assert.isFulfilled(server._subscribeAll())
         .then(function () {
           assert.ok(server._subscribe.calledTwice)
           assert.ok(server._subscribe.calledWith('a'))
           assert.ok(server._subscribe.calledWith('b'))
-          done()
         })
-        .catch(done)
+    })
+  })
+
+  describe('_unsubscribe', function () {
+    var server
+    var queues = ['a']
+
+    beforeEach(function () {
+      // runnable-hermes 6.1.0 introduced .getQueues
+      sinon.stub(hermes, 'hermesSingletonFactory').returns({
+        unsubscribe: sinon.stub().yieldsAsync(null),
+        getQueues: sinon.stub().returns(queues)
+      })
+      server = new ponos.Server({ queues: queues })
+      server.setAllTasks({ a: noop })
+    })
+
+    afterEach(function () {
+      hermes.hermesSingletonFactory.restore()
+    })
+
+    it('should apply the correct callback for the given queue', function () {
+      return assert.isFulfilled(server._unsubscribe('a', null))
+        .then(function () {
+          assert.ok(server.hermes.unsubscribe.calledOnce)
+          assert.ok(server.hermes.unsubscribe.calledWith('a'))
+        })
+    })
+  })
+
+  describe('_unsubscribeAll', function () {
+    var server
+    var queues = [ 'a', 'b' ]
+
+    beforeEach(function () {
+      // runnable-hermes 6.1.0 introduced .getQueues
+      sinon.stub(hermes, 'hermesSingletonFactory').returns({
+        subscribe: noop,
+        unsubscribe: noop,
+        getQueues: sinon.stub().returns(queues)
+      })
+      server = new ponos.Server({ queues: queues })
+      sinon.stub(server, '_unsubscribe')
+      return server.setAllTasks({ a: noop, b: noop })
+    })
+
+    afterEach(function () { hermes.hermesSingletonFactory.restore() })
+
+    it('should call `_unsubscribe` for each queue', function () {
+      return assert.isFulfilled(server._unsubscribeAll())
+        .then(function () {
+          assert.ok(server._unsubscribe.calledTwice)
+          assert.ok(server._unsubscribe.calledWith('a'))
+          assert.ok(server._unsubscribe.calledWith('b'))
+        })
     })
   })
 

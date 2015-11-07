@@ -1,22 +1,25 @@
 {
   "name": "ponos",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "An opinionated queue based worker server for node.",
   "main": "index.js",
   "scripts": {
     "changelog": "github-changes -o Runnable -r ponos -a --only-pulls --use-commit-body --order-semver",
-    "coverage": "istanbul cover ./node_modules/.bin/_mocha -- --recursive --reporter spec test/unit && npm run coverage-check",
+    "coverage": "istanbul cover ./node_modules/.bin/_mocha -- $npm_package_options_mocha test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
     "format": "standard --format",
-    "functional": "mocha --recursive --reporter spec test/functional",
+    "functional": "mocha $npm_package_options_mocha test/functional",
     "lint": "standard",
     "test": "npm run lint && npm run unit && npm run functional",
-    "unit": "mocha --timeout 5000 --bail --recursive --reporter spec test/unit"
+    "unit": "mocha $npm_package_options_mocha test/unit"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/Runnable/ponos.git"
+  },
+  "options": {
+    "mocha": "--require resources/mocha-bootstrap --recursive --reporter spec --bail --timeout 5000"
   },
   "keywords": [
     "worker",
@@ -46,11 +49,10 @@
   },
   "dependencies": {
     "101": "^1.1.1",
-    "bluebird": "^2.10.1",
+    "bluebird": "^3.0.5",
     "bunyan": "^1.5.1",
     "debug": "^2.2.0",
     "error-cat": "^1.3.4",
-    "loadenv": "^1.1.0",
     "runnable-hermes": "^6.2.1"
   },
   "devDependencies": {
@@ -59,7 +61,7 @@
     "chai-as-promised": "^5.1.0",
     "coveralls": "^2.11.4",
     "github-changes": "^1.0.0",
-    "istanbul": "^0.3.20",
+    "istanbul": "^0.4.0",
     "mocha": "^2.3.3",
     "sinon": "^1.17.0",
     "standard": "^5.3.1"
