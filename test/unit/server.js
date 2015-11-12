@@ -65,7 +65,7 @@ describe('Server', function () {
       })
 
       it('should create a hermes client with those options', function () {
-        var s = new ponos.Server({ queues: Object.keys(tasks) })
+        var s = new ponos.Server({ queues: Object.keys(tasks), name: 'phonos' })
         assert.ok(s)
         var hermesOpts = hermes.hermesSingletonFactory.firstCall.args[0]
         assert.deepEqual(hermesOpts, {
@@ -73,7 +73,8 @@ describe('Server', function () {
           port: 42,
           username: 'luke',
           password: 'skywalker',
-          queues: [ 'test-queue-01', 'test-queue-02' ]
+          queues: [ 'test-queue-01', 'test-queue-02' ],
+          name: 'phonos'
         })
       })
     })
@@ -94,7 +95,8 @@ describe('Server', function () {
         port: 5672,
         username: 'guest',
         password: 'guest',
-        queues: [ 'test-queue-01', 'test-queue-02' ]
+        queues: [ 'test-queue-01', 'test-queue-02' ],
+        name: 'ponos'
       })
     })
 
