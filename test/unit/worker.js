@@ -23,6 +23,7 @@ describe('Worker', function () {
       job: { message: 'hello world' },
       done: function () { return Promise.resolve().then(doneHandler) }
     }
+    sinon.spy(opts, 'task')
   })
 
   describe('Constructor', function () {
@@ -159,6 +160,7 @@ describe('Worker', function () {
         doneHandler = sinon.stub()
         return assert.isFulfilled(worker.run())
           .then(function () {
+            sinon.assert.calledWith(opts.task, {message: 'hello world'}, {attempt: 1, timeout: 0, retryDelay: 1})
             assert.ok(taskHandler.calledOnce, 'task was called once')
             assert.ok(doneHandler.calledOnce, 'done was called once')
           })
@@ -208,6 +210,7 @@ describe('Worker', function () {
               assert.notEqual(initDelay, worker.retryDelay, 'delay increased')
               assert.equal(worker.retryDelay, 4, 'delay increased to max')
               assert.equal(taskHandler.callCount, 4, 'task was called twice')
+              sinon.assert.calledWith(opts.task, {message: 'hello world'}, {attempt: 2, timeout: 0, retryDelay: 2})
               assert.ok(doneHandler.calledOnce, 'done was called once')
             })
         })
