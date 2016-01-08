@@ -398,7 +398,10 @@ describe('Server', function () {
         tasks[queue] = { msTimeout: 2000 }
         server.setAllTasks(tasks)
         sinon.assert.calledOnce(server.log.warn)
+        sinon.assert.calledWith(server.log.warn,
+          sinon.match.object, 'ponos.Server.setAllTasks: No task function defined')
         sinon.assert.calledOnce(server.setTask)
+        sinon.assert.calledWith(server.setTask, queue, undefined, tasks[queue])
       })
 
       it('should pass options when calling setTask', function () {
