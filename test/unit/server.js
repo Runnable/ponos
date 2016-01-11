@@ -443,7 +443,7 @@ describe('Server', function () {
 
       it('should warn', function () {
         server.start().then(function () {
-          sinon.assert.calledTwice(ponosDefaultLogger.warn)
+          sinon.assert.callCount(ponosDefaultLogger.warn, 4)
           sinon.assert.calledWith(
             ponosDefaultLogger.warn.getCall(0),
             sinon.match.has('queueName', 'test-queue-01'),
@@ -451,6 +451,16 @@ describe('Server', function () {
           )
           sinon.assert.calledWith(
             ponosDefaultLogger.warn.getCall(1),
+            sinon.match.has('queueName', 'test-queue-02'),
+            'ponos.Server: handler not defined'
+          )
+          sinon.assert.calledWith(
+            ponosDefaultLogger.warn.getCall(2),
+            sinon.match.has('queueName', 'test-queue-01'),
+            'ponos.Server: handler not defined'
+          )
+          sinon.assert.calledWith(
+            ponosDefaultLogger.warn.getCall(3),
             sinon.match.has('queueName', 'test-queue-02'),
             'ponos.Server: handler not defined'
           )
