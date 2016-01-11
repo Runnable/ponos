@@ -400,7 +400,7 @@ describe('Server', function () {
         sinon.assert.calledOnce(server.log.warn)
         sinon.assert.calledWith(
           server.log.warn,
-          sinon.match.object,
+          sinon.match.has('key', queue),
           'ponos.Server.setAllTasks: No task function defined'
         )
         sinon.assert.notCalled(server.setTask)
