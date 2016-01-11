@@ -398,8 +398,11 @@ describe('Server', function () {
         tasks[queue] = { msTimeout: 2000 }
         server.setAllTasks(tasks)
         sinon.assert.calledOnce(server.log.warn)
-        sinon.assert.calledWith(server.log.warn,
-          sinon.match.object, 'ponos.Server.setAllTasks: No task function defined')
+        sinon.assert.calledWith(
+          server.log.warn,
+          sinon.match.object,
+          'ponos.Server.setAllTasks: No task function defined'
+        )
         sinon.assert.notCalled(server.setTask)
       })
 
