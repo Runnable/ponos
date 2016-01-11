@@ -131,45 +131,6 @@ describe('Server', function () {
     })
   })
 
-  describe('_assertHaveAllTasks', function () {
-    beforeEach(function () {
-      sinon.stub(ponosDefaultLogger, 'warn')
-    })
-
-    afterEach(function () {
-      ponosDefaultLogger.warn.restore()
-    })
-
-    afterEach(function () { hermes.hermesSingletonFactory.restore() })
-
-    it('should warn when a queue is missing a task handler', function () {
-      // runnable-hermes 6.1.0 introduced .getQueues
-      sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        getQueues: sinon.stub().returns([ 'a', 'b' ])
-      })
-      var s = new ponos.Server({ queues: [ 'a', 'b' ] })
-      s.setTask('b', noop)
-      s._assertHaveAllTasks().then(function () {
-        sinon.assert.calledOnce(ponosDefaultLogger.warn)
-        sinon.assert.calledWith(
-          ponosDefaultLogger.warn,
-          sinon.match.has('queueName', 'a'),
-          'ponos.Server: handler not defined'
-        )
-      })
-    })
-
-    it('should accept when all queues have task handlers', function () {
-      // runnable-hermes 6.1.0 introduced .getQueues
-      sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        getQueues: sinon.stub().returns(['a'])
-      })
-      var s = new ponos.Server({ queues: ['a'] })
-      s.setTask('a', noop)
-      assert.isFulfilled(s._assertHaveAllTasks())
-    })
-  })
-
   describe('_subscribe', function () {
     var server
     var queues = ['a']
@@ -443,7 +404,7 @@ describe('Server', function () {
 
       it('should warn', function () {
         server.start().then(function () {
-          sinon.assert.callCount(ponosDefaultLogger.warn, 4)
+          sinon.assert.calledTwice(ponosDefaultLogger.warn)
           sinon.assert.calledWith(
             ponosDefaultLogger.warn.getCall(0),
             sinon.match.has('queueName', 'test-queue-01'),
@@ -451,16 +412,6 @@ describe('Server', function () {
           )
           sinon.assert.calledWith(
             ponosDefaultLogger.warn.getCall(1),
-            sinon.match.has('queueName', 'test-queue-02'),
-            'ponos.Server: handler not defined'
-          )
-          sinon.assert.calledWith(
-            ponosDefaultLogger.warn.getCall(2),
-            sinon.match.has('queueName', 'test-queue-01'),
-            'ponos.Server: handler not defined'
-          )
-          sinon.assert.calledWith(
-            ponosDefaultLogger.warn.getCall(3),
             sinon.match.has('queueName', 'test-queue-02'),
             'ponos.Server: handler not defined'
           )
