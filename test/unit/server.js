@@ -150,11 +150,13 @@ describe('Server', function () {
       server.setAllTasks({ a: noop })
       sinon.stub(server.hermes, 'subscribe')
       sinon.stub(server, '_runWorker')
+      sinon.stub(ponosDefaultLogger, 'warn')
     })
 
     afterEach(function () {
       server.hermes.subscribe.restore()
       hermes.hermesSingletonFactory.restore()
+      ponosDefaultLogger.warn.restore()
     })
 
     it('should apply the correct callback for the given queue', function () {
@@ -165,6 +167,17 @@ describe('Server', function () {
       var job = { foo: 'bar' }
       hermesCallback(job, noop)
       assert.ok(server._runWorker.calledWith('a', job, noop))
+    })
+
+    it('should log warning if queue does not have handler', function () {
+      server._subscribe('x')
+      sinon.assert.notCalled(server.hermes.subscribe)
+      sinon.assert.calledOnce(ponosDefaultLogger.warn)
+      sinon.assert.calledWith(
+        ponosDefaultLogger.warn,
+        sinon.match.has('queueName', 'x'),
+        'ponos.Server: handler not defined'
+      )
     })
   })
 
