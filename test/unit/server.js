@@ -400,8 +400,7 @@ describe('Server', function () {
         sinon.assert.calledOnce(server.log.warn)
         sinon.assert.calledWith(server.log.warn,
           sinon.match.object, 'ponos.Server.setAllTasks: No task function defined')
-        sinon.assert.calledOnce(server.setTask)
-        sinon.assert.calledWith(server.setTask, queue, undefined, tasks[queue])
+        sinon.assert.notCalled(server.setTask)
       })
 
       it('should pass options when calling setTask', function () {
