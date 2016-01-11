@@ -7,7 +7,7 @@ var log = require('../../lib/logger')
 
 describe('logger', function () {
   it('should use return one stream by default', function () {
-    var streams = log.getStreams()
+    var streams = log._getStreams()
     assert.lengthOf(streams, 1)
     assert.equal(streams[0].stream, process.stdout)
   })
