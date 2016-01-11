@@ -393,7 +393,7 @@ describe('Server', function () {
         server.log.warn.restore()
       })
 
-      it('should throw if a task is not defined', function () {
+      it('should log a warning if a task is not defined', function () {
         var tasks = {}
         tasks[queue] = { msTimeout: 2000 }
         server.setAllTasks(tasks)
