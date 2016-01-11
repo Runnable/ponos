@@ -371,24 +371,39 @@ describe('Server', function () {
     var queue = Object.keys(tasks)[0]
 
     beforeEach(function () {
-      sinon.spy(server, 'setTask')
+      sinon.stub(server, 'setTask')
+    })
+
+    afterEach(function () {
+      server.setTask.restore()
     })
 
     it('should set multiple tasks', function () {
       var numTasks = Object.keys(tasks).length
       server.setAllTasks(tasks)
-      assert.equal(server.setTask.callCount, numTasks)
-      assert.equal(Object.keys(server._tasks).length, numTasks)
+      sinon.assert.callCount(server.setTask, numTasks)
     })
 
     describe('with option objects', function () {
-      it('should throw if a task is not defined', function () {
+      beforeEach(function () {
+        sinon.stub(server.log, 'warn')
+      })
+
+      afterEach(function () {
+        server.log.warn.restore()
+      })
+
+      it('should log a warning if a task is not defined', function () {
         var tasks = {}
         tasks[queue] = { msTimeout: 2000 }
-        assert.throws(function () {
-          server.setAllTasks(tasks)
-        }, /No task function defined/)
-        assert.equal(server.setTask.callCount, 0)
+        server.setAllTasks(tasks)
+        sinon.assert.calledOnce(server.log.warn)
+        sinon.assert.calledWith(
+          server.log.warn,
+          sinon.match.has('key', queue),
+          'ponos.Server.setAllTasks: No task function defined'
+        )
+        sinon.assert.notCalled(server.setTask)
       })
 
       it('should pass options when calling setTask', function () {
