@@ -13,6 +13,7 @@ describe('TaskFatalError', function () {
     assert.instanceOf(err, TaskError)
     assert.instanceOf(err, Error)
   })
+
   it('should set custom data on the error', function () {
     var err = new TaskFatalError('a-queue', 'had an error', { hello: 'world' })
     assert.equal(err.message, 'a-queue: had an error')

@@ -5,6 +5,8 @@
 [![dependencies]](https://david-dm.org/Runnable/ponos)
 [![devdependencies]](https://david-dm.org/Runnable/ponos#info=devDependencies)
 
+Documentation is available at [runnable.github.io/ponos][documentation]
+
 An opinionated queue based worker server for node.
 
 For ease of use we provide options to set the host, port, username, and password to the RabbitMQ server. If not present in options, the server will attempt to use the following environment variables and final defaults:
@@ -164,3 +166,4 @@ MIT
 [coveralls]: https://img.shields.io/coveralls/Runnable/ponos/master.svg?style=flat-square "Coverage Status"
 [dependencies]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square "Dependency Status"
 [devdependencies]: https://img.shields.io/david/dev/Runnable/ponos.svg?style=flat-square "Dev Dependency Status"
+[documentation]: https://runnable.github.io/ponos "Ponos Documentation"

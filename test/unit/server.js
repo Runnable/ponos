@@ -20,7 +20,9 @@ function worker (job, done) {} // eslint-disable-line no-unused-vars
 
 describe('Server', function () {
   var server
+
   beforeEach(function () { sinon.stub(Worker, 'create') })
+
   beforeEach(function () {
     server = new ponos.Server({ queues: Object.keys(tasks) })
     sinon.stub(server.hermes, 'connectAsync').returns(Promise.resolve())
@@ -28,18 +30,21 @@ describe('Server', function () {
     sinon.stub(server.hermes, 'closeAsync').returns(Promise.resolve())
     sinon.spy(server.errorCat, 'report')
   })
+
   afterEach(function () {
     server.hermes.connectAsync.restore()
     server.hermes.subscribe.restore()
     server.hermes.closeAsync.restore()
     server.errorCat.report.restore()
   })
+
   afterEach(function () { Worker.create.restore() })
 
   describe('Constructor', function () {
     beforeEach(function () {
       sinon.stub(hermes, 'hermesSingletonFactory').returns(noop)
     })
+
     afterEach(function () { hermes.hermesSingletonFactory.restore() })
 
     describe('with rabbitmq env vars', function () {
@@ -313,6 +318,7 @@ describe('Server', function () {
 
   describe('setTask', function () {
     var queue = Object.keys(tasks)[0]
+
     it('should set the task handler', function () {
       server.setTask(queue, worker)
       assert.isFunction(server._tasks[queue])
@@ -376,7 +382,7 @@ describe('Server', function () {
         sinon.assert.calledOnce(server.log.warn)
         sinon.assert.calledWith(
           server.log.warn,
-          sinon.match.object,
+          sinon.match.has('key', queue),
           'ponos.Server.setAllTasks: No task function defined'
         )
         sinon.assert.notCalled(server.setTask)

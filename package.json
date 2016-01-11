@@ -1,6 +1,6 @@
 {
   "name": "ponos",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "An opinionated queue based worker server for node.",
   "main": "index.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- $npm_package_options_mocha test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
+    "docs": "jsdoc --recurse --readme ./README.md lib/",
     "format": "standard --format",
     "functional": "mocha $npm_package_options_mocha test/functional",
     "lint": "standard",
@@ -62,6 +63,7 @@
     "coveralls": "^2.11.4",
     "github-changes": "^1.0.0",
     "istanbul": "^0.4.0",
+    "jsdoc": "^3.4.0",
     "mocha": "^2.3.3",
     "sinon": "^1.17.0",
     "standard": "^5.3.1"

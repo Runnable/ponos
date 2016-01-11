@@ -16,6 +16,7 @@ describe('Worker', function () {
   var opts
   var taskHandler
   var doneHandler
+
   beforeEach(function () {
     opts = {
       queue: 'a-queue',
@@ -27,6 +28,7 @@ describe('Worker', function () {
 
   describe('Constructor', function () {
     beforeEach(function () { sinon.stub(Worker.prototype, 'run') })
+
     afterEach(function () { Worker.prototype.run.restore() })
 
     it('should enforce default opts', function () {
@@ -70,10 +72,12 @@ describe('Worker', function () {
 
     describe('with worker timeout', function () {
       var prevTimeout
+
       before(function () {
         prevTimeout = process.env.WORKER_TIMEOUT
         process.env.WORKER_TIMEOUT = 4000
       })
+
       after(function () { process.env.WORKER_TIMEOUT = prevTimeout })
 
       it('should use the environment timeout', function () {
@@ -148,6 +152,7 @@ describe('Worker', function () {
 
   describe('run', function () {
     var worker
+
     beforeEach(function () {
       opts.runNow = false
       worker = Worker.create(opts)
@@ -166,10 +171,12 @@ describe('Worker', function () {
 
       describe('with worker timeout', function () {
         var prevTimeout
+
         before(function () {
           prevTimeout = process.env.WORKER_TIMEOUT
           process.env.WORKER_TIMEOUT = 10
         })
+
         after(function () { process.env.WORKER_TIMEOUT = prevTimeout })
 
         it('should timeout the job', function () {
@@ -190,10 +197,12 @@ describe('Worker', function () {
 
       describe('with max retry delay', function () {
         var prevDelay
+
         before(function () {
           prevDelay = process.env.WORKER_MAX_RETRY_DELAY
           process.env.WORKER_MAX_RETRY_DELAY = 4
         })
+
         after(function () { process.env.WORKER_MAX_RETRY_DELAY = prevDelay })
 
         it('should exponentially back off up to max', function () {

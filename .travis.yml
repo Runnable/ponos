@@ -3,6 +3,10 @@ node_js:
 - "0.10"
 - "0.12"
 - "4"
+- "5"
+matrix:
+  allowed_failures:
+  - "5"
 sudo: false
 services:
 - rabbitmq
