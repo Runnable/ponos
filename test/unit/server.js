@@ -136,30 +136,6 @@ describe('Server', function () {
     })
   })
 
-  describe('_assertHaveAllTasks', function () {
-    afterEach(function () { hermes.hermesSingletonFactory.restore() })
-
-    it('should reject when a queue is missing a task handler', function () {
-      // runnable-hermes 6.1.0 introduced .getQueues
-      sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        getQueues: sinon.stub().returns([ 'a', 'b' ])
-      })
-      var s = new ponos.Server({ queues: [ 'a', 'b' ] })
-      s.setTask('b', noop)
-      assert.isRejected(s._assertHaveAllTasks(), /handler not defined/)
-    })
-
-    it('should accept when all queues have task handlers', function () {
-      // runnable-hermes 6.1.0 introduced .getQueues
-      sinon.stub(hermes, 'hermesSingletonFactory').returns({
-        getQueues: sinon.stub().returns(['a'])
-      })
-      var s = new ponos.Server({ queues: ['a'] })
-      s.setTask('a', noop)
-      assert.isFulfilled(s._assertHaveAllTasks())
-    })
-  })
-
   describe('_subscribe', function () {
     var server
     var queues = ['a']
@@ -174,11 +150,13 @@ describe('Server', function () {
       server.setAllTasks({ a: noop })
       sinon.stub(server.hermes, 'subscribe')
       sinon.stub(server, '_runWorker')
+      sinon.stub(ponosDefaultLogger, 'warn')
     })
 
     afterEach(function () {
       server.hermes.subscribe.restore()
       hermes.hermesSingletonFactory.restore()
+      ponosDefaultLogger.warn.restore()
     })
 
     it('should apply the correct callback for the given queue', function () {
@@ -189,6 +167,17 @@ describe('Server', function () {
       var job = { foo: 'bar' }
       hermesCallback(job, noop)
       assert.ok(server._runWorker.calledWith('a', job, noop))
+    })
+
+    it('should log warning if queue does not have handler', function () {
+      server._subscribe('x')
+      sinon.assert.notCalled(server.hermes.subscribe)
+      sinon.assert.calledOnce(ponosDefaultLogger.warn)
+      sinon.assert.calledWith(
+        ponosDefaultLogger.warn,
+        sinon.match.has('queueName', 'x'),
+        'ponos.Server: handler not defined'
+      )
     })
   })
 
@@ -424,8 +413,28 @@ describe('Server', function () {
 
   describe('start', function () {
     describe('without tasks', function () {
-      it('should fail', function () {
-        return assert.isRejected(server.start(), /handler not defined/)
+      beforeEach(function () {
+        sinon.stub(ponosDefaultLogger, 'warn')
+      })
+
+      afterEach(function () {
+        ponosDefaultLogger.warn.restore()
+      })
+
+      it('should warn', function () {
+        server.start().then(function () {
+          sinon.assert.calledTwice(ponosDefaultLogger.warn)
+          sinon.assert.calledWith(
+            ponosDefaultLogger.warn.getCall(0),
+            sinon.match.has('queueName', 'test-queue-01'),
+            'ponos.Server: handler not defined'
+          )
+          sinon.assert.calledWith(
+            ponosDefaultLogger.warn.getCall(1),
+            sinon.match.has('queueName', 'test-queue-02'),
+            'ponos.Server: handler not defined'
+          )
+        })
       })
     })
 
