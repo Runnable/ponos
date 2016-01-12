@@ -1,5 +1,9 @@
 ## Change Log
 
+### v1.2.1 (2016/01/12 00:14 +00:00)
+- [#22](https://github.com/Runnable/ponos/pull/22) Change throw to warn log on queue checks (@cflynn07, @bkendall)
+- [#21](https://github.com/Runnable/ponos/pull/21) Maintenance Update (@bkendall)
+
 ### v1.2.0 (2016/01/11 21:08 +00:00)
 - [#20](https://github.com/Runnable/ponos/pull/20) Replace throw with warn log (@bkendall, @cflynn07)
 
