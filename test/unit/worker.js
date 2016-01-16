@@ -5,6 +5,7 @@ var assert = chai.assert
 var sinon = require('sinon')
 
 var Promise = require('bluebird')
+var monitor = require('monitor-dog')
 var TaskError = require('../../lib/errors/task-error')
 var TaskFatalError = require('../../lib/errors/task-fatal-error')
 var TimeoutError = Promise.TimeoutError
@@ -156,6 +157,11 @@ describe('Worker', function () {
     beforeEach(function () {
       opts.runNow = false
       worker = Worker.create(opts)
+      sinon.spy(monitor, 'increment')
+    })
+
+    afterEach(function () {
+      monitor.increment.restore()
     })
 
     describe('successful runs', function () {
@@ -166,6 +172,7 @@ describe('Worker', function () {
           .then(function () {
             assert.ok(taskHandler.calledOnce, 'task was called once')
             assert.ok(doneHandler.calledOnce, 'done was called once')
+            assert.ok(monitor.increment.notCalled, 'monitor wasnot called')
           })
       })
 
