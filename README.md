@@ -4,6 +4,7 @@
 [![coveralls]](https://coveralls.io/github/Runnable/ponos?branch=master)
 [![dependencies]](https://david-dm.org/Runnable/ponos)
 [![devdependencies]](https://david-dm.org/Runnable/ponos#info=devDependencies)
+![Code Climate](https://codeclimate.com/github/Runnable/ponos/badges/gpa.svg)](https://codeclimate.com/github/Runnable/ponos)
 
 Documentation is available at [runnable.github.io/ponos][documentation]
 
