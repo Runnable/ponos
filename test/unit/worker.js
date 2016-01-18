@@ -153,15 +153,22 @@ describe('Worker', function () {
 
   describe('run', function () {
     var worker
+    var timer = {
+      stop: function () {}
+    }
 
     beforeEach(function () {
       opts.runNow = false
       worker = Worker.create(opts)
       sinon.spy(monitor, 'increment')
+      sinon.stub(monitor, 'timer').returns(timer)
+      sinon.spy(timer, 'stop')
     })
 
     afterEach(function () {
       monitor.increment.restore()
+      monitor.timer.restore()
+      timer.stop.restore()
     })
 
     describe('successful runs', function () {
@@ -172,8 +179,31 @@ describe('Worker', function () {
           .then(function () {
             assert.ok(taskHandler.calledOnce, 'task was called once')
             assert.ok(doneHandler.calledOnce, 'done was called once')
-            assert.ok(monitor.increment.notCalled, 'monitor wasnot called')
+            assert.ok(monitor.increment.notCalled, 'monitor.inc was not called')
+            assert.ok(monitor.timer.notCalled, 'monitor.timer was not called')
+            assert.ok(timer.stop.notCalled, 'timer stop was not called')
           })
+      })
+
+      describe('with monitoring', function () {
+        beforeEach(function () {
+          process.env.WORKER_MONITOR = true
+        })
+        afterEach(function () {
+          delete process.env.WORKER_MONITOR
+        })
+        it('should run the task and monitor call', function () {
+          taskHandler = sinon.stub()
+          doneHandler = sinon.stub()
+          return assert.isFulfilled(worker.run())
+            .then(function () {
+              assert.ok(taskHandler.calledOnce, 'task was called once')
+              assert.ok(doneHandler.calledOnce, 'done was called once')
+              assert.ok(monitor.increment.calledOnce, 'monitor.inc was called once')
+              assert.ok(monitor.timer.calledOnce, 'monitor.timer was called once')
+              assert.ok(timer.stop.calledOnce, 'timer.stop was called once')
+            })
+        })
       })
 
       describe('with worker timeout', function () {
