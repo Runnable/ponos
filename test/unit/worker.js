@@ -12,6 +12,7 @@ var TimeoutError = Promise.TimeoutError
 var Worker = require('../../lib/worker')
 var assign = require('101/assign')
 var noop = require('101/noop')
+var put = require('101/put')
 
 describe('Worker', function () {
   var opts
@@ -183,6 +184,53 @@ describe('Worker', function () {
     })
   })
 
+  describe('_inc', function () {
+    var worker
+    var queue = 'do.something.command'
+
+    beforeEach(function () {
+      sinon.stub(monitor, 'increment')
+      worker = Worker.create(put({ runNow: false }, opts))
+      worker.queue = queue
+    })
+    afterEach(function () {
+      monitor.increment.restore()
+    })
+    it('should call monitor increment for event without result tag', function () {
+      worker._inc('ponos')
+      sinon.assert.calledOnce(monitor.increment)
+      sinon.assert.calledWith(monitor.increment, 'ponos', {
+        token0: 'command',
+        token1: 'something.command',
+        token2: 'do.something.command',
+        queue: 'do.something.command'
+      })
+    })
+    it('should call monitor increment for event with extra tags', function () {
+      worker._inc('ponos.finish', { result: 'success' })
+      sinon.assert.calledOnce(monitor.increment)
+      sinon.assert.calledWith(monitor.increment, 'ponos.finish', {
+        token0: 'command',
+        token1: 'something.command',
+        token2: 'do.something.command',
+        queue: 'do.something.command',
+        result: 'success'
+      })
+    })
+    describe('with disabled monitoring', function () {
+      beforeEach(function () {
+        process.env.WORKER_MONITOR_DISABLED = 'true'
+      })
+      afterEach(function () {
+        delete process.env.WORKER_MONITOR_DISABLED
+      })
+      it('should not call monitor increment', function () {
+        worker._inc('ponos.finish', { result: 'success' })
+        sinon.assert.notCalled(monitor.increment)
+      })
+    })
+  })
+
   describe('run', function () {
     var worker
     var timer = {
@@ -192,7 +240,7 @@ describe('Worker', function () {
     beforeEach(function () {
       opts.runNow = false
       worker = Worker.create(opts)
-      sinon.spy(monitor, 'increment')
+      sinon.stub(monitor, 'increment')
       sinon.stub(monitor, 'timer').returns(timer)
       sinon.spy(timer, 'stop')
     })
@@ -211,6 +259,7 @@ describe('Worker', function () {
           .then(function () {
             assert.ok(taskHandler.calledOnce, 'task was called once')
             assert.ok(doneHandler.calledOnce, 'done was called once')
+            sinon.assert.calledTwice(monitor.increment)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
               token1: 'something.command',
