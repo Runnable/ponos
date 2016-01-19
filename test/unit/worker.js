@@ -194,7 +194,7 @@ describe('Worker', function () {
       worker = Worker.create(put({ runNow: false }, opts))
       worker.queue = queue
     })
-    
+
     afterEach(function () {
       monitor.increment.restore()
     })
