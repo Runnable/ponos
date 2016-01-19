@@ -20,7 +20,7 @@ describe('Worker', function () {
 
   beforeEach(function () {
     opts = {
-      queue: 'a-queue',
+      queue: 'do.something.command',
       task: function (data) { return Promise.resolve(data).then(taskHandler) },
       job: { message: 'hello world' },
       done: function () { return Promise.resolve().then(doneHandler) }
@@ -200,7 +200,17 @@ describe('Worker', function () {
               assert.ok(taskHandler.calledOnce, 'task was called once')
               assert.ok(doneHandler.calledOnce, 'done was called once')
               assert.ok(monitor.increment.calledOnce, 'monitor.inc was called once')
+              assert.ok(monitor.increment.calledWith('ponos',
+                { 'token-0': 'command',
+                  'token-1': 'something.command',
+                  'token-2': 'do.something.command',
+                  queue: 'do.something.command' }), 'monitor.inc was called once with args')
               assert.ok(monitor.timer.calledOnce, 'monitor.timer was called once')
+              assert.ok(monitor.timer.calledWith('ponos.timer',
+                { 'token-0': 'command',
+                  'token-1': 'something.command',
+                  'token-2': 'do.something.command',
+                  queue: 'do.something.command' }), 'monitor.inc was called once with args')
               assert.ok(timer.stop.calledOnce, 'timer.stop was called once')
             })
         })
