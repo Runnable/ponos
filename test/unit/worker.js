@@ -160,6 +160,7 @@ describe('Worker', function () {
       worker = Worker.create(opts)
       worker.queue = queue
     })
+
     it('should generate tags for new style queues', function () {
       var tags = worker._eventTags()
       assert.isObject(tags)
@@ -193,9 +194,11 @@ describe('Worker', function () {
       worker = Worker.create(put({ runNow: false }, opts))
       worker.queue = queue
     })
+    
     afterEach(function () {
       monitor.increment.restore()
     })
+
     it('should call monitor increment for event without result tag', function () {
       worker._inc('ponos')
       sinon.assert.calledOnce(monitor.increment)
@@ -221,9 +224,11 @@ describe('Worker', function () {
       beforeEach(function () {
         process.env.WORKER_MONITOR_DISABLED = 'true'
       })
+
       afterEach(function () {
         delete process.env.WORKER_MONITOR_DISABLED
       })
+
       it('should not call monitor increment', function () {
         worker._inc('ponos.finish', { result: 'success' })
         sinon.assert.notCalled(monitor.increment)
@@ -288,9 +293,11 @@ describe('Worker', function () {
         beforeEach(function () {
           process.env.WORKER_MONITOR_DISABLED = 'true'
         })
+
         afterEach(function () {
           delete process.env.WORKER_MONITOR_DISABLED
         })
+
         it('should run the task and call done and not stop timer', function () {
           taskHandler = sinon.stub()
           doneHandler = sinon.stub()
