@@ -151,6 +151,38 @@ describe('Worker', function () {
     })
   })
 
+  describe('_eventTags', function () {
+    var worker
+    var queue = 'some.queue.name'
+
+    beforeEach(function () {
+      worker = Worker.create(opts)
+      worker.queue = queue
+    })
+    it('should generate tags for new style queues', function () {
+      var tags = worker._eventTags()
+      assert.isObject(tags)
+      assert.equal(Object.keys(tags).length, 4)
+      assert.deepEqual(tags, {
+        queue: queue,
+        token0: 'name',
+        token1: 'queue.name',
+        token2: 'some.queue.name'
+      })
+    })
+    it('should generate tags for old style queues', function () {
+      var queue = 'some-queue-name'
+      worker.queue = queue
+      var tags = worker._eventTags()
+      assert.isObject(tags)
+      assert.equal(Object.keys(tags).length, 2)
+      assert.deepEqual(tags, {
+        queue: queue,
+        token0: 'some-queue-name'
+      })
+    })
+  })
+
   describe('run', function () {
     var worker
     var timer = {
@@ -201,15 +233,15 @@ describe('Worker', function () {
               assert.ok(doneHandler.calledOnce, 'done was called once')
               assert.ok(monitor.increment.calledOnce, 'monitor.inc was called once')
               assert.ok(monitor.increment.calledWith('ponos',
-                { 'token-0': 'command',
-                  'token-1': 'something.command',
-                  'token-2': 'do.something.command',
+                { 'token0': 'command',
+                  'token1': 'something.command',
+                  'token2': 'do.something.command',
                   queue: 'do.something.command' }), 'monitor.inc was called once with args')
               assert.ok(monitor.timer.calledOnce, 'monitor.timer was called once')
               assert.ok(monitor.timer.calledWith('ponos.timer',
-                { 'token-0': 'command',
-                  'token-1': 'something.command',
-                  'token-2': 'do.something.command',
+                { 'token0': 'command',
+                  'token1': 'something.command',
+                  'token2': 'do.something.command',
                   queue: 'do.something.command' }), 'monitor.inc was called once with args')
               assert.ok(timer.stop.calledOnce, 'timer.stop was called once')
             })
