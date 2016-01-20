@@ -292,7 +292,7 @@ describe('Worker', function () {
             sinon.assert.calledOnce(timer.stop)
           })
       })
-      
+
       describe('with disabled monitoring', function () {
         beforeEach(function () {
           process.env.WORKER_MONITOR_DISABLED = 'true'
