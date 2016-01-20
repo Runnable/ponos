@@ -172,6 +172,7 @@ describe('Worker', function () {
         token2: 'some.queue.name'
       })
     })
+
     it('should generate tags for old style queues', function () {
       var queue = 'some-queue-name'
       worker.queue = queue
@@ -185,7 +186,7 @@ describe('Worker', function () {
     })
   })
 
-  describe('_inc', function () {
+  describe('_incMonitor', function () {
     var worker
     var queue = 'do.something.command'
 
@@ -200,7 +201,7 @@ describe('Worker', function () {
     })
 
     it('should call monitor increment for event without result tag', function () {
-      worker._inc('ponos')
+      worker._incMonitor('ponos')
       sinon.assert.calledOnce(monitor.increment)
       sinon.assert.calledWith(monitor.increment, 'ponos', {
         token0: 'command',
@@ -209,8 +210,9 @@ describe('Worker', function () {
         queue: 'do.something.command'
       })
     })
+
     it('should call monitor increment for event with extra tags', function () {
-      worker._inc('ponos.finish', { result: 'success' })
+      worker._incMonitor('ponos.finish', { result: 'success' })
       sinon.assert.calledOnce(monitor.increment)
       sinon.assert.calledWith(monitor.increment, 'ponos.finish', {
         token0: 'command',
@@ -220,6 +222,7 @@ describe('Worker', function () {
         result: 'success'
       })
     })
+
     describe('with disabled monitoring', function () {
       beforeEach(function () {
         process.env.WORKER_MONITOR_DISABLED = 'true'
@@ -230,7 +233,7 @@ describe('Worker', function () {
       })
 
       it('should not call monitor increment', function () {
-        worker._inc('ponos.finish', { result: 'success' })
+        worker._incMonitor('ponos.finish', { result: 'success' })
         sinon.assert.notCalled(monitor.increment)
       })
     })
@@ -289,6 +292,7 @@ describe('Worker', function () {
             sinon.assert.calledOnce(timer.stop)
           })
       })
+      
       describe('with disabled monitoring', function () {
         beforeEach(function () {
           process.env.WORKER_MONITOR_DISABLED = 'true'
