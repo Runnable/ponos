@@ -1,5 +1,9 @@
 ## Change Log
 
+### v1.3.0 (2016/01/21 21:32 +00:00)
+- [#25](https://github.com/Runnable/ponos/pull/25) Add monitor-dog (@podviaznikov)
+- [#23](https://github.com/Runnable/ponos/pull/23) use travis to deploy to npm (@bkendall)
+
 ### v1.2.1 (2016/01/12 00:14 +00:00)
 - [#22](https://github.com/Runnable/ponos/pull/22) Change throw to warn log on queue checks (@cflynn07, @bkendall)
 - [#21](https://github.com/Runnable/ponos/pull/21) Maintenance Update (@bkendall)
