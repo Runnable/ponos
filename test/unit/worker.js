@@ -239,6 +239,50 @@ describe('Worker', function () {
     })
   })
 
+  describe('_createTimer', function () {
+    var worker
+    var queue = 'do.something.command'
+
+    beforeEach(function () {
+      sinon.stub(monitor, 'timer').returns({ stop: function () {} })
+      worker = Worker.create(put({ runNow: false }, opts))
+      worker.queue = queue
+    })
+
+    afterEach(function () {
+      monitor.timer.restore()
+    })
+
+    it('should call monitor.timer for event without result tag', function () {
+      var timer = worker._createTimer()
+      assert.isNotNull(timer)
+      assert.isNotNull(timer.stop)
+      sinon.assert.calledOnce(monitor.timer)
+      sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+        token0: 'command',
+        token1: 'something.command',
+        token2: 'do.something.command',
+        queue: 'do.something.command'
+      })
+    })
+
+    describe('with disabled monitoring', function () {
+      beforeEach(function () {
+        process.env.WORKER_MONITOR_DISABLED = 'true'
+      })
+
+      afterEach(function () {
+        delete process.env.WORKER_MONITOR_DISABLED
+      })
+
+      it('should not call monitor.timer', function () {
+        var timer = worker._createTimer()
+        assert.isNull(timer)
+        sinon.assert.notCalled(monitor.timer)
+      })
+    })
+  })
+
   describe('run', function () {
     var worker
     var timer = {
@@ -282,13 +326,12 @@ describe('Worker', function () {
               queue: 'do.something.command'
             })
             sinon.assert.calledOnce(monitor.timer)
-            sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-              !process.env.WORKER_MONITOR_DISABLED, {
-                token0: 'command',
-                token1: 'something.command',
-                token2: 'do.something.command',
-                queue: 'do.something.command'
-              })
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
             sinon.assert.calledOnce(timer.stop)
           })
       })
@@ -310,15 +353,8 @@ describe('Worker', function () {
               assert.ok(taskHandler.calledOnce, 'task was called once')
               assert.ok(doneHandler.calledOnce, 'done was called once')
               sinon.assert.notCalled(monitor.increment)
-              sinon.assert.calledOnce(monitor.timer)
-              sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-                !process.env.WORKER_MONITOR_DISABLED, {
-                  token0: 'command',
-                  token1: 'something.command',
-                  token2: 'do.something.command',
-                  queue: 'do.something.command'
-                })
-              sinon.assert.calledOnce(timer.stop)
+              sinon.assert.notCalled(monitor.timer)
+              sinon.assert.notCalled(timer.stop)
             })
         })
       })
@@ -359,13 +395,12 @@ describe('Worker', function () {
                 queue: 'do.something.command'
               })
               sinon.assert.calledTwice(monitor.timer)
-              sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-                !process.env.WORKER_MONITOR_DISABLED, {
-                  token0: 'command',
-                  token1: 'something.command',
-                  token2: 'do.something.command',
-                  queue: 'do.something.command'
-                })
+              sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+                token0: 'command',
+                token1: 'something.command',
+                token2: 'do.something.command',
+                queue: 'do.something.command'
+              })
               sinon.assert.calledTwice(timer.stop)
             })
         })
@@ -434,13 +469,12 @@ describe('Worker', function () {
               queue: 'do.something.command'
             })
             sinon.assert.calledOnce(monitor.timer)
-            sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-              !process.env.WORKER_MONITOR_DISABLED, {
-                token0: 'command',
-                token1: 'something.command',
-                token2: 'do.something.command',
-                queue: 'do.something.command'
-              })
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
             sinon.assert.calledOnce(timer.stop)
           })
       })
@@ -467,13 +501,12 @@ describe('Worker', function () {
               queue: 'do.something.command'
             })
             sinon.assert.calledTwice(monitor.timer)
-            sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-              !process.env.WORKER_MONITOR_DISABLED, {
-                token0: 'command',
-                token1: 'something.command',
-                token2: 'do.something.command',
-                queue: 'do.something.command'
-              })
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
             sinon.assert.calledTwice(timer.stop)
           })
       })
@@ -500,13 +533,12 @@ describe('Worker', function () {
               queue: 'do.something.command'
             })
             sinon.assert.calledTwice(monitor.timer)
-            sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-              !process.env.WORKER_MONITOR_DISABLED, {
-                token0: 'command',
-                token1: 'something.command',
-                token2: 'do.something.command',
-                queue: 'do.something.command'
-              })
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
             sinon.assert.calledTwice(timer.stop)
           })
       })
@@ -533,13 +565,12 @@ describe('Worker', function () {
               queue: 'do.something.command'
             })
             sinon.assert.calledTwice(monitor.timer)
-            sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-              !process.env.WORKER_MONITOR_DISABLED, {
-                token0: 'command',
-                token1: 'something.command',
-                token2: 'do.something.command',
-                queue: 'do.something.command'
-              })
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
             sinon.assert.calledTwice(timer.stop)
           })
       })
@@ -587,13 +618,12 @@ describe('Worker', function () {
               queue: 'do.something.command'
             })
             sinon.assert.calledTwice(monitor.timer)
-            sinon.assert.calledWith(monitor.timer, 'ponos.timer',
-              !process.env.WORKER_MONITOR_DISABLED, {
-                token0: 'command',
-                token1: 'something.command',
-                token2: 'do.something.command',
-                queue: 'do.something.command'
-              })
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
             sinon.assert.calledTwice(timer.stop)
           })
       })
