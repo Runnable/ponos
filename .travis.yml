@@ -18,11 +18,3 @@ script:
 - npm run functional
 after_success:
 - npm run coveralls
-deploy:
-  provider: npm
-  email: bryan@bryankendall.com
-  api_key:
-    secure: vhFx3/jUf4zAdMUW0jLPNU/mpXG5DN9I0q7/XbFH7Fq38arsXJkDSyXvYOLCZJW+YsE/MPiyxbKsnK2HRGAyw59yTf5x+7//+s0sruRwbVRbxY8g9mURVlvFbDWIwOoRdCBDVXIdj9OG88Pk1dn4Iay6r8Q6QJUSOnUCQyTfe+sb9vhotpUh2juu9AQDOyWUFKyg4RfV5kmmmYC6pOihaoTGyIGlZIdDVihq2ObhIjx17fQ2VFY6FIl4CHin4DJe5jHCkycmDazSj1ifUbjipjPnigZsTpkBIlGuIT7IXGVDdCoB3T6ACf4BPVRDBfxUbUiWindLSiJyvs9shP6HjoeCgJOMzvWG/W3FjB16GLkM8FdL4VG6CV40LGUB5XW1FnPWn+f052AFQCQV02rJXYPNtY7AOd7ynNWk4n4jo/PmOTWXLosMAwbYApmsKepRxm8hIQCu/qbqUuBW5MJuXgHXMh7Gw3h7/tNSD8xamIep1lPoJQWIq3gP6Q25QBzg1GmbrVNvIpbT2rwbsAv5n2hxy9YjA0L38b/lSqiVwA0lyc0UxLrgEVWaVeG4oDs7SMbAxvA4PrnnlT7ELv/Ou+Y1fVPxmw7s32P39mEZMiaQU1Lkjq+t7+vK2a+5x6Ff1eTjR7W3ympAqXoh2ba08qUfoGTBZZd6DC1PtQfybPA=
-  on:
-    tags: true
-    repo: Runnable/ponos
