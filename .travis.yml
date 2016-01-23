@@ -5,7 +5,7 @@ node_js:
 - '4'
 - '5'
 matrix:
-  allowed_failures:
+  allow_failures:
   - node_js: '5'
 sudo: false
 services:
