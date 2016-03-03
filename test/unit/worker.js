@@ -59,19 +59,22 @@ describe('Worker', () => {
       assert.equal(w.msTimeout, 0, 'set the timeout correctly')
     })
 
-    it('should use the given logger', (done) => {
+    it('should use the given logger', () => {
       const log = { info: noop }
       opts.log = log
       const w = Worker.create(opts)
       assert.equal(w.log, log)
-      done()
     })
 
-    it('should use the given errorCat', (done) => {
+    it('should create a default logger', () => {
+      const w = Worker.create(opts)
+      assert.equal(w.log.fields.module, 'ponos:worker')
+    })
+
+    it('should use the given errorCat', () => {
       opts.errorCat = 'mew'
       const w = Worker.create(opts)
       assert.equal(w.errorCat, 'mew')
-      done()
     })
 
     describe('with worker timeout', () => {
