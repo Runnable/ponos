@@ -1,168 +1,176 @@
 'use strict'
 
-var chai = require('chai')
-var assert = chai.assert
-var sinon = require('sinon')
+const assign = require('101/assign')
+const bunyan = require('bunyan')
+const chai = require('chai')
+const monitor = require('monitor-dog')
+const noop = require('101/noop')
+const omit = require('101/omit')
+const Promise = require('bluebird')
+const put = require('101/put')
+const sinon = require('sinon')
 
-var Promise = require('bluebird')
-var monitor = require('monitor-dog')
-var TaskError = require('../../lib/errors/task-error')
-var TaskFatalError = require('../../lib/errors/task-fatal-error')
-var TimeoutError = Promise.TimeoutError
-var Worker = require('../../lib/worker')
-var assign = require('101/assign')
-var noop = require('101/noop')
-var put = require('101/put')
+const assert = chai.assert
+const TimeoutError = Promise.TimeoutError
 
-describe('Worker', function () {
-  var opts
-  var taskHandler
-  var doneHandler
+const TaskError = require('../../lib/errors/task-error')
+const TaskFatalError = require('../../lib/errors/task-fatal-error')
+const Worker = require('../../lib/worker')
 
-  beforeEach(function () {
+describe('Worker', () => {
+  let opts
+  let taskHandler
+  let doneHandler
+
+  beforeEach(() => {
     opts = {
       queue: 'do.something.command',
-      task: function (data) { return Promise.resolve(data).then(taskHandler) },
+      task: (data) => { return Promise.resolve(data).then(taskHandler) },
       job: { message: 'hello world' },
-      done: function () { return Promise.resolve().then(doneHandler) }
+      done: () => { return Promise.resolve().then(doneHandler) }
     }
   })
 
-  describe('Constructor', function () {
-    beforeEach(function () { sinon.stub(Worker.prototype, 'run') })
+  describe('Constructor', () => {
+    beforeEach(() => { sinon.stub(Worker.prototype, 'run') })
 
-    afterEach(function () { Worker.prototype.run.restore() })
+    afterEach(() => { Worker.prototype.run.restore() })
 
-    it('should enforce default opts', function () {
-      var testOpts = assign({}, opts)
-      testOpts.job = null
-      assert.throws(function () {
+    it('should enforce default opts', () => {
+      const testOpts = omit(opts, 'job')
+      assert.throws(() => {
         Worker.create(testOpts)
       }, /job is required.+Worker/)
     })
 
-    it('should run the job if runNow is true (default)', function () {
+    it('should run the job if runNow is true (default)', () => {
       Worker.create(opts)
-      assert.ok(Worker.prototype.run.calledOnce, '.run called')
+      sinon.assert.calledOnce(Worker.prototype.run)
     })
 
-    it('should hold the job if runNow is not true', function () {
-      var testOpts = assign({ runNow: false }, opts)
+    it('should hold the job if runNow is not true', () => {
+      const testOpts = assign({ runNow: false }, opts)
       Worker.create(testOpts)
-      assert.notOk(Worker.prototype.run.calledOnce, '.run not called')
+      sinon.assert.notCalled(Worker.prototype.run)
     })
 
-    it('should default the timeout to not exist', function () {
-      var w = Worker.create(opts)
+    it('should default the timeout to not exist', () => {
+      const w = Worker.create(opts)
       assert.equal(w.msTimeout, 0, 'set the timeout correctly')
     })
 
-    it('should use the given logger', function (done) {
-      var log = { info: noop }
+    it('should use the given logger', () => {
+      const log = { info: noop }
       opts.log = log
-      var w = Worker.create(opts)
+      const w = Worker.create(opts)
       assert.equal(w.log, log)
-      done()
     })
 
-    it('should use the given errorCat', function (done) {
+    it('should create a default logger', () => {
+      const w = Worker.create(opts)
+      assert.equal(w.log.fields.module, 'ponos:worker')
+    })
+
+    it('should use the given errorCat', () => {
       opts.errorCat = 'mew'
-      var w = Worker.create(opts)
+      const w = Worker.create(opts)
       assert.equal(w.errorCat, 'mew')
-      done()
     })
 
-    describe('with worker timeout', function () {
-      var prevTimeout
+    describe('with worker timeout', () => {
+      let prevTimeout
 
-      before(function () {
+      before(() => {
         prevTimeout = process.env.WORKER_TIMEOUT
         process.env.WORKER_TIMEOUT = 4000
       })
 
-      after(function () { process.env.WORKER_TIMEOUT = prevTimeout })
+      after(() => { process.env.WORKER_TIMEOUT = prevTimeout })
 
-      it('should use the environment timeout', function () {
-        var w = Worker.create(opts)
+      it('should use the environment timeout', () => {
+        const w = Worker.create(opts)
         assert.equal(w.msTimeout, 4 * 1000, 'set the timeout correctly')
       })
 
-      it('should throw when given a non-integer', function () {
+      it('should throw when given a non-integer', () => {
         opts.msTimeout = 'foobar'
-        assert.throws(function () {
+        assert.throws(() => {
           Worker.create(opts)
         }, /not an integer/)
       })
 
-      it('should throw when given a negative timeout', function () {
+      it('should throw when given a negative timeout', () => {
         opts.msTimeout = -230
-        assert.throws(function () {
+        assert.throws(() => {
           Worker.create(opts)
         }, /is negative/)
       })
     })
   })
 
-  describe('_reportError', function () {
-    var worker
-    var queue = 'some-queue-name'
-    var job = { foo: 'barrz' }
+  describe('_reportError', () => {
+    let worker
+    const queue = 'some-queue-name'
+    const job = { foo: 'barrz' }
 
-    beforeEach(function () {
+    beforeEach(() => {
       worker = Worker.create(opts)
       sinon.stub(worker.errorCat, 'report')
       worker.queue = queue
       worker.job = job
     })
 
-    afterEach(function () {
+    afterEach(() => {
       worker.errorCat.report.restore()
     })
 
-    it('should set data on the error', function () {
-      var error = new Error('an error')
+    it('should set data on the error', () => {
+      const error = new Error('an error')
       worker._reportError(error)
       assert.isObject(error.data)
     })
 
-    it('should set queue data', function () {
-      var error = new Error('an error')
+    it('should set queue data', () => {
+      const error = new Error('an error')
       worker._reportError(error)
       assert.equal(error.data.queue, queue)
     })
 
-    it('should set job data', function () {
-      var error = new Error('an error')
+    it('should set job data', () => {
+      const error = new Error('an error')
       worker._reportError(error)
       assert.deepEqual(error.data.job, job)
     })
 
-    it('should not remove given data', function () {
-      var error = new Error('an error')
+    it('should not remove given data', () => {
+      const error = new Error('an error')
       error.data = { custom: 'foo' }
       worker._reportError(error)
       assert.equal(error.data.custom, 'foo')
     })
 
-    it('should report the error via error-cat', function () {
-      var error = new Error('an error')
+    it('should report the error via error-cat', () => {
+      const error = new Error('an error')
       worker._reportError(error)
-      assert.ok(worker.errorCat.report.calledOnce)
-      assert.ok(worker.errorCat.report.calledWith(error))
+      sinon.assert.calledOnce(worker.errorCat.report)
+      sinon.assert.calledWithExactly(
+        worker.errorCat.report,
+        error
+      )
     })
   })
 
-  describe('_eventTags', function () {
-    var worker
-    var queue = 'some.queue.name'
+  describe('_eventTags', () => {
+    let worker
+    const queue = 'some.queue.name'
 
-    beforeEach(function () {
+    beforeEach(() => {
       worker = Worker.create(opts)
       worker.queue = queue
     })
 
-    it('should generate tags for new style queues', function () {
-      var tags = worker._eventTags()
+    it('should generate tags for new style queues', () => {
+      const tags = worker._eventTags()
       assert.isObject(tags)
       assert.equal(Object.keys(tags).length, 4)
       assert.deepEqual(tags, {
@@ -173,10 +181,10 @@ describe('Worker', function () {
       })
     })
 
-    it('should generate tags for old style queues', function () {
-      var queue = 'some-queue-name'
+    it('should generate tags for old style queues', () => {
+      const queue = 'some-queue-name'
       worker.queue = queue
-      var tags = worker._eventTags()
+      const tags = worker._eventTags()
       assert.isObject(tags)
       assert.equal(Object.keys(tags).length, 2)
       assert.deepEqual(tags, {
@@ -186,21 +194,21 @@ describe('Worker', function () {
     })
   })
 
-  describe('_incMonitor', function () {
-    var worker
-    var queue = 'do.something.command'
+  describe('_incMonitor', () => {
+    let worker
+    const queue = 'do.something.command'
 
-    beforeEach(function () {
+    beforeEach(() => {
       sinon.stub(monitor, 'increment')
       worker = Worker.create(put({ runNow: false }, opts))
       worker.queue = queue
     })
 
-    afterEach(function () {
+    afterEach(() => {
       monitor.increment.restore()
     })
 
-    it('should call monitor increment for event without result tag', function () {
+    it('should call monitor increment for event without result tag', () => {
       worker._incMonitor('ponos')
       sinon.assert.calledOnce(monitor.increment)
       sinon.assert.calledWith(monitor.increment, 'ponos', {
@@ -211,7 +219,7 @@ describe('Worker', function () {
       })
     })
 
-    it('should call monitor increment for event with extra tags', function () {
+    it('should call monitor increment for event with extra tags', () => {
       worker._incMonitor('ponos.finish', { result: 'success' })
       sinon.assert.calledOnce(monitor.increment)
       sinon.assert.calledWith(monitor.increment, 'ponos.finish', {
@@ -223,38 +231,38 @@ describe('Worker', function () {
       })
     })
 
-    describe('with disabled monitoring', function () {
-      beforeEach(function () {
+    describe('with disabled monitoring', () => {
+      beforeEach(() => {
         process.env.WORKER_MONITOR_DISABLED = 'true'
       })
 
-      afterEach(function () {
+      afterEach(() => {
         delete process.env.WORKER_MONITOR_DISABLED
       })
 
-      it('should not call monitor increment', function () {
+      it('should not call monitor increment', () => {
         worker._incMonitor('ponos.finish', { result: 'success' })
         sinon.assert.notCalled(monitor.increment)
       })
     })
   })
 
-  describe('_createTimer', function () {
-    var worker
-    var queue = 'do.something.command'
+  describe('_createTimer', () => {
+    let worker
+    const queue = 'do.something.command'
 
-    beforeEach(function () {
-      sinon.stub(monitor, 'timer').returns({ stop: function () {} })
+    beforeEach(() => {
+      sinon.stub(monitor, 'timer').returns({ stop: () => {} })
       worker = Worker.create(put({ runNow: false }, opts))
       worker.queue = queue
     })
 
-    afterEach(function () {
+    afterEach(() => {
       monitor.timer.restore()
     })
 
-    it('should call monitor.timer for event without result tag', function () {
-      var timer = worker._createTimer()
+    it('should call monitor.timer for event without result tag', () => {
+      const timer = worker._createTimer()
       assert.isNotNull(timer)
       assert.isNotNull(timer.stop)
       sinon.assert.calledOnce(monitor.timer)
@@ -266,30 +274,30 @@ describe('Worker', function () {
       })
     })
 
-    describe('with disabled monitoring', function () {
-      beforeEach(function () {
+    describe('with disabled monitoring', () => {
+      beforeEach(() => {
         process.env.WORKER_MONITOR_DISABLED = 'true'
       })
 
-      afterEach(function () {
+      afterEach(() => {
         delete process.env.WORKER_MONITOR_DISABLED
       })
 
-      it('should not call monitor.timer', function () {
-        var timer = worker._createTimer()
+      it('should not call monitor.timer', () => {
+        const timer = worker._createTimer()
         assert.isNull(timer)
         sinon.assert.notCalled(monitor.timer)
       })
     })
   })
 
-  describe('run', function () {
-    var worker
-    var timer = {
-      stop: function () {}
+  describe('run', () => {
+    let worker
+    const timer = {
+      stop: () => {}
     }
 
-    beforeEach(function () {
+    beforeEach(() => {
       opts.runNow = false
       worker = Worker.create(opts)
       sinon.stub(monitor, 'increment')
@@ -297,20 +305,20 @@ describe('Worker', function () {
       sinon.spy(timer, 'stop')
     })
 
-    afterEach(function () {
+    afterEach(() => {
       monitor.increment.restore()
       monitor.timer.restore()
       timer.stop.restore()
     })
 
-    describe('successful runs', function () {
-      it('should run the task and call done', function () {
+    describe('successful runs', () => {
+      it('should run the task and call done', () => {
         taskHandler = sinon.stub()
         doneHandler = sinon.stub()
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.ok(taskHandler.calledOnce, 'task was called once')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+          .then(() => {
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.calledTwice(monitor.increment)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -336,50 +344,50 @@ describe('Worker', function () {
           })
       })
 
-      describe('with disabled monitoring', function () {
-        beforeEach(function () {
+      describe('with disabled monitoring', () => {
+        beforeEach(() => {
           process.env.WORKER_MONITOR_DISABLED = 'true'
         })
 
-        afterEach(function () {
+        afterEach(() => {
           delete process.env.WORKER_MONITOR_DISABLED
         })
 
-        it('should run the task and call done and not stop timer', function () {
+        it('should run the task and call done and not stop timer', () => {
           taskHandler = sinon.stub()
           doneHandler = sinon.stub()
           return assert.isFulfilled(worker.run())
-            .then(function () {
-              assert.ok(taskHandler.calledOnce, 'task was called once')
-              assert.ok(doneHandler.calledOnce, 'done was called once')
+            .then(() => {
+              sinon.assert.calledOnce(taskHandler)
+              sinon.assert.calledOnce(doneHandler)
               sinon.assert.notCalled(monitor.increment)
               sinon.assert.notCalled(monitor.timer)
               sinon.assert.notCalled(timer.stop)
             })
         })
       })
-      describe('with worker timeout', function () {
-        var prevTimeout
+      describe('with worker timeout', () => {
+        let prevTimeout
 
-        before(function () {
+        before(() => {
           prevTimeout = process.env.WORKER_TIMEOUT
           process.env.WORKER_TIMEOUT = 10
         })
 
-        after(function () { process.env.WORKER_TIMEOUT = prevTimeout })
+        after(() => { process.env.WORKER_TIMEOUT = prevTimeout })
 
-        it('should timeout the job', function () {
+        it('should timeout the job', () => {
           // we are going to replace the handler w/ a stub
-          taskHandler = function () {
+          taskHandler = () => {
             taskHandler = sinon.stub()
             return Promise.resolve().delay(25)
           }
           doneHandler = sinon.stub()
           return assert.isFulfilled(worker.run())
-            .then(function () {
+            .then(() => {
               // this is asserting taskHandler called once, but was twice
-              assert.ok(taskHandler.calledOnce, 'task was called once')
-              assert.ok(doneHandler.calledOnce, 'done was called once')
+              sinon.assert.calledOnce(taskHandler)
+              sinon.assert.calledOnce(doneHandler)
               sinon.assert.callCount(monitor.increment, 5)
               sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
                 token0: 'command',
@@ -406,54 +414,54 @@ describe('Worker', function () {
         })
       })
 
-      describe('with max retry delay', function () {
-        var prevDelay
+      describe('with max retry delay', () => {
+        let prevDelay
 
-        before(function () {
+        before(() => {
           prevDelay = process.env.WORKER_MAX_RETRY_DELAY
           process.env.WORKER_MAX_RETRY_DELAY = 4
         })
 
-        after(function () { process.env.WORKER_MAX_RETRY_DELAY = prevDelay })
+        after(() => { process.env.WORKER_MAX_RETRY_DELAY = prevDelay })
 
-        it('should exponentially back off up to max', function () {
-          var initDelay = worker.retryDelay
+        it('should exponentially back off up to max', () => {
+          const initDelay = worker.retryDelay
           taskHandler = sinon.stub()
           taskHandler.onFirstCall().throws(new Error('foobar'))
           taskHandler.onSecondCall().throws(new Error('foobar'))
           taskHandler.onThirdCall().throws(new Error('foobar'))
           doneHandler = sinon.stub()
           return assert.isFulfilled(worker.run())
-            .then(function () {
+            .then(() => {
               assert.notEqual(initDelay, worker.retryDelay, 'delay increased')
-              assert.equal(worker.retryDelay, 4, 'delay increased to max')
-              assert.equal(taskHandler.callCount, 4, 'task was called twice')
-              assert.ok(doneHandler.calledOnce, 'done was called once')
+              assert.equal(worker.retryDelay, 4)
+              sinon.assert.callCount(taskHandler, 4)
+              sinon.assert.calledOnce(doneHandler)
             })
         })
       })
     })
 
-    describe('errored behavior', function () {
-      beforeEach(function () {
+    describe('errored behavior', () => {
+      beforeEach(() => {
         doneHandler = sinon.stub()
-        sinon.stub(worker.log, 'error')
-        sinon.stub(worker.log, 'warn')
+        sinon.spy(bunyan.prototype, 'error')
+        sinon.spy(bunyan.prototype, 'warn')
         sinon.stub(worker, '_reportError')
       })
 
-      afterEach(function () {
-        worker.log.error.restore()
-        worker.log.warn.restore()
+      afterEach(() => {
+        bunyan.prototype.error.restore()
+        bunyan.prototype.warn.restore()
         worker._reportError.restore()
       })
 
-      it('should catch TaskFatalError, not retry, and call done', function () {
-        taskHandler = sinon.stub().throws(new TaskFatalError('foobar'))
+      it('should catch TaskFatalError, not retry, and call done', () => {
+        taskHandler = sinon.stub().throws(new TaskFatalError('queue', 'foobar'))
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.ok(taskHandler.calledOnce, 'task was called once')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+          .then(() => {
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.calledTwice(monitor.increment)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -479,13 +487,13 @@ describe('Worker', function () {
           })
       })
 
-      it('should retry if task throws Error', function () {
+      it('should retry if task throws Error', () => {
         taskHandler = sinon.stub()
         taskHandler.onFirstCall().throws(new Error('foobar'))
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.equal(taskHandler.callCount, 2, 'task was called twice')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+          .then(() => {
+            assert.equal(taskHandler.callCount, 2)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.callCount(monitor.increment, 4)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -511,13 +519,13 @@ describe('Worker', function () {
           })
       })
 
-      it('should retry if task throws TaskError', function () {
+      it('should retry if task throws TaskError', () => {
         taskHandler = sinon.stub()
         taskHandler.onFirstCall().throws(new TaskError('foobar'))
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.equal(taskHandler.callCount, 2, 'task was called twice')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+          .then(() => {
+            assert.equal(taskHandler.callCount, 2)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.callCount(monitor.increment, 4)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -543,13 +551,13 @@ describe('Worker', function () {
           })
       })
 
-      it('should retry if task throws TimeoutError', function () {
+      it('should retry if task throws TimeoutError', () => {
         taskHandler = sinon.stub()
         taskHandler.onFirstCall().throws(new TimeoutError())
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.equal(taskHandler.callCount, 2, 'task was called twice')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+          .then(() => {
+            sinon.assert.callCount(taskHandler, 2)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.callCount(monitor.increment, 5)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -575,35 +583,42 @@ describe('Worker', function () {
           })
       })
 
-      it('should log TaskFatalError', function () {
-        var fatalError = new TaskFatalError('foobar')
+      it('should log TaskFatalError', () => {
+        const fatalError = new TaskFatalError('queue', 'foobar')
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.ok(worker.log.error.calledOnce)
-            assert.deepEqual(worker.log.error.firstCall.args[0], {
-              err: fatalError
-            })
+          .then(() => {
+            sinon.assert.calledOnce(worker.log.error)
+            sinon.assert.calledWith(
+              worker.log.error.firstCall,
+              { err: fatalError }
+            )
           })
       })
 
-      it('should report TaskFatalError', function () {
-        var fatalError = new TaskFatalError('foobar')
+      it('should report TaskFatalError', () => {
+        const fatalError = new TaskFatalError('queue', 'foobar')
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.ok(worker._reportError.calledWith(fatalError))
+          .then(() => {
+            sinon.assert.calledWithExactly(
+              worker._reportError,
+              fatalError
+            )
           })
       })
 
-      it('should log all other errors', function () {
-        var otherError = new Error('stfunoob')
+      it('should log all other errors', () => {
+        const otherError = new Error('stfunoob')
         taskHandler = sinon.stub()
         taskHandler.onFirstCall().throws(otherError)
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.ok(worker.log.warn.calledOnce, 'log called once')
-            assert.equal(worker.log.warn.firstCall.args[0].err, otherError)
+          .then(() => {
+            sinon.assert.calledOnce(worker.log.warn)
+            sinon.assert.calledWith(
+              worker.log.warn.firstCall,
+              sinon.match.has('err', otherError)
+            )
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
               token1: 'something.command',
@@ -628,13 +643,16 @@ describe('Worker', function () {
           })
       })
 
-      it('should report all other errors', function () {
-        var otherError = new Error('stfunoob')
+      it('should report all other errors', () => {
+        const otherError = new Error('stfunoob')
         taskHandler = sinon.stub()
         taskHandler.onFirstCall().throws(otherError)
         return assert.isFulfilled(worker.run())
-          .then(function () {
-            assert.ok(worker._reportError.calledWith(otherError))
+          .then(() => {
+            sinon.assert.calledWith(
+              worker._reportError,
+              otherError
+            )
           })
       })
     })

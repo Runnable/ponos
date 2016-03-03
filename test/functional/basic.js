@@ -1,25 +1,30 @@
 'use strict'
 
-var chai = require('chai')
-var assert = chai.assert
+const chai = require('chai')
+
+const assert = chai.assert
 
 // Ponos Tooling
-var ponos = require('../../')
-var testWorker = require('./fixtures/worker')
-var testWorkerEmitter = testWorker.emitter
+const ponos = require('../../')
+const testWorker = require('./fixtures/worker')
+const testWorkerEmitter = testWorker.emitter
 
-describe('Basic Example', function () {
+describe('Basic Example', () => {
   var server
-  before(function (done) {
+
+  before(() => {
     var tasks = {
       'ponos-test:one': testWorker
     }
     server = new ponos.Server({ queues: Object.keys(tasks) })
-    server.setAllTasks(tasks).start().asCallback(done)
+    return server.setAllTasks(tasks).start()
   })
-  after(function (done) { server.stop().then(function () { done() }) })
 
-  it('should queue a task that triggers an event', function (done) {
+  after(() => {
+    return server.stop()
+  })
+
+  it('should queue a task that triggers an event', (done) => {
     testWorkerEmitter.on('task', function (data) {
       assert.equal(data.data, 'hello world')
       done()
