@@ -13,3 +13,11 @@ after_success:
 - npm run coveralls
 notifications:
   email: false
+deploy:
+  provider: npm
+  email: bryan@bryankendall.com
+  api_key:
+    secure: nRD93Gz7r6FAsU5l4OC6LijvJS1f1NqrBGpAnO/vuy8+/gRNvVwMvRfIcvqEWkLZOGqfk674PAnK+D4MidVs+Ky9GJW0Lv2ZyW1JbJW9HU16l4gYwqW5uQdmV8ocguXbs2LshRI2E13ro70wFyOLl+W4Y78jJS3LSfioIY+wnIuOzLCXwCimX2YslHQu9OxiuZmdkbBplQ87t82rC42NOXR+6vRnG26pq4TkANtpu1TViaQA3Dw28rEcjff6tBwKpGQJfsWrt9LtBNHT6Fhz2WnSKNGyGI8COz9SoqzOc/M1lW5+F/+3N2+fN8/LPJvlj1OkjTiIEHI4U9sPjcVdtVXXWuzsHLBUS97orfpwPjD7lio3kPQ9t3+Jpj8b9JwvLa3Qy/ap2xvIKa7FZgo4gVvmgcxoSBTQJzWnuLUD+xazkbJhGL0HKgifFpFy9MKBivqKRf1aT9d0ocrWqY/jNXxUfE3R6d/ct+ovVGvKa+VocKxEQvffHUJRP5v2Ei+3pFZE3SO235jArUVAhVgFk6loczpCofUaL8usUuQOLm1DhwqwFv7Pz0x3RoqCJOP7lLtSmmpo5riVXsq6edgN7Ph5GyvOSro8TvLQ/nVV1O3gIfuwIFNk2jxzzhNCC9pwmYGrThK3X54/i0+A6ad8TZKk2Tf82R3A75Vyt2G334M=
+  on:
+    tags: true
+    node: '4'
