@@ -1,5 +1,12 @@
 ## Change Log
 
+### v2.0.0 (2016/03/03 22:16 +00:00)
+- [#30](https://github.com/Runnable/ponos/pull/30) package.json engine (@bkendall)
+- [#29](https://github.com/Runnable/ponos/pull/29) auto deploy to NPM (@bkendall)
+- [#28](https://github.com/Runnable/ponos/pull/28) ES6 (@bkendall)
+- [#26](https://github.com/Runnable/ponos/pull/26) remove npm publish (@bkendall)
+- [#27](https://github.com/Runnable/ponos/pull/27) fix allowed failures entry (@bkendall)
+
 ### v1.3.0 (2016/01/21 21:32 +00:00)
 - [#25](https://github.com/Runnable/ponos/pull/25) Add monitor-dog (@podviaznikov)
 - [#23](https://github.com/Runnable/ponos/pull/23) use travis to deploy to npm (@bkendall)
