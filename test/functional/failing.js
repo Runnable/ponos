@@ -21,27 +21,21 @@ const _Worker = require('../../lib/worker')
  */
 describe('Basic Failing Task', () => {
   let server
-  before((done) => {
+
+  before(() => {
     sinon.spy(_Worker.prototype, 'run')
     sinon.spy(_Worker.prototype, '_reportError')
     const tasks = {
       'ponos-test:one': testWorker
     }
     server = new ponos.Server({ queues: Object.keys(tasks) })
-    server.setAllTasks(tasks).start()
-      .then(() => {
-        assert.notOk(_Worker.prototype.run.called, '.run should not be called')
-        done()
-      })
-      .catch(done)
+    return server.setAllTasks(tasks).start()
   })
-  after((done) => {
-    server.stop()
-      .then(() => {
-        _Worker.prototype.run.restore()
-        _Worker.prototype._reportError.restore()
-        done()
-      })
+
+  after(() => {
+    _Worker.prototype.run.restore()
+    _Worker.prototype._reportError.restore()
+    return server.stop()
   })
 
   const job = {
@@ -51,13 +45,11 @@ describe('Basic Failing Task', () => {
   // Before we run the test, let's assert that our task fails with the job.
   // This should be _rejected_ with an error.
   before(() => {
-    const testWorkerPromise = testWorker(job)
-      .catch((err) => {
-        // extra assertion that it's still a TaskFatalError
-        assert.instanceOf(err, TaskFatalError)
-        throw err
-      })
-    return assert.isRejected(testWorkerPromise, /message.+required/)
+    return assert.isRejected(
+      testWorker(job),
+      TaskFatalError,
+      /message.+required/
+    )
   })
 
   it('should fail once and not be re-run', () => {

@@ -22,27 +22,19 @@ const _Bunyan = require('bunyan')
  */
 describe('Basic Timeout Task', function () {
   let server
-  before((done) => {
+  before(() => {
     sinon.spy(_Worker.prototype, 'run')
     sinon.spy(_Bunyan.prototype, 'warn')
     const tasks = {
       'ponos-test:one': testWorker
     }
     server = new ponos.Server({ queues: Object.keys(tasks) })
-    server.setAllTasks(tasks).start()
-      .then(() => {
-        assert.notOk(_Worker.prototype.run.called, '.run should not be called')
-        done()
-      })
-      .catch(done)
+    return server.setAllTasks(tasks).start()
   })
-  after((done) => {
-    server.stop()
-      .then(() => {
-        _Worker.prototype.run.restore()
-        _Bunyan.prototype.warn.restore()
-        done()
-      })
+  after(() => {
+    _Worker.prototype.run.restore()
+    _Bunyan.prototype.warn.restore()
+    return server.stop()
   })
 
   const job = {
@@ -53,11 +45,15 @@ describe('Basic Timeout Task', function () {
   describe('with a timeout', function () {
     this.timeout(3500)
     let prevTimeout
+
     before(() => {
       prevTimeout = process.env.WORKER_TIMEOUT
       process.env.WORKER_TIMEOUT = 1000
     })
-    after(() => { process.env.WORKER_TIMEOUT = prevTimeout })
+
+    after(() => {
+      process.env.WORKER_TIMEOUT = prevTimeout
+    })
 
     it('should fail twice and pass the third time', (done) => {
       testWorkerEmitter.on('did-not-time-out', () => {

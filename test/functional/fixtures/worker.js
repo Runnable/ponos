@@ -1,10 +1,10 @@
 'use strict'
 
-var EventEmitter = require('events')
-var Promise = require('bluebird')
+const EventEmitter = require('events')
+const Promise = require('bluebird')
 
-var ponos = require('../../../')
-var TaskFatalError = ponos.TaskFatalError
+const ponos = require('../../../')
+const TaskFatalError = ponos.TaskFatalError
 
 /**
  * A simple worker that will publish a message to a queue.

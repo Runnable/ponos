@@ -21,7 +21,7 @@ module.exports = (job) => {
       if (!job.message) { throw new TaskFatalError('queue', 'message is required') }
     })
     .then(() => {
-      var timeout = module.exports._timeout
+      const timeout = module.exports._timeout
       // every time this worker is run, it will halve it's delay (run) time
       module.exports._timeout = module.exports._timeout / 2
       return Promise.resolve()

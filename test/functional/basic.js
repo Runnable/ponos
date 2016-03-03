@@ -11,16 +11,20 @@ const testWorkerEmitter = testWorker.emitter
 
 describe('Basic Example', () => {
   var server
-  before((done) => {
+
+  before(() => {
     var tasks = {
       'ponos-test:one': testWorker
     }
     server = new ponos.Server({ queues: Object.keys(tasks) })
-    server.setAllTasks(tasks).start().asCallback(done)
+    return server.setAllTasks(tasks).start()
   })
-  after((done) => { server.stop().then(() => { done() }) })
 
-  it('should queue a task that triggers an event', function (done) {
+  after(() => {
+    return server.stop()
+  })
+
+  it('should queue a task that triggers an event', (done) => {
     testWorkerEmitter.on('task', function (data) {
       assert.equal(data.data, 'hello world')
       done()
