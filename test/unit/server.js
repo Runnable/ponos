@@ -1,5 +1,6 @@
 'use strict'
 
+const bunyan = require('bunyan')
 const chai = require('chai')
 const hermes = require('runnable-hermes')
 const noop = require('101/noop')
@@ -9,7 +10,6 @@ const sinon = require('sinon')
 const assert = chai.assert
 
 const ponos = require('../../')
-const ponosDefaultLogger = require('../../lib/logger')
 const Worker = require('../../lib/worker')
 
 const tasks = {
@@ -119,7 +119,7 @@ describe('Server', () => {
 
     it('should use the default logger', () => {
       const s = new ponos.Server({ queues: Object.keys(tasks) })
-      assert.equal(s.log, ponosDefaultLogger)
+      assert.equal(s.log.fields.module, 'ponos:server')
     })
 
     it('should use the provided logger', () => {
@@ -146,13 +146,13 @@ describe('Server', () => {
       server.setAllTasks({ a: noop })
       sinon.stub(server.hermes, 'subscribe')
       sinon.stub(server, '_runWorker')
-      sinon.stub(ponosDefaultLogger, 'warn')
+      sinon.spy(bunyan.prototype, 'warn')
     })
 
     afterEach(() => {
       server.hermes.subscribe.restore()
       hermes.hermesSingletonFactory.restore()
-      ponosDefaultLogger.warn.restore()
+      bunyan.prototype.warn.restore()
     })
 
     it('should apply the correct callback for the given queue', () => {
@@ -168,11 +168,11 @@ describe('Server', () => {
     it('should log warning if queue does not have handler', () => {
       server._subscribe('x')
       sinon.assert.notCalled(server.hermes.subscribe)
-      sinon.assert.calledOnce(ponosDefaultLogger.warn)
+      sinon.assert.calledOnce(bunyan.prototype.warn)
       sinon.assert.calledWith(
-        ponosDefaultLogger.warn,
+        bunyan.prototype.warn,
         sinon.match.has('queueName', 'x'),
-        'ponos.Server: handler not defined'
+        'handler not defined'
       )
     })
   })
@@ -336,7 +336,7 @@ describe('Server', () => {
     it('should throw if the provided task is not a function', () => {
       assert.throws(() => {
         server.setTask(queue, 'not-a-function')
-      }, /not a function/)
+      }, /must be a function/)
     })
 
     it('should set default worker options', () => {
@@ -392,7 +392,7 @@ describe('Server', () => {
         sinon.assert.calledWith(
           server.log.warn,
           sinon.match.has('key', queue),
-          'ponos.Server.setAllTasks: No task function defined'
+          'no task function defined for key'
         )
         sinon.assert.notCalled(server.setTask)
       })
@@ -410,25 +410,25 @@ describe('Server', () => {
   describe('start', () => {
     describe('without tasks', () => {
       beforeEach(() => {
-        sinon.stub(ponosDefaultLogger, 'warn')
+        sinon.stub(bunyan.prototype, 'warn')
       })
 
       afterEach(() => {
-        ponosDefaultLogger.warn.restore()
+        bunyan.prototype.warn.restore()
       })
 
       it('should warn', () => {
-        server.start().then(() => {
-          sinon.assert.calledTwice(ponosDefaultLogger.warn)
+        return server.start().then(() => {
+          sinon.assert.calledTwice(bunyan.prototype.warn)
           sinon.assert.calledWith(
-            ponosDefaultLogger.warn.getCall(0),
+            bunyan.prototype.warn.firstCall,
             sinon.match.has('queueName', 'test-queue-01'),
-            'ponos.Server: handler not defined'
+            'handler not defined'
           )
           sinon.assert.calledWith(
-            ponosDefaultLogger.warn.getCall(1),
+            bunyan.prototype.warn.secondCall,
             sinon.match.has('queueName', 'test-queue-02'),
-            'ponos.Server: handler not defined'
+            'handler not defined'
           )
         })
       })

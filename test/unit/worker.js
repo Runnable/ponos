@@ -1,6 +1,7 @@
 'use strict'
 
 const assign = require('101/assign')
+const bunyan = require('bunyan')
 const chai = require('chai')
 const monitor = require('monitor-dog')
 const noop = require('101/noop')
@@ -44,13 +45,13 @@ describe('Worker', () => {
 
     it('should run the job if runNow is true (default)', () => {
       Worker.create(opts)
-      assert.ok(Worker.prototype.run.calledOnce, '.run called')
+      sinon.assert.calledOnce(Worker.prototype.run)
     })
 
     it('should hold the job if runNow is not true', () => {
       const testOpts = assign({ runNow: false }, opts)
       Worker.create(testOpts)
-      assert.notOk(Worker.prototype.run.calledOnce, '.run not called')
+      sinon.assert.notCalled(Worker.prototype.run)
     })
 
     it('should default the timeout to not exist', () => {
@@ -148,8 +149,11 @@ describe('Worker', () => {
     it('should report the error via error-cat', () => {
       const error = new Error('an error')
       worker._reportError(error)
-      assert.ok(worker.errorCat.report.calledOnce)
-      assert.ok(worker.errorCat.report.calledWith(error))
+      sinon.assert.calledOnce(worker.errorCat.report)
+      sinon.assert.calledWithExactly(
+        worker.errorCat.report,
+        error
+      )
     })
   })
 
@@ -310,8 +314,8 @@ describe('Worker', () => {
         doneHandler = sinon.stub()
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.ok(taskHandler.calledOnce, 'task was called once')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.calledTwice(monitor.increment)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -351,8 +355,8 @@ describe('Worker', () => {
           doneHandler = sinon.stub()
           return assert.isFulfilled(worker.run())
             .then(() => {
-              assert.ok(taskHandler.calledOnce, 'task was called once')
-              assert.ok(doneHandler.calledOnce, 'done was called once')
+              sinon.assert.calledOnce(taskHandler)
+              sinon.assert.calledOnce(doneHandler)
               sinon.assert.notCalled(monitor.increment)
               sinon.assert.notCalled(monitor.timer)
               sinon.assert.notCalled(timer.stop)
@@ -379,8 +383,8 @@ describe('Worker', () => {
           return assert.isFulfilled(worker.run())
             .then(() => {
               // this is asserting taskHandler called once, but was twice
-              assert.ok(taskHandler.calledOnce, 'task was called once')
-              assert.ok(doneHandler.calledOnce, 'done was called once')
+              sinon.assert.calledOnce(taskHandler)
+              sinon.assert.calledOnce(doneHandler)
               sinon.assert.callCount(monitor.increment, 5)
               sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
                 token0: 'command',
@@ -427,9 +431,9 @@ describe('Worker', () => {
           return assert.isFulfilled(worker.run())
             .then(() => {
               assert.notEqual(initDelay, worker.retryDelay, 'delay increased')
-              assert.equal(worker.retryDelay, 4, 'delay increased to max')
-              assert.equal(taskHandler.callCount, 4, 'task was called twice')
-              assert.ok(doneHandler.calledOnce, 'done was called once')
+              assert.equal(worker.retryDelay, 4)
+              sinon.assert.callCount(taskHandler, 4)
+              sinon.assert.calledOnce(doneHandler)
             })
         })
       })
@@ -438,14 +442,14 @@ describe('Worker', () => {
     describe('errored behavior', () => {
       beforeEach(() => {
         doneHandler = sinon.stub()
-        sinon.stub(worker.log, 'error')
-        sinon.stub(worker.log, 'warn')
+        sinon.spy(bunyan.prototype, 'error')
+        sinon.spy(bunyan.prototype, 'warn')
         sinon.stub(worker, '_reportError')
       })
 
       afterEach(() => {
-        worker.log.error.restore()
-        worker.log.warn.restore()
+        bunyan.prototype.error.restore()
+        bunyan.prototype.warn.restore()
         worker._reportError.restore()
       })
 
@@ -453,8 +457,8 @@ describe('Worker', () => {
         taskHandler = sinon.stub().throws(new TaskFatalError('queue', 'foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.ok(taskHandler.calledOnce, 'task was called once')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.calledTwice(monitor.increment)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -485,8 +489,8 @@ describe('Worker', () => {
         taskHandler.onFirstCall().throws(new Error('foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.equal(taskHandler.callCount, 2, 'task was called twice')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+            assert.equal(taskHandler.callCount, 2)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.callCount(monitor.increment, 4)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -517,8 +521,8 @@ describe('Worker', () => {
         taskHandler.onFirstCall().throws(new TaskError('foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.equal(taskHandler.callCount, 2, 'task was called twice')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+            assert.equal(taskHandler.callCount, 2)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.callCount(monitor.increment, 4)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -549,8 +553,8 @@ describe('Worker', () => {
         taskHandler.onFirstCall().throws(new TimeoutError())
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.equal(taskHandler.callCount, 2, 'task was called twice')
-            assert.ok(doneHandler.calledOnce, 'done was called once')
+            sinon.assert.callCount(taskHandler, 2)
+            sinon.assert.calledOnce(doneHandler)
             sinon.assert.callCount(monitor.increment, 5)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
@@ -581,10 +585,11 @@ describe('Worker', () => {
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.ok(worker.log.error.calledOnce)
-            assert.deepEqual(worker.log.error.firstCall.args[0], {
-              err: fatalError
-            })
+            sinon.assert.calledOnce(worker.log.error)
+            sinon.assert.calledWith(
+              worker.log.error.firstCall,
+              { err: fatalError }
+            )
           })
       })
 
@@ -593,7 +598,10 @@ describe('Worker', () => {
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.ok(worker._reportError.calledWith(fatalError))
+            sinon.assert.calledWithExactly(
+              worker._reportError,
+              fatalError
+            )
           })
       })
 
@@ -603,8 +611,11 @@ describe('Worker', () => {
         taskHandler.onFirstCall().throws(otherError)
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.ok(worker.log.warn.calledOnce, 'log called once')
-            assert.equal(worker.log.warn.firstCall.args[0].err, otherError)
+            sinon.assert.calledOnce(worker.log.warn)
+            sinon.assert.calledWith(
+              worker.log.warn.firstCall,
+              sinon.match.has('err', otherError)
+            )
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
               token0: 'command',
               token1: 'something.command',
@@ -635,7 +646,10 @@ describe('Worker', () => {
         taskHandler.onFirstCall().throws(otherError)
         return assert.isFulfilled(worker.run())
           .then(() => {
-            assert.ok(worker._reportError.calledWith(otherError))
+            sinon.assert.calledWith(
+              worker._reportError,
+              otherError
+            )
           })
       })
     })

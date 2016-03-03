@@ -1,7 +1,7 @@
 'use strict'
 
 const chai = require('chai')
-const async = require('async')
+const Promise = require('bluebird')
 const sinon = require('sinon')
 
 const assert = chai.assert
@@ -60,17 +60,22 @@ describe('Basic Failing Task', () => {
     return assert.isRejected(testWorkerPromise, /message.+required/)
   })
 
-  it('should fail once and not be re-run', (done) => {
+  it('should fail once and not be re-run', () => {
     testWorkerEmitter.on('will-never-emit', () => {
-      done(new Error('failing worker should not have emitted'))
+      throw new Error('failing worker should not have emitted')
     })
     server.hermes.publish('ponos-test:one', job)
 
     // wait until .run is called
-    async.until(
-      () => { return _Worker.prototype.run.calledOnce },
-      (cb) => { setTimeout(cb, 5) },
-      () => {
+    return new Promise((resolve, reject) => {
+      var checker = setInterval(() => {
+        if (_Worker.prototype.run.calledOnce) {
+          clearInterval(checker)
+          resolve()
+        }
+      }, 5)
+    })
+      .then(() => {
         assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
         /*
          *  We can get the promise and assure that it was fulfilled!
@@ -87,7 +92,6 @@ describe('Basic Failing Task', () => {
         const err = _Worker.prototype._reportError.firstCall.args[0]
         assert.instanceOf(err, TaskFatalError)
         assert.match(err, /message.+required/)
-        done()
       })
   })
 })
