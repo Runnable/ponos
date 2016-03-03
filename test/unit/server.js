@@ -155,6 +155,14 @@ describe('Server', () => {
       bunyan.prototype.warn.restore()
     })
 
+    it('should throw an error if not passed an object', () => {
+      assert.throws(
+        () => { server.setAllTasks([]) },
+        Error,
+        /must be called with an object/
+      )
+    })
+
     it('should apply the correct callback for the given queue', () => {
       server._subscribe('a')
       assert.ok(server.hermes.subscribe.calledOnce)
