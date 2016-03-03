@@ -1,10 +1,10 @@
 'use strict'
 
-var EventEmitter = require('events').EventEmitter
-var ponos = require('../../../')
-var Promise = require('bluebird')
+const EventEmitter = require('events')
+const Promise = require('bluebird')
 
-var TaskFatalError = ponos.TaskFatalError
+const ponos = require('../../../')
+const TaskFatalError = ponos.TaskFatalError
 
 /**
  * A worker that will publish a message to an event emitter. This worker also
@@ -14,19 +14,19 @@ var TaskFatalError = ponos.TaskFatalError
  * @param {string} job.queue Queue on which the message will be published.
  * @returns {promise} Resolved when the message is put on the queue.
  */
-module.exports = function (job) {
+module.exports = (job) => {
   return Promise.resolve()
-    .then(function () {
+    .then(() => {
       if (!job.eventName) { throw new TaskFatalError('eventName is required') }
       if (!job.message) { throw new TaskFatalError('message is required') }
     })
-    .then(function () {
+    .then(() => {
       var timeout = module.exports._timeout
       // every time this worker is run, it will halve it's delay (run) time
       module.exports._timeout = module.exports._timeout / 2
       return Promise.resolve()
         .delay(timeout)
-        .then(function () {
+        .then(() => {
           module.exports.emitter.emit(job.eventName, { data: job.message })
           return true
         })

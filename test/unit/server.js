@@ -1,29 +1,29 @@
 'use strict'
 
-var chai = require('chai')
-var assert = chai.assert
-var sinon = require('sinon')
+const chai = require('chai')
+const hermes = require('runnable-hermes')
+const noop = require('101/noop')
+const Promise = require('bluebird')
+const sinon = require('sinon')
 
-var Promise = require('bluebird')
-var hermes = require('runnable-hermes')
-var noop = require('101/noop')
+const assert = chai.assert
 
-var ponos = require('../../')
-var Worker = require('../../lib/worker')
-var ponosDefaultLogger = require('../../lib/logger')
+const ponos = require('../../')
+const ponosDefaultLogger = require('../../lib/logger')
+const Worker = require('../../lib/worker')
 
-var tasks = {
+const tasks = {
   'test-queue-01': worker,
   'test-queue-02': worker
 }
 function worker (job, done) {} // eslint-disable-line no-unused-vars
 
-describe('Server', function () {
-  var server
+describe('Server', () => {
+  let server
 
-  beforeEach(function () { sinon.stub(Worker, 'create') })
+  beforeEach(() => { sinon.stub(Worker, 'create') })
 
-  beforeEach(function () {
+  beforeEach(() => {
     server = new ponos.Server({ queues: Object.keys(tasks) })
     sinon.stub(server.hermes, 'connectAsync').returns(Promise.resolve())
     sinon.stub(server.hermes, 'subscribe').returns(Promise.resolve())
@@ -31,48 +31,48 @@ describe('Server', function () {
     sinon.spy(server.errorCat, 'report')
   })
 
-  afterEach(function () {
+  afterEach(() => {
     server.hermes.connectAsync.restore()
     server.hermes.subscribe.restore()
     server.hermes.closeAsync.restore()
     server.errorCat.report.restore()
   })
 
-  afterEach(function () { Worker.create.restore() })
+  afterEach(() => { Worker.create.restore() })
 
-  describe('Constructor', function () {
-    beforeEach(function () {
+  describe('Constructor', () => {
+    beforeEach(() => {
       sinon.stub(hermes, 'hermesSingletonFactory').returns(noop)
     })
 
-    afterEach(function () { hermes.hermesSingletonFactory.restore() })
+    afterEach(() => { hermes.hermesSingletonFactory.restore() })
 
-    describe('with rabbitmq env vars', function () {
-      var envs = {
+    describe('with rabbitmq env vars', () => {
+      let envs = {
         HOSTNAME: 'foobar',
         PORT: 42,
         USERNAME: 'luke',
         PASSWORD: 'skywalker'
       }
 
-      before(function () {
-        Object.keys(envs).forEach(function (k) {
-          var oldVal = process.env['RABBITMQ_' + k]
+      before(() => {
+        Object.keys(envs).forEach((k) => {
+          const oldVal = process.env['RABBITMQ_' + k]
           process.env['RABBITMQ_' + k] = envs[k]
           envs[k] = oldVal
         })
       })
 
-      after(function () {
-        Object.keys(envs).forEach(function (k) {
+      after(() => {
+        Object.keys(envs).forEach((k) => {
           process.env['RABBITMQ_' + k] = envs[k]
         })
       })
 
-      it('should create a hermes client with those options', function () {
-        var s = new ponos.Server({ queues: Object.keys(tasks), name: 'phonos' })
+      it('should create a hermes client with those options', () => {
+        const s = new ponos.Server({ queues: Object.keys(tasks), name: 'phonos' })
         assert.ok(s)
-        var hermesOpts = hermes.hermesSingletonFactory.firstCall.args[0]
+        const hermesOpts = hermes.hermesSingletonFactory.firstCall.args[0]
         assert.deepEqual(hermesOpts, {
           hostname: 'foobar',
           port: 42,
@@ -84,17 +84,17 @@ describe('Server', function () {
       })
     })
 
-    it('should take a Hermes client', function () {
-      var s = new ponos.Server({ hermes: noop })
+    it('should take a Hermes client', () => {
+      const s = new ponos.Server({ hermes: noop })
       assert.ok(s)
       assert.equal(s.hermes, noop)
     })
 
-    it('should default rabbit mq vars', function () {
-      var s = new ponos.Server({ queues: Object.keys(tasks) })
+    it('should default rabbit mq vars', () => {
+      const s = new ponos.Server({ queues: Object.keys(tasks) })
       assert.ok(s)
       assert.equal(s.hermes, noop)
-      var hermesOpts = hermes.hermesSingletonFactory.firstCall.args[0]
+      const hermesOpts = hermes.hermesSingletonFactory.firstCall.args[0]
       assert.deepEqual(hermesOpts, {
         hostname: 'localhost',
         port: 5672,
@@ -105,30 +105,26 @@ describe('Server', function () {
       })
     })
 
-    it('should require a list of queues', function () {
-      var s
-      assert.throws(function () {
-        s = new ponos.Server()
+    it('should require a list of queues', () => {
+      assert.throws(() => {
+        return new ponos.Server()
       }, /missing.+queues/)
-      assert.notOk(s)
     })
 
-    it('should require a string list of queues', function () {
-      var s
-      assert.throws(function () {
-        s = new ponos.Server({ queues: [{}] })
+    it('should require a string list of queues', () => {
+      assert.throws(() => {
+        return new ponos.Server({ queues: [{}] })
       }, /queues.+string/)
-      assert.notOk(s)
     })
 
-    it('should use the default logger', function () {
-      var s = new ponos.Server({ queues: Object.keys(tasks) })
+    it('should use the default logger', () => {
+      const s = new ponos.Server({ queues: Object.keys(tasks) })
       assert.equal(s.log, ponosDefaultLogger)
     })
 
-    it('should use the provided logger', function () {
-      var customLogger = {}
-      var s = new ponos.Server({
+    it('should use the provided logger', () => {
+      const customLogger = {}
+      const s = new ponos.Server({
         queues: Object.keys(tasks),
         log: customLogger
       })
@@ -136,11 +132,11 @@ describe('Server', function () {
     })
   })
 
-  describe('_subscribe', function () {
-    var server
-    var queues = ['a']
+  describe('_subscribe', () => {
+    let server
+    const queues = ['a']
 
-    beforeEach(function () {
+    beforeEach(() => {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
@@ -153,23 +149,23 @@ describe('Server', function () {
       sinon.stub(ponosDefaultLogger, 'warn')
     })
 
-    afterEach(function () {
+    afterEach(() => {
       server.hermes.subscribe.restore()
       hermes.hermesSingletonFactory.restore()
       ponosDefaultLogger.warn.restore()
     })
 
-    it('should apply the correct callback for the given queue', function () {
+    it('should apply the correct callback for the given queue', () => {
       server._subscribe('a')
       assert.ok(server.hermes.subscribe.calledOnce)
       assert.ok(server.hermes.subscribe.calledWith('a'))
-      var hermesCallback = server.hermes.subscribe.firstCall.args[1]
-      var job = { foo: 'bar' }
+      const hermesCallback = server.hermes.subscribe.firstCall.args[1]
+      const job = { foo: 'bar' }
       hermesCallback(job, noop)
       assert.ok(server._runWorker.calledWith('a', job, noop))
     })
 
-    it('should log warning if queue does not have handler', function () {
+    it('should log warning if queue does not have handler', () => {
       server._subscribe('x')
       sinon.assert.notCalled(server.hermes.subscribe)
       sinon.assert.calledOnce(ponosDefaultLogger.warn)
@@ -181,11 +177,11 @@ describe('Server', function () {
     })
   })
 
-  describe('_subscribeAll', function () {
-    var server
-    var queues = [ 'a', 'b' ]
+  describe('_subscribeAll', () => {
+    let server
+    const queues = [ 'a', 'b' ]
 
-    beforeEach(function () {
+    beforeEach(() => {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
@@ -196,11 +192,11 @@ describe('Server', function () {
       return server.setAllTasks({ a: noop, b: noop })
     })
 
-    afterEach(function () { hermes.hermesSingletonFactory.restore() })
+    afterEach(() => { hermes.hermesSingletonFactory.restore() })
 
-    it('should call `_subscribe` for each queue', function () {
+    it('should call `_subscribe` for each queue', () => {
       return assert.isFulfilled(server._subscribeAll())
-        .then(function () {
+        .then(() => {
           assert.ok(server._subscribe.calledTwice)
           assert.ok(server._subscribe.calledWith('a'))
           assert.ok(server._subscribe.calledWith('b'))
@@ -208,11 +204,11 @@ describe('Server', function () {
     })
   })
 
-  describe('_unsubscribe', function () {
-    var server
-    var queues = ['a']
+  describe('_unsubscribe', () => {
+    let server
+    const queues = ['a']
 
-    beforeEach(function () {
+    beforeEach(() => {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         unsubscribe: sinon.stub().yieldsAsync(null),
@@ -222,24 +218,24 @@ describe('Server', function () {
       server.setAllTasks({ a: noop })
     })
 
-    afterEach(function () {
+    afterEach(() => {
       hermes.hermesSingletonFactory.restore()
     })
 
-    it('should apply the correct callback for the given queue', function () {
+    it('should apply the correct callback for the given queue', () => {
       return assert.isFulfilled(server._unsubscribe('a', null))
-        .then(function () {
+        .then(() => {
           assert.ok(server.hermes.unsubscribe.calledOnce)
           assert.ok(server.hermes.unsubscribe.calledWith('a'))
         })
     })
   })
 
-  describe('_unsubscribeAll', function () {
-    var server
-    var queues = [ 'a', 'b' ]
+  describe('_unsubscribeAll', () => {
+    let server
+    const queues = [ 'a', 'b' ]
 
-    beforeEach(function () {
+    beforeEach(() => {
       // runnable-hermes 6.1.0 introduced .getQueues
       sinon.stub(hermes, 'hermesSingletonFactory').returns({
         subscribe: noop,
@@ -251,11 +247,11 @@ describe('Server', function () {
       return server.setAllTasks({ a: noop, b: noop })
     })
 
-    afterEach(function () { hermes.hermesSingletonFactory.restore() })
+    afterEach(() => { hermes.hermesSingletonFactory.restore() })
 
-    it('should call `_unsubscribe` for each queue', function () {
+    it('should call `_unsubscribe` for each queue', () => {
       return assert.isFulfilled(server._unsubscribeAll())
-        .then(function () {
+        .then(() => {
           assert.ok(server._unsubscribe.calledTwice)
           assert.ok(server._unsubscribe.calledWith('a'))
           assert.ok(server._unsubscribe.calledWith('b'))
@@ -263,133 +259,133 @@ describe('Server', function () {
     })
   })
 
-  describe('_runWorker', function () {
-    var server
-    var taskHandler = function () { return 'yuss' }
-    var msTimeout = 1932848
+  describe('_runWorker', () => {
+    let server
+    const taskHandler = () => { return 'yuss' }
+    const msTimeout = 1932848
 
-    beforeEach(function () {
+    beforeEach(() => {
       sinon.stub(hermes, 'hermesSingletonFactory').returns({ subscribe: noop })
       server = new ponos.Server({ queues: ['a'] })
       server.setTask('a', taskHandler, { msTimeout: msTimeout })
     })
 
-    afterEach(function () {
+    afterEach(() => {
       hermes.hermesSingletonFactory.restore()
     })
 
-    it('should provide the correct queue name', function () {
+    it('should provide the correct queue name', () => {
       server._runWorker('a', { bar: 'baz' }, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.queue, 'a')
     })
 
-    it('should provide the given job', function () {
-      var job = { bar: 'baz' }
+    it('should provide the given job', () => {
+      const job = { bar: 'baz' }
       server._runWorker('a', job, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.job, job)
     })
 
-    it('should provide the given done function', function () {
+    it('should provide the given done function', () => {
       server._runWorker('a', { bar: 'baz' }, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.done, noop)
     })
 
-    it('should provide the correct task handler', function () {
+    it('should provide the correct task handler', () => {
       server._runWorker('a', { bar: 'baz' }, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.task, taskHandler)
     })
 
-    it('should provide the correct logger', function () {
+    it('should provide the correct logger', () => {
       server._runWorker('a', { bar: 'baz' }, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.log, server.log)
     })
 
-    it('should provide the correct errorCat', function () {
+    it('should provide the correct errorCat', () => {
       server._runWorker('a', { bar: 'baz' }, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.errorCat, server.errorCat)
     })
 
-    it('should correctly provide custom worker options', function () {
+    it('should correctly provide custom worker options', () => {
       server._runWorker('a', { bar: 'baz' }, noop)
       assert.ok(Worker.create.calledOnce)
-      var opts = Worker.create.firstCall.args[0]
+      const opts = Worker.create.firstCall.args[0]
       assert.equal(opts.msTimeout, msTimeout)
     })
   })
 
-  describe('setTask', function () {
-    var queue = Object.keys(tasks)[0]
+  describe('setTask', () => {
+    const queue = Object.keys(tasks)[0]
 
-    it('should set the task handler', function () {
+    it('should set the task handler', () => {
       server.setTask(queue, worker)
       assert.isFunction(server._tasks[queue])
     })
 
-    it('should throw if the provided task is not a function', function () {
-      assert.throws(function () {
+    it('should throw if the provided task is not a function', () => {
+      assert.throws(() => {
         server.setTask(queue, 'not-a-function')
       }, /not a function/)
     })
 
-    it('should set default worker options', function () {
+    it('should set default worker options', () => {
       server.setTask(queue, worker)
       assert.deepEqual(server._workerOptions[queue], {})
     })
 
-    it('should set worker options for tasks', function () {
-      var opts = { msTimeout: 2000 }
+    it('should set worker options for tasks', () => {
+      const opts = { msTimeout: 2000 }
       server.setTask(queue, worker, opts)
       assert.deepEqual(server._workerOptions[queue], opts)
     })
 
-    it('should pick only provided options that are valid', function () {
-      var opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
-      var expectedOpts = { msTimeout: 2000 }
+    it('should pick only provided options that are valid', () => {
+      const opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
+      const expectedOpts = { msTimeout: 2000 }
       server.setTask(queue, worker, opts)
       assert.deepEqual(server._workerOptions[queue], expectedOpts)
     })
   })
 
-  describe('setAllTasks', function () {
-    var queue = Object.keys(tasks)[0]
+  describe('setAllTasks', () => {
+    const queue = Object.keys(tasks)[0]
 
-    beforeEach(function () {
+    beforeEach(() => {
       sinon.stub(server, 'setTask')
     })
 
-    afterEach(function () {
+    afterEach(() => {
       server.setTask.restore()
     })
 
-    it('should set multiple tasks', function () {
-      var numTasks = Object.keys(tasks).length
+    it('should set multiple tasks', () => {
+      const numTasks = Object.keys(tasks).length
       server.setAllTasks(tasks)
       sinon.assert.callCount(server.setTask, numTasks)
     })
 
-    describe('with option objects', function () {
-      beforeEach(function () {
+    describe('with option objects', () => {
+      beforeEach(() => {
         sinon.stub(server.log, 'warn')
       })
 
-      afterEach(function () {
+      afterEach(() => {
         server.log.warn.restore()
       })
 
-      it('should log a warning if a task is not defined', function () {
-        var tasks = {}
+      it('should log a warning if a task is not defined', () => {
+        let tasks = {}
         tasks[queue] = { msTimeout: 2000 }
         server.setAllTasks(tasks)
         sinon.assert.calledOnce(server.log.warn)
@@ -401,9 +397,9 @@ describe('Server', function () {
         sinon.assert.notCalled(server.setTask)
       })
 
-      it('should pass options when calling setTask', function () {
-        var tasks = {}
-        var opts = tasks[queue] = { task: noop, msTimeout: 2000 }
+      it('should pass options when calling setTask', () => {
+        let tasks = {}
+        const opts = tasks[queue] = { task: noop, msTimeout: 2000 }
         server.setAllTasks(tasks)
         assert.ok(server.setTask.calledOnce)
         assert.deepEqual(server.setTask.firstCall.args[2], opts)
@@ -411,18 +407,18 @@ describe('Server', function () {
     })
   })
 
-  describe('start', function () {
-    describe('without tasks', function () {
-      beforeEach(function () {
+  describe('start', () => {
+    describe('without tasks', () => {
+      beforeEach(() => {
         sinon.stub(ponosDefaultLogger, 'warn')
       })
 
-      afterEach(function () {
+      afterEach(() => {
         ponosDefaultLogger.warn.restore()
       })
 
-      it('should warn', function () {
-        server.start().then(function () {
+      it('should warn', () => {
+        server.start().then(() => {
           sinon.assert.calledTwice(ponosDefaultLogger.warn)
           sinon.assert.calledWith(
             ponosDefaultLogger.warn.getCall(0),
@@ -438,28 +434,28 @@ describe('Server', function () {
       })
     })
 
-    describe('with tasks', function () {
-      beforeEach(function () { return server.setAllTasks(tasks) })
+    describe('with tasks', () => {
+      beforeEach(() => { return server.setAllTasks(tasks) })
 
-      it('should subscribe to all queues', function () {
+      it('should subscribe to all queues', () => {
         return assert.isFulfilled(server.start())
-          .then(function () {
+          .then(() => {
             assert.equal(server.hermes.subscribe.callCount, 2)
           })
       })
 
-      it('should enqueue a function that creates workers', function () {
+      it('should enqueue a function that creates workers', () => {
         return assert.isFulfilled(server.start())
-          .then(function () {
+          .then(() => {
             assert.equal(server.hermes.subscribe.callCount, 2)
             // get the function that was placed for the queue
-            var fn = server.hermes.subscribe.getCall(0).args.pop()
+            const fn = server.hermes.subscribe.getCall(0).args.pop()
             assert.isFunction(fn)
             assert.equal(Worker.create.callCount, 0)
             // call the function that was enqueued
             fn({}, noop)
             assert.equal(Worker.create.callCount, 1)
-            var opts = Worker.create.getCall(0).args.pop()
+            const opts = Worker.create.getCall(0).args.pop()
             assert.deepEqual(opts, {
               queue: 'test-queue-01',
               job: {},
@@ -471,30 +467,30 @@ describe('Server', function () {
           })
       })
 
-      it('should report start errors', function () {
-        var startError = new Error("I don't want to...")
+      it('should report start errors', () => {
+        const startError = new Error("I don't want to...")
         server.hermes.connectAsync.returns(Promise.reject(startError))
         assert.isRejected(server.start())
-          .then(function () {
+          .then(() => {
             assert.ok(server.errorCat.report.calledWith(startError))
           })
       })
     })
   })
 
-  describe('stop', function () {
-    it('should close the hermes connection', function () {
+  describe('stop', () => {
+    it('should close the hermes connection', () => {
       return assert.isFulfilled(server.stop())
-        .then(function () {
+        .then(() => {
           assert.ok(server.hermes.closeAsync.calledOnce)
         })
     })
 
-    it('should report and rethrow stop errors', function () {
-      var closeError = new Error('Hermes is tired...')
+    it('should report and rethrow stop errors', () => {
+      const closeError = new Error('Hermes is tired...')
       server.hermes.closeAsync.returns(Promise.reject(closeError))
       return assert.isRejected(server.stop())
-        .then(function () {
+        .then(() => {
           assert.ok(server.errorCat.report.calledWith(closeError))
         })
     })
