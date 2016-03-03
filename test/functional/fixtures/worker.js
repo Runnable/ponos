@@ -15,8 +15,8 @@ var TaskFatalError = ponos.TaskFatalError
 module.exports = (job) => {
   return Promise.resolve()
     .then(() => {
-      if (!job.eventName) { throw new TaskFatalError('eventName is required') }
-      if (!job.message) { throw new TaskFatalError('message is required') }
+      if (!job.eventName) { throw new TaskFatalError('queue', 'eventName is required') }
+      if (!job.message) { throw new TaskFatalError('queue', 'message is required') }
     })
     .then(() => {
       module.exports.emitter.emit(job.eventName, { data: job.message })
