@@ -67,13 +67,10 @@ describe('Basic Failing Task', () => {
     server.hermes.publish('ponos-test:one', job)
 
     // wait until .run is called
-    return new Promise((resolve, reject) => {
-      var checker = setInterval(() => {
-        if (_Worker.prototype.run.calledOnce) {
-          clearInterval(checker)
-          resolve()
-        }
-      }, 5)
+    return Promise.resolve().then(function loop () {
+      if (!_Worker.prototype.run.calledOnce) {
+        return Promise.delay(5).then(loop)
+      }
     })
       .then(() => {
         assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
