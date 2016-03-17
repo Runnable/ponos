@@ -51,6 +51,49 @@ function myWorker (job) {
 
 This worker takes the `job`, does work with it, and returns the result. Since (in theory) this does not throw any errors, the worker will see this resolution and acknowledge the job.
 
+### Interacting with RabbitMQ and Ponos Server
+
+Workers optionally can take a second argument that allows them to interact with the Ponos server and RabbitMQ topology. For example, if topic exchange queues needed to be created on the fly and subscribed to, we could do the following:
+
+```javascript
+function workerFoo (job) {
+  console.log('foo received a job')
+  return Promise.resolve()
+}
+
+function workerBar (job, ponos) {
+  console.log('bar received a job')
+  // subscribe to the exchange with the routing key
+  return ponos.subscribe({
+    exchange: 'hello-exchange',
+    routingKey: '#.foo',
+    handler: workerFoo
+  })
+    .then(() => {
+      // trigger a consume, starting the new queue
+      return ponos.consume()
+    })
+    .then(() => {
+      console.log('new route queue created and subscribed')
+    })
+}
+
+// create a server that subscribes to the #.bar route
+const server = new Ponos.Server({
+  exchanges: [{
+    exchange: 'hello-exchange',
+    routingKey: '#.bar',
+    handler: workerBar
+  }]
+})
+// start the server
+server.start()
+```
+
+Initially, if we publish a job to `hello-exchange` with the key `a.foo`, we will not receive any message that `foo received a job`. When we publish a job that triggers `workerBar`, it has Ponos subscribe to and consume on the exchange with a new routing key. Now when we publish back with `a.foo`, we see the log that `foo received a job`.
+
+A picture says a thousand words, so check out `topic-exchanges-on-the-fly.js` in the `examples` folder work a working version of this concept.
+
 ### Worker Errors
 
 Ponos's worker is designed to retry any error that is not specifically a fatal error. A fatal error is defined with the `TaskFatalError` class. If a worker rejects with a `TaskFatalError`, the worker will automatically assume the job can _never_ be completed and will acknowledge the job.
