@@ -4,6 +4,7 @@
 [![coveralls]](https://coveralls.io/github/Runnable/ponos?branch=master)
 [![dependencies]](https://david-dm.org/Runnable/ponos)
 [![devdependencies]](https://david-dm.org/Runnable/ponos#info=devDependencies)
+[![codeclimate]](https://codeclimate.com/github/Runnable/ponos)
 
 Documentation is available at [runnable.github.io/ponos][documentation]
 
@@ -167,3 +168,4 @@ MIT
 [dependencies]: https://img.shields.io/david/Runnable/ponos.svg?style=flat-square "Dependency Status"
 [devdependencies]: https://img.shields.io/david/dev/Runnable/ponos.svg?style=flat-square "Dev Dependency Status"
 [documentation]: https://runnable.github.io/ponos "Ponos Documentation"
+[codeclimate]: https://img.shields.io/codeclimate/github/Runnable/ponos.svg?style=flat-square "Code Climate"
