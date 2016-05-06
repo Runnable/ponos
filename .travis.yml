@@ -4,9 +4,10 @@ sudo: false
 services:
 - rabbitmq
 env:
-- LOG_LEVEL=error
-- RABBITMQ_USERNAME=guest
-- RABBITMQ_PASSWORD=guest
+  global:
+  - LOG_LEVEL=error
+  - RABBITMQ_USERNAME=guest
+  - RABBITMQ_PASSWORD=guest
 script:
 - npm run lint
 - npm run unit
