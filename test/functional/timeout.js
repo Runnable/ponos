@@ -28,7 +28,7 @@ describe('Basic Timeout Task', function () {
     const tasks = {
       'ponos-test:one': testWorker
     }
-    server = new ponos.Server({ queues: Object.keys(tasks) })
+    server = new ponos.Server({ tasks: tasks })
     return server.setAllTasks(tasks).start()
   })
   after(() => {
@@ -93,7 +93,7 @@ describe('Basic Timeout Task', function () {
         })
       })
 
-      server.hermes.publish('ponos-test:one', job)
+      server._rabbitmq.channel.sendToQueue('ponos-test:one', new Buffer(JSON.stringify(job)))
     })
   })
 })

@@ -1,0 +1,8 @@
+declare module 'monitor-dog' {
+  declare class Monitor {
+    static constructor(): Monitor;
+    static increment(monitor: string, tags?: Array<string> | Object): void;
+    static timer(monitor: string, something: boolean, tags?: Array<string> | Object): void;
+  }
+  declare var exports: Class<Monitor>;
+}

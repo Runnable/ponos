@@ -1,0 +1,53 @@
+declare module '101/clone' {
+  declare var exports: {
+    (value: Object): Object;
+  }
+}
+
+declare module '101/defaults' {
+  declare var exports: {
+    (value: Object, defaults: Object): Object;
+  }
+}
+
+declare module '101/exists' {
+  declare var exports: {
+    (value: any): boolean;
+  }
+}
+
+declare module '101/is-function' {
+  declare var exports: {
+    (value: any): boolean;
+  }
+}
+
+declare module '101/is-number' {
+  declare var exports: {
+    (value: any): boolean;
+  }
+}
+
+declare module '101/is-object' {
+  declare var exports: {
+    (value: any): boolean;
+  }
+}
+
+declare module '101/is-string' {
+  declare var exports: {
+    (value: any): boolean;
+  }
+}
+
+declare module '101/pick' {
+  declare var exports: {
+    (value: Object, keypaths: string | Array<string>): Object;
+  }
+}
+
+declare module '101/put' {
+  declare var exports: {
+    (value: Object, values: Object): Object;
+  }
+}

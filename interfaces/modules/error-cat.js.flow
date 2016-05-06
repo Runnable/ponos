@@ -1,0 +1,7 @@
+declare module 'error-cat' {
+  declare class ErrorCat {
+    static constructor(): ErrorCat;
+    report(error: Error): void;
+  }
+  declare var exports: Class<ErrorCat>;
+}
