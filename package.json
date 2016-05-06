@@ -16,7 +16,7 @@
     "functional": "mocha $npm_package_options_mocha test/functional",
     "lint": "npm run lint:format && npm run lint:type",
     "lint:format": "standard --verbose",
-    "lint:type": "flow --timeout 5",
+    "lint:type": "flow --timeout 30",
     "test": "npm run lint && npm run unit && npm run functional",
     "unit": "mocha $npm_package_options_mocha test/unit"
   },
