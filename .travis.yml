@@ -15,7 +15,7 @@ env:
   - RABBITMQ_PASSWORD=guest
 script:
 - npm run lint
-- npm run unit
+- npm run coverage
 - npm run functional
 - npm run build && npm run build:clean
 after_success:
