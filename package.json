@@ -2,11 +2,12 @@
   "name": "ponos",
   "version": "2.0.0",
   "description": "An opinionated queue based worker server for node.",
-  "main": "index.js",
+  "main": "lib/index.js",
   "engines": {
-    "node": ">=4 <5"
+    "node": ">=4"
   },
   "scripts": {
+    "build": "babel --out-dir lib src",
     "changelog": "github-changes -o Runnable -r ponos -a --only-pulls --use-commit-body --order-semver",
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- $npm_package_options_mocha test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
@@ -17,6 +18,7 @@
     "lint": "npm run lint:format && npm run lint:type",
     "lint:format": "standard --verbose",
     "lint:type": "flow --timeout 30",
+    "prepublish": "not-in-install && npm run build || in-install",
     "test": "npm run lint && npm run unit && npm run functional",
     "unit": "mocha $npm_package_options_mocha test/unit"
   },
@@ -75,6 +77,7 @@
     "coveralls": "^2.11.4",
     "flow-bin": "^0.24.2",
     "github-changes": "^1.0.0",
+    "in-publish": "^2.0.0",
     "istanbul": "^0.4.0",
     "jsdoc": "^3.4.0",
     "mocha": "^2.3.3",
