@@ -3,7 +3,7 @@
 const EventEmitter = require('events')
 const Promise = require('bluebird')
 
-const ponos = require('../../../')
+const ponos = require('../../../src')
 const TaskFatalError = ponos.TaskFatalError
 
 /**

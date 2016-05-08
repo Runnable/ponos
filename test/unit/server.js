@@ -8,9 +8,9 @@ const sinon = require('sinon')
 
 const assert = chai.assert
 
-const ponos = require('../../')
-const Worker = require('../../lib/worker')
-const RabbitMQ = require('../../lib/rabbitmq')
+const ponos = require('../../src')
+const Worker = require('../../src/worker')
+const RabbitMQ = require('../../src/rabbitmq')
 
 const tasks = {
   'test-queue-01': worker,

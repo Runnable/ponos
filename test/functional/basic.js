@@ -5,7 +5,7 @@ const chai = require('chai')
 const assert = chai.assert
 
 // Ponos Tooling
-const ponos = require('../../')
+const ponos = require('../../src')
 const testWorker = require('./fixtures/worker')
 const testWorkerEmitter = testWorker.emitter
 

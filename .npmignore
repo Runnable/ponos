@@ -1,8 +1,10 @@
-.eslintignore
-.eslintrc
+.babelrc
+.flowconfig
 .gitignore
 .istanbul.yml
 .travis.yml
 coverage
+interfaces
+resources
+src
 test
-resources/mocha-bootstrap.js

@@ -2,7 +2,7 @@
 
 const chai = require('chai')
 
-const log = require('../../lib/logger')
+const log = require('../../src/logger')
 
 const assert = chai.assert
 

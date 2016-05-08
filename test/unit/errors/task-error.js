@@ -4,7 +4,7 @@ const chai = require('chai')
 
 const assert = chai.assert
 
-const TaskError = require('../../../lib/errors/task-error')
+const TaskError = require('../../../src/errors/task-error')
 
 describe('TaskError', () => {
   it('should inherit from Error', () => {

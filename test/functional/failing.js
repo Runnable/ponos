@@ -7,13 +7,13 @@ const sinon = require('sinon')
 const assert = chai.assert
 
 // Ponos Tooling
-const ponos = require('../../')
+const ponos = require('../../src')
 const TaskFatalError = ponos.TaskFatalError
 const testWorker = require('./fixtures/worker')
 const testWorkerEmitter = testWorker.emitter
 
 // require the Worker class so we can verify the task is running
-const _Worker = require('../../lib/worker')
+const _Worker = require('../../src/worker')
 
 /*
  *  In this example, we are going to pass an invalid job to the worker that will

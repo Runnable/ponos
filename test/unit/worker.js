@@ -13,9 +13,9 @@ const sinon = require('sinon')
 const assert = chai.assert
 const TimeoutError = Promise.TimeoutError
 
-const TaskError = require('../../lib/errors/task-error')
-const TaskFatalError = require('../../lib/errors/task-fatal-error')
-const Worker = require('../../lib/worker')
+const TaskError = require('../../src/errors/task-error')
+const TaskFatalError = require('../../src/errors/task-fatal-error')
+const Worker = require('../../src/worker')
 
 describe('Worker', () => {
   let opts
