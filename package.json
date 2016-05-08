@@ -84,6 +84,6 @@
     "mocha": "^2.3.3",
     "sinon": "^1.17.0",
     "sinon-as-promised": "^4.0.0",
-    "standard": "^6.0.7"
+    "standard": "^7.0.1"
   }
 }
