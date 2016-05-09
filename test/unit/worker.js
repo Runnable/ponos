@@ -608,6 +608,61 @@ describe('Worker', () => {
           })
       })
 
+      describe('decorateError', () => {
+        it('should decorate errors with a data object', () => {
+          const normalError = new Error('robot')
+          taskHandler = sinon.stub()
+          taskHandler.onFirstCall().throws(normalError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.isObject(decoratedError.data)
+            })
+        })
+
+        it('should decorate errors with the queue name', () => {
+          const normalError = new Error('robot')
+          taskHandler = sinon.stub()
+          taskHandler.onFirstCall().throws(normalError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.equal(decoratedError.data.queue, 'do.something.command')
+            })
+        })
+
+        it('should decorate errors with the job', () => {
+          const normalError = new Error('robot')
+          taskHandler = sinon.stub()
+          taskHandler.onFirstCall().throws(normalError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.deepEqual(
+                decoratedError.data.job,
+                { message: 'hello world' }
+              )
+            })
+        })
+
+        it('should leave a WorkerStopError alone (already has data)', () => {
+          const stopError = new WorkerStopError(
+            'my message',
+            { dog: 'robot' },
+            'some.queue',
+            { foo: 'bar' }
+          )
+          taskHandler = sinon.stub().throws(stopError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.deepEqual(decoratedError, stopError)
+              assert.deepEqual(decoratedError.data.queue, 'some.queue')
+              assert.deepEqual(decoratedError.data.job, { foo: 'bar' })
+            })
+        })
+      })
+
       it('should log all other errors', () => {
         const otherError = new Error('stfunoob')
         taskHandler = sinon.stub()
