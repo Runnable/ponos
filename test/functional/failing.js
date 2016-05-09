@@ -3,12 +3,12 @@
 const chai = require('chai')
 const Promise = require('bluebird')
 const sinon = require('sinon')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const assert = chai.assert
 
 // Ponos Tooling
 const ponos = require('../../')
-const TaskFatalError = ponos.TaskFatalError
 const testWorker = require('./fixtures/worker')
 const testWorkerEmitter = testWorker.emitter
 
@@ -47,7 +47,7 @@ describe('Basic Failing Task', () => {
   before(() => {
     return assert.isRejected(
       testWorker(job),
-      TaskFatalError,
+      WorkerStopError,
       /message.+required/
     )
   })
@@ -79,7 +79,7 @@ describe('Basic Failing Task', () => {
           'worker._reportError called once'
         )
         const err = _Worker.prototype._reportError.firstCall.args[0]
-        assert.instanceOf(err, TaskFatalError)
+        assert.instanceOf(err, WorkerStopError)
         assert.match(err, /message.+required/)
       })
   })

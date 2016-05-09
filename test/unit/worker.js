@@ -9,12 +9,12 @@ const omit = require('101/omit')
 const Promise = require('bluebird')
 const put = require('101/put')
 const sinon = require('sinon')
+const WorkerError = require('error-cat/errors/worker-error')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const assert = chai.assert
 const TimeoutError = Promise.TimeoutError
 
-const TaskError = require('../../lib/errors/task-error')
-const TaskFatalError = require('../../lib/errors/task-fatal-error')
 const Worker = require('../../lib/worker')
 
 describe('Worker', () => {
@@ -456,8 +456,8 @@ describe('Worker', () => {
         worker._reportError.restore()
       })
 
-      it('should catch TaskFatalError, not retry, and call done', () => {
-        taskHandler = sinon.stub().throws(new TaskFatalError('queue', 'foobar'))
+      it('should catch WorkerStopError, not retry, and call done', () => {
+        taskHandler = sinon.stub().throws(new WorkerStopError('foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
             sinon.assert.calledOnce(taskHandler)
@@ -521,7 +521,7 @@ describe('Worker', () => {
 
       it('should retry if task throws TaskError', () => {
         taskHandler = sinon.stub()
-        taskHandler.onFirstCall().throws(new TaskError('foobar'))
+        taskHandler.onFirstCall().throws(new WorkerError('foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
             assert.equal(taskHandler.callCount, 2)
@@ -583,8 +583,8 @@ describe('Worker', () => {
           })
       })
 
-      it('should log TaskFatalError', () => {
-        const fatalError = new TaskFatalError('queue', 'foobar')
+      it('should log WorkerStopError', () => {
+        const fatalError = new WorkerStopError('foobar')
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
           .then(() => {
@@ -596,8 +596,8 @@ describe('Worker', () => {
           })
       })
 
-      it('should report TaskFatalError', () => {
-        const fatalError = new TaskFatalError('queue', 'foobar')
+      it('should report WorkerStopError', () => {
+        const fatalError = new WorkerStopError('foobar')
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
           .then(() => {
