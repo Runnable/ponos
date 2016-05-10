@@ -4,8 +4,10 @@ const bunyan = require('bunyan')
 
 /**
  * Bunyan logger for ponos.
+ *
+ * @private
  * @author Bryan Kendall
- * @module ponos:logger
+ * @module ponos/lib/logger
  */
 module.exports = bunyan.createLogger({
   name: 'ponos',
