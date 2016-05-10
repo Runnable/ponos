@@ -10,10 +10,15 @@ const Promise = require('bluebird')
 const logger = require('./logger')
 
 /**
- * RabbitMQ class.
+ * RabbitMQ model. Takes authentication from the following environment
+ * variables:
+ * - RABBITMQ_HOSTNAME (default: 'localhost')
+ * - RABBITMQ_PORT (default: 5672)
+ * - RABBITMQ_USERNAME (no default)
+ * - RABBITMQ_PASSWORD (no default)
  *
- * @class
- * @module ponos:rabbitmq
+ * @private
+ * @author Bryan Kendall
  */
 class RabbitMQ {
   channel: RabbitMQChannel;
@@ -45,9 +50,10 @@ class RabbitMQ {
 
   /**
    * Connect to the RabbitMQ server.
-   * @return {Promise} Resolves once connection is establised.
+   *
+   * @return {Promise} Promise that resolves once connection is established.
    */
-  connect () {
+  connect (): Promise {
     if (this.connection || this.channel) {
       return Promise.reject(new Error('cannot call connect twice'))
     }
@@ -83,35 +89,12 @@ class RabbitMQ {
   }
 
   /**
-   * Error handler for the RabbitMQ connection.
-   * @private
-   * @throws Error
-   * @param {object} err Error object from event.
+   * Subscribe to a specific direct queue.
+   *
+   * @param {String} queue Queue name.
+   * @param {Function} handler Handler for jobs.
+   * @return {Promise} Promise that is resolved once queue is subscribed.
    */
-  _connectionErrorHandler (err: Error) {
-    this.log.error({ err: err }, 'connection has caused an error')
-    throw err
-  }
-
-  /**
-   * Error handler for the RabbitMQ channel.
-   * @private
-   * @throws Error
-   * @param {object} err Error object from event.
-   */
-  _channelErrorHandler (err: Error) {
-    this.log.error({ err: err }, 'channel has caused an error')
-    throw err
-  }
-
-  _isConnected (): boolean {
-    return !!(this._isPartlyConnected() && this.channel)
-  }
-
-  _isPartlyConnected (): boolean {
-    return !!(this.connection)
-  }
-
   subscribeToQueue (queue: string, handler: Function): Promise {
     const log = this.log.child({
       method: 'subscribeToQueue',
@@ -140,6 +123,162 @@ class RabbitMQ {
       })
   }
 
+  /**
+   * Subcribe to fanout exchange.
+   *
+   * @param {String} exchange Name of fanout exchange.
+   * @param {Function} handler Handler for jobs.
+   * @return {Promise} Promise resolved once subscribed.
+   */
+  subscribeToFanoutExchange (exchange: string, handler: Function): Promise {
+    return this._subscribeToExchange({
+      exchange: exchange,
+      type: 'fanout',
+      handler: handler
+    })
+  }
+
+  /**
+   * Subscribe to topic exchange.
+   *
+   * @param {String} exchange Name of topic exchange.
+   * @param {String} routingKey Routing key for topic exchange.
+   * @param {Function} handler Handler for jobs.
+   * @return {Promise} Promise resolved once subscribed.
+   */
+  subscribeToTopicExchange (
+    exchange: string,
+    routingKey: string,
+    handler: Function
+  ): Promise {
+    return this._subscribeToExchange({
+      exchange: exchange,
+      type: 'topic',
+      routingKey: routingKey,
+      handler: handler
+    })
+  }
+
+  /**
+   * Start consuming from subscribed queues.
+   *
+   * @return {Promise} Promise resolved when all queues consuming.
+   */
+  consume (): Promise {
+    const log = this.log.child({ method: 'consume' })
+    log.info('starting to consume')
+    if (!this._isConnected()) {
+      return Promise.reject(new Error('you must .connect() before consuming'))
+    }
+    const subscriptions = this.subscriptions
+    this.subscriptions = new Immutable.Map()
+    const channel = this.channel
+    return Promise.map(subscriptions.keySeq(), (queue) => {
+      const handler = subscriptions.get(queue)
+      log.info({ queue: queue }, 'consuming on queue')
+      // XXX(bryan): is this valid? should I not be checking _this_.consuming?
+      if (this.consuming.has(queue)) {
+        log.warn({ queue: queue }, 'already consuming queue')
+        return true
+      }
+      function wrapper (msg) {
+        const job = JSON.parse(msg.content)
+        handler(job, () => {
+          channel.ack(msg)
+        })
+      }
+      return Promise.resolve(this.channel.consume(queue, wrapper))
+        .then((consumeInfo) => {
+          this.consuming = this.consuming.set(queue, consumeInfo.consumerTag)
+        })
+    })
+  }
+
+  /**
+   * Unsubscribe and stop consuming from all queues.
+   *
+   * @return {Promise} Promise resolved when all queues canceled.
+   */
+  unsubscribe (): Promise {
+    const consuming = this.consuming
+    return Promise.map(consuming.keySeq(), (queue) => {
+      const consumerTag = consuming.get(queue)
+      return Promise.resolve(this.channel.cancel(consumerTag))
+        .then(() => {
+          this.consuming = this.consuming.delete(queue)
+        })
+    })
+  }
+
+  /**
+   * Disconnect from RabbitMQ.
+   *
+   * @return {Promise} Promise resolved when disconnected from RabbitMQ.
+   */
+  disconnect (): Promise {
+    if (!this._isPartlyConnected()) {
+      return Promise.reject(new Error('not connected. cannot disconnect.'))
+    }
+    return Promise.resolve(this.connection.close())
+  }
+
+  // Private Methods
+
+  /**
+   * Error handler for the RabbitMQ connection.
+   *
+   * @private
+   * @throws Error
+   * @param {object} err Error object from event.
+   */
+  _connectionErrorHandler (err: Error) {
+    this.log.error({ err: err }, 'connection has caused an error')
+    throw err
+  }
+
+  /**
+   * Error handler for the RabbitMQ channel.
+   * @private
+   * @throws Error
+   * @param {object} err Error object from event.
+   */
+  _channelErrorHandler (err: Error) {
+    this.log.error({ err: err }, 'channel has caused an error')
+    throw err
+  }
+
+  /**
+   * Check to see if model is connected.
+   *
+   * @return {Boolean} True if model is connected and channel is established.
+   */
+  _isConnected (): boolean {
+    return !!(this._isPartlyConnected() && this.channel)
+  }
+
+  /**
+   * Check to see if model is _partially_ connected. This means that the
+   * connection was established, but the channel was not.
+   *
+   * @return {Boolean} True if connection is established.
+   */
+  _isPartlyConnected (): boolean {
+    return !!(this.connection)
+  }
+
+  /**
+   * Helper function to consolidate logic for subscribing to queues. Stores
+   * information about what is subscribed and is responsible for asserting
+   * exchanges and queues into existance.
+   *
+   * @private
+   * @param {Object} opts Object describing the exchange connection.
+   * @param {String} opts.exchange Name of exchange.
+   * @param {String} opts.handler Handler of jobs.
+   * @param {String} opts.type Type of exchange: 'fanout' or 'topic'.
+   * @param {String} [opts.routingKey] Routing key for a topic exchange.
+   * @return {Promise} Promise resolved when subcribed to exchange.
+   */
   _subscribeToExchange (opts: SubscribeObject): Promise {
     const log = this.log.child({
       method: '_subscribeToExchange',
@@ -196,75 +335,12 @@ class RabbitMQ {
         this.subscribed = this.subscribed.add(subscribedKey)
       })
   }
-
-  subscribeToFanoutExchange (exchange: string, handler: Function): Promise {
-    return this._subscribeToExchange({
-      exchange: exchange,
-      type: 'fanout',
-      handler: handler
-    })
-  }
-
-  subscribeToTopicExchange (
-    exchange: string,
-    routingKey: string,
-    handler: Function
-  ): Promise {
-    return this._subscribeToExchange({
-      exchange: exchange,
-      type: 'topic',
-      routingKey: routingKey,
-      handler: handler
-    })
-  }
-
-  consume () {
-    const log = this.log.child({ method: 'consume' })
-    log.info('starting to consume')
-    if (!this._isConnected()) {
-      return Promise.reject(new Error('you must .connect() before consuming'))
-    }
-    const subscriptions = this.subscriptions
-    this.subscriptions = new Immutable.Map()
-    const channel = this.channel
-    return Promise.map(subscriptions.keySeq(), (queue) => {
-      const handler = subscriptions.get(queue)
-      log.info({ queue: queue }, 'consuming on queue')
-      // XXX(bryan): is this valid? should I not be checking _this_.consuming?
-      if (this.consuming.has(queue)) {
-        log.warn({ queue: queue }, 'already consuming queue')
-        return true
-      }
-      function wrapper (msg) {
-        const job = JSON.parse(msg.content)
-        handler(job, () => {
-          channel.ack(msg)
-        })
-      }
-      return Promise.resolve(this.channel.consume(queue, wrapper))
-        .then((consumeInfo) => {
-          this.consuming = this.consuming.set(queue, consumeInfo.consumerTag)
-        })
-    })
-  }
-
-  unsubscribe () {
-    const consuming = this.consuming
-    return Promise.map(consuming.keySeq(), (queue) => {
-      const consumerTag = consuming.get(queue)
-      return Promise.resolve(this.channel.cancel(consumerTag))
-        .then(() => {
-          this.consuming = this.consuming.delete(queue)
-        })
-    })
-  }
-
-  disconnect () {
-    if (!this._isPartlyConnected()) {
-      return Promise.reject(new Error('not connected. cannot disconnect.'))
-    }
-    return Promise.resolve(this.connection.close())
-  }
 }
 
+/**
+ * RabbitMQ model.
+ * @private
+ * @module ponos/lib/rabbitmq
+ * @see RabbitMQ
+ */
 module.exports = RabbitMQ
