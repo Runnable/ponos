@@ -124,31 +124,6 @@ describe('Worker', () => {
       worker.errorCat.report.restore()
     })
 
-    it('should set data on the error', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.isObject(error.data)
-    })
-
-    it('should set queue data', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.equal(error.data.queue, queue)
-    })
-
-    it('should set job data', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.deepEqual(error.data.job, job)
-    })
-
-    it('should not remove given data', () => {
-      const error = new Error('an error')
-      error.data = { custom: 'foo' }
-      worker._reportError(error)
-      assert.equal(error.data.custom, 'foo')
-    })
-
     it('should report the error via error-cat', () => {
       const error = new Error('an error')
       worker._reportError(error)
