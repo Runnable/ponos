@@ -1,8 +1,7 @@
 'use strict'
 
+const Server = require('./lib/server')
+
 module.exports = {
-  Server: require('./lib/server'),
-  // Errors:
-  TaskError: require('./lib/errors/task-error'),
-  TaskFatalError: require('./lib/errors/task-fatal-error')
+  Server: Server
 }
