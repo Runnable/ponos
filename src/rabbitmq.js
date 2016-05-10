@@ -105,7 +105,11 @@ class RabbitMQ {
   }
 
   _isConnected (): boolean {
-    return !!(this.connection && this.channel)
+    return !!(this._isPartlyConnected() && this.channel)
+  }
+
+  _isPartlyConnected (): boolean {
+    return !!(this.connection)
   }
 
   subscribeToQueue (queue: string, handler: Function): Promise {
@@ -142,13 +146,10 @@ class RabbitMQ {
       opts: opts
     })
     log.info('subscribing to exchange')
-    if (!this.channel) {
+    if (!this._isConnected()) {
       return Promise.reject(new Error('must .connect() before subscribing'))
     }
-    if (!opts.exchange || !opts.type || !opts.handler) {
-      return Promise.reject(new Error('exchange and handler are required'))
-    }
-    if (!opts.type === 'topic' && !opts.routingKey) {
+    if (opts.type === 'topic' && !opts.routingKey) {
       return Promise.reject(new Error('routingKey required for topic exchange'))
     }
     let subscribedKey = `${opts.type}:::${opts.exchange}`
@@ -220,8 +221,8 @@ class RabbitMQ {
   consume () {
     const log = this.log.child({ method: 'consume' })
     log.info('starting to consume')
-    if (!this.channel) {
-      throw new Error('you must .connect() before consuming')
+    if (!this._isConnected()) {
+      return Promise.reject(new Error('you must .connect() before consuming'))
     }
     const subscriptions = this.subscriptions
     this.subscriptions = new Immutable.Map()
@@ -229,6 +230,7 @@ class RabbitMQ {
     return Promise.map(subscriptions.keySeq(), (queue) => {
       const handler = subscriptions.get(queue)
       log.info({ queue: queue }, 'consuming on queue')
+      // XXX(bryan): is this valid? should I not be checking _this_.consuming?
       if (this.consuming.has(queue)) {
         log.warn({ queue: queue }, 'already consuming queue')
         return true
@@ -258,8 +260,8 @@ class RabbitMQ {
   }
 
   disconnect () {
-    if (!this.connection) {
-      throw new Error('not connected. cannot disconnect.')
+    if (!this._isPartlyConnected()) {
+      return Promise.reject(new Error('not connected. cannot disconnect.'))
     }
     return Promise.resolve(this.connection.close())
   }
