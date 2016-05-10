@@ -100,6 +100,13 @@ describe('Server', () => {
       })
       assert.equal(s.log, customLogger)
     })
+
+    it('should create rabbitmq with any provided options', () => {
+      const s = new ponos.Server({
+        rabbitmq: { hostname: 'foobar' }
+      })
+      assert.equal(s._rabbitmq.hostname, 'foobar')
+    })
   })
 
   describe('consume', () => {

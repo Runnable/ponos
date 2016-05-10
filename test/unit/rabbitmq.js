@@ -32,6 +32,21 @@ describe('rabbitmq', () => {
     process.env.RABBITMQ_PASSWORD = prevPassword
   })
 
+  describe('constructor', () => {
+    it('should accept passed in values for connection', () => {
+      const r = new RabbitMQ({
+        hostname: 'luke',
+        port: 4242,
+        username: 'myusername',
+        password: 'mypassword'
+      })
+      assert.equal(r.hostname, 'luke')
+      assert.equal(r.port, 4242)
+      assert.equal(r.username, 'myusername')
+      assert.equal(r.password, 'mypassword')
+    })
+  })
+
   describe('connect', () => {
     beforeEach(() => {
       sinon.stub(amqplib, 'connect').resolves(mockConnection)

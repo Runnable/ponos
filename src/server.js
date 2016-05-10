@@ -2,6 +2,7 @@
 /* global ErrorCat */
 'use strict'
 
+const assign = require('101/assign')
 const clone = require('101/clone')
 const defaults = require('101/defaults')
 const errorCat = require('error-cat')
@@ -50,22 +51,22 @@ class Server {
   opts: Object;
 
   constructor (opts: Object) {
-    this.opts = Object.assign({}, opts)
-    this.log = this.opts.log || logger.child({ module: 'ponos:server' })
+    this._opts = assign({}, opts)
+    this.log = this._opts.log || logger.child({ module: 'ponos:server' })
     this._workerOptions = {}
 
     this._tasks = new Immutable.Map()
-    if (this.opts.tasks) {
-      this.setAllTasks(this.opts.tasks)
+    if (this._opts.tasks) {
+      this.setAllTasks(this._opts.tasks)
     }
     this._events = new Immutable.Map()
-    if (this.opts.events) {
-      this.setAllEvents(this.opts.events)
+    if (this._opts.events) {
+      this.setAllEvents(this._opts.events)
     }
 
-    this.errorCat = this.opts.errorCat || errorCat
+    this.errorCat = this._opts.errorCat || errorCat
 
-    this._rabbitmq = new RabbitMQ()
+    this._rabbitmq = new RabbitMQ(this._opts.rabbitmq)
   }
 
   /**

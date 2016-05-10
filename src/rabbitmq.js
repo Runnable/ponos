@@ -3,6 +3,7 @@
 'use strict'
 
 const amqplib = require('amqplib')
+const assign = require('101/assign')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const Promise = require('bluebird')
@@ -11,7 +12,8 @@ const logger = require('./logger')
 
 /**
  * RabbitMQ model. Takes authentication from the following environment
- * variables:
+ * variables (or provided opts):
+ *
  * - RABBITMQ_HOSTNAME (default: 'localhost')
  * - RABBITMQ_PORT (default: 5672)
  * - RABBITMQ_USERNAME (no default)
@@ -19,6 +21,11 @@ const logger = require('./logger')
  *
  * @private
  * @author Bryan Kendall
+ * @param {Object} [opts] RabbitMQ connection options.
+ * @param {String} [opts.hostname] Hostname for RabbitMQ.
+ * @param {Number} [opts.port] Port for RabbitMQ.
+ * @param {String} [opts.username] Username for RabbitMQ.
+ * @param {String} [opts.password] Username for Password.
  */
 class RabbitMQ {
   channel: RabbitMQChannel;
@@ -32,11 +39,14 @@ class RabbitMQ {
   subscriptions: Map<string, Function>;
   username: string;
 
-  constructor () {
-    this.hostname = process.env.RABBITMQ_HOSTNAME || 'localhost'
-    this.port = parseInt(process.env.RABBITMQ_PORT, 10) || 5672
-    this.username = `${process.env.RABBITMQ_USERNAME}`
-    this.password = `${process.env.RABBITMQ_PASSWORD}`
+  constructor (opts) {
+    opts = assign({}, opts)
+    this.hostname = opts.hostname ||
+      process.env.RABBITMQ_HOSTNAME ||
+      'localhost'
+    this.port = opts.port || parseInt(process.env.RABBITMQ_PORT, 10) || 5672
+    this.username = opts.username || `${process.env.RABBITMQ_USERNAME}`
+    this.password = opts.password || `${process.env.RABBITMQ_PASSWORD}`
     this.log = logger.child({
       module: 'ponos:rabbitmq',
       hostname: this.hostname,
