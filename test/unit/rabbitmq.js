@@ -3,6 +3,8 @@
 const amqplib = require('amqplib')
 const Bunyan = require('bunyan')
 const chai = require('chai')
+const Immutable = require('immutable')
+const omit = require('101/omit')
 const sinon = require('sinon')
 
 const RabbitMQ = require('../../src/rabbitmq')
@@ -13,12 +15,21 @@ describe('rabbitmq', () => {
   let rabbitmq
   const mockConnection = {}
   const mockChannel = {}
+  const prevUsername = process.env.RABBITMQ_USERNAME
+  const prevPassword = process.env.RABBITMQ_PASSWORD
 
   beforeEach(() => {
+    process.env.RABBITMQ_USERNAME = 'guest'
+    process.env.RABBITMQ_PASSWORD = 'guest'
     rabbitmq = new RabbitMQ()
     mockConnection.on = sinon.stub()
     mockConnection.createChannel = sinon.stub().resolves(mockChannel)
     mockChannel.on = sinon.stub()
+  })
+
+  afterEach(() => {
+    process.env.RABBITMQ_USERNAME = prevUsername
+    process.env.RABBITMQ_PASSWORD = prevPassword
   })
 
   describe('connect', () => {
@@ -216,21 +227,33 @@ describe('rabbitmq', () => {
 
   describe('_isConnected', () => {
     it('should return true if connection and channel exist', () => {
-      rabbitmq.connection = true
+      rabbitmq._isPartlyConnected = sinon.stub().returns(true)
       rabbitmq.channel = true
       assert.ok(rabbitmq._isConnected())
     })
 
     it('should return false if connection or channel are missing', () => {
-      rabbitmq.connection = true
+      rabbitmq._isPartlyConnected = sinon.stub().returns(true)
       rabbitmq.channel = false
       assert.notOk(rabbitmq._isConnected())
-      rabbitmq.connection = false
+      rabbitmq._isPartlyConnected = sinon.stub().returns(false)
       rabbitmq.channel = true
       assert.notOk(rabbitmq._isConnected())
-      rabbitmq.connection = false
+      rabbitmq._isPartlyConnected = sinon.stub().returns(false)
       rabbitmq.channel = false
       assert.notOk(rabbitmq._isConnected())
+    })
+  })
+
+  describe('_isPartlyConnected', () => {
+    it('should return true if connection exist', () => {
+      rabbitmq.connection = true
+      assert.ok(rabbitmq._isPartlyConnected())
+    })
+
+    it('should return false if connection is missing', () => {
+      rabbitmq.connection = false
+      assert.notOk(rabbitmq._isPartlyConnected())
     })
   })
 
@@ -373,6 +396,354 @@ describe('rabbitmq', () => {
             }
           )
         })
+    })
+  })
+
+  describe('_subscribeToExchange', () => {
+    const mockTopicSubscribe = {
+      exchange: 'topic-exchange',
+      type: 'topic',
+      routingKey: 'route-key',
+      handler: () => {}
+    }
+    const mockFanoutSubscribe = {
+      exchange: 'fanout-exchange',
+      type: 'fanout',
+      handler: () => {}
+    }
+
+    beforeEach(() => {
+      sinon.stub(rabbitmq, '_isConnected').returns(true)
+      rabbitmq.channel = {}
+      rabbitmq.channel.assertExchange = sinon.stub().resolves()
+      rabbitmq.channel.assertQueue = sinon.stub().resolves({ queue: 'new-q' })
+      rabbitmq.channel.bindQueue = sinon.stub().resolves()
+    })
+
+    it('should reject if not connected', () => {
+      rabbitmq._isConnected.returns(false)
+      return assert.isRejected(
+        rabbitmq._subscribeToExchange(mockTopicSubscribe),
+        /must.+connect/
+      )
+    })
+
+    describe('fanout exchange', () => {
+      it('should not subscribe if already subscribed to fanout exchange', () => {
+        rabbitmq.subscribed = rabbitmq.subscribed.add('fanout:::fanout-exchange')
+        return assert
+        .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
+        .then(() => {
+          sinon.assert.notCalled(rabbitmq.channel.assertExchange)
+        })
+      })
+
+      it('should subscribe to the exchange', () => {
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertExchange,
+              'fanout-exchange',
+              'fanout',
+              { durable: false }
+            )
+          })
+      })
+
+      it('should create a queue for the exchange', () => {
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertQueue,
+              'ponos.fanout-exchange',
+              { exclusive: true }
+            )
+          })
+      })
+
+      it('should bind the queue to the exchange', () => {
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.bindQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.bindQueue,
+              'new-q',
+              'fanout-exchange',
+              ''
+            )
+          })
+      })
+
+      it('should add the queue to the subscriptions', () => {
+        assert.equal(rabbitmq.subscriptions.size, 0)
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
+          .then(() => {
+            assert.equal(rabbitmq.subscriptions.size, 1)
+            assert.ok(rabbitmq.subscriptions.has('new-q'))
+          })
+      })
+
+      it('should add the subscribed key', () => {
+        assert.equal(rabbitmq.subscribed.size, 0)
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
+          .then(() => {
+            assert.equal(rabbitmq.subscribed.size, 1)
+            assert.ok(rabbitmq.subscribed.has('fanout:::fanout-exchange'))
+          })
+      })
+    })
+
+    describe('topic exchange', () => {
+      it('should assert that a topic exchange has a routing key', () => {
+        const opts = omit(mockTopicSubscribe, [ 'routingKey' ])
+        return assert.isRejected(
+          rabbitmq._subscribeToExchange(opts),
+          /routingKey.+required.+topic/
+        )
+      })
+
+      it('should not subscribe if already subscribed to topic exchange', () => {
+        rabbitmq.subscribed = rabbitmq.subscribed
+          .add('topic:::topic-exchange:::route-key')
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
+          .then(() => {
+            sinon.assert.notCalled(rabbitmq.channel.assertExchange)
+          })
+      })
+
+      it('should subscribe if a different topic routing key', () => {
+        const opts = omit(mockTopicSubscribe, [ 'routingKey' ])
+        opts.routingKey = 'route-key-dos'
+        rabbitmq.subscribed = rabbitmq.subscribed
+          .add('topic:::topic-exchange:::route-key')
+        return assert.isFulfilled(rabbitmq._subscribeToExchange(opts))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+          })
+      })
+
+      it('should subscribe to the exchange', () => {
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertExchange,
+              'topic-exchange',
+              'topic',
+              { durable: false }
+            )
+          })
+      })
+
+      it('should create a queue for the exchange', () => {
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertQueue,
+              'ponos.topic-exchange.route-key',
+              { exclusive: true }
+            )
+          })
+      })
+
+      it('should bind the queue to the exchange', () => {
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.channel.bindQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.bindQueue,
+              'new-q',
+              'topic-exchange',
+              'route-key'
+            )
+          })
+      })
+
+      it('should add the queue to the subscriptions', () => {
+        assert.equal(rabbitmq.subscriptions.size, 0)
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
+          .then(() => {
+            assert.equal(rabbitmq.subscriptions.size, 1)
+            assert.ok(rabbitmq.subscriptions.has('new-q'))
+          })
+      })
+
+      it('should add the subscribed key', () => {
+        assert.equal(rabbitmq.subscribed.size, 0)
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
+          .then(() => {
+            assert.equal(rabbitmq.subscribed.size, 1)
+            assert.ok(
+              rabbitmq.subscribed.has('topic:::topic-exchange:::route-key')
+            )
+          })
+      })
+    })
+  })
+
+  describe('consume', () => {
+    let mockHandler
+
+    beforeEach(() => {
+      sinon.stub(rabbitmq, '_isConnected').returns(true)
+      mockHandler = sinon.stub().yields() // don't yield async in this test
+      rabbitmq.subscriptions = new Immutable.Map({ foo: mockHandler })
+      rabbitmq.channel = {}
+      rabbitmq.channel.consume = sinon.stub().resolves({ consumerTag: 'foo' })
+    })
+
+    it('should clear out the subscriptions', () => {
+      assert.equal(rabbitmq.subscriptions.size, 1)
+      return assert.isFulfilled(rabbitmq.consume())
+        .then(() => {
+          assert.equal(rabbitmq.subscriptions.size, 0)
+        })
+    })
+
+    it('should reject if not connected', () => {
+      rabbitmq._isConnected.returns(false)
+      return assert.isRejected(rabbitmq.consume(), /must.+connect/)
+    })
+
+    it('should consume the new queues', () => {
+      return assert.isFulfilled(rabbitmq.consume())
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.consume)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.consume,
+            'foo',
+            sinon.match.func
+          )
+        })
+    })
+
+    it('should not consume queues it is already consuming', () => {
+      rabbitmq.consuming = new Immutable.Set([ 'foo' ])
+      return assert.isFulfilled(rabbitmq.consume())
+        .then(() => {
+          sinon.assert.notCalled(rabbitmq.channel.consume)
+        })
+    })
+
+    it('should add the new queue to the consuming set', () => {
+      assert.equal(rabbitmq.consuming.size, 0)
+      return assert.isFulfilled(rabbitmq.consume())
+        .then(() => {
+          assert.equal(rabbitmq.consuming.size, 1)
+          assert.ok(rabbitmq.consuming.has('foo'))
+        })
+    })
+
+    describe('the function that is listening', () => {
+      let func
+
+      beforeEach(() => {
+        rabbitmq.channel.ack = sinon.stub()
+        return assert.isFulfilled(rabbitmq.consume())
+          .then(() => {
+            func = rabbitmq.channel.consume.firstCall.args[1]
+            assert.isFunction(func)
+          })
+      })
+
+      it('should call the handler with json parsed data', () => {
+        func({ content: JSON.stringify({ foo: 'bar' }) })
+        sinon.assert.calledOnce(mockHandler)
+        sinon.assert.calledWithExactly(
+          mockHandler,
+          { foo: 'bar' },
+          sinon.match.func
+        )
+      })
+
+      it('should acknowledge the message when done', () => {
+        const message = { content: JSON.stringify({ foo: 'bar' }) }
+        func(message)
+        sinon.assert.calledOnce(rabbitmq.channel.ack)
+        sinon.assert.calledWithExactly(rabbitmq.channel.ack, message)
+      })
+    })
+  })
+
+  describe('unsubscribe', () => {
+    beforeEach(() => {
+      rabbitmq.channel = {}
+      rabbitmq.channel.cancel = sinon.stub().resolves()
+      rabbitmq.consuming = new Immutable.Map({ foo: 'sometag' })
+    })
+
+    it('should cancel any consuming queues', () => {
+      return assert.isFulfilled(rabbitmq.unsubscribe())
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.cancel)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.cancel,
+            'sometag'
+          )
+        })
+    })
+
+    it('should remove the channels that were canceled', () => {
+      assert.ok(rabbitmq.consuming.has('foo'))
+      return assert.isFulfilled(rabbitmq.unsubscribe())
+        .then(() => {
+          assert.notOk(rabbitmq.consuming.has('foo'))
+        })
+    })
+
+    it('should do nothing w/o any consumers', () => {
+      rabbitmq.consuming = new Immutable.Map()
+      return assert.isFulfilled(rabbitmq.unsubscribe())
+        .then(() => {
+          sinon.assert.notCalled(rabbitmq.channel.cancel)
+        })
+    })
+  })
+
+  describe('disconnect', () => {
+    beforeEach(() => {
+      rabbitmq.connection = {}
+      rabbitmq.connection.close = sinon.stub().resolves()
+    })
+
+    describe('when connected', () => {
+      beforeEach(() => {
+        sinon.stub(rabbitmq, '_isPartlyConnected').returns(true)
+      })
+
+      it('should disconnect', () => {
+        return assert.isFulfilled(rabbitmq.disconnect())
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.connection.close)
+          })
+      })
+    })
+
+    describe('when not connected', () => {
+      beforeEach(() => {
+        sinon.stub(rabbitmq, '_isPartlyConnected').returns(false)
+      })
+
+      it('should reject with error', () => {
+        return assert.isRejected(rabbitmq.disconnect(), /not connected/)
+          .then(() => {
+            sinon.assert.notCalled(rabbitmq.connection.close)
+          })
+      })
     })
   })
 })
