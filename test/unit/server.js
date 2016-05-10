@@ -2,8 +2,8 @@
 
 const chai = require('chai')
 const clone = require('101/clone')
+const errorCat = require('error-cat')
 const noop = require('101/noop')
-const Promise = require('bluebird')
 const sinon = require('sinon')
 
 const assert = chai.assert
@@ -102,6 +102,28 @@ describe('Server', () => {
     })
   })
 
+  describe('consume', () => {
+    let server
+    let opts = { tasks: tasks }
+
+    beforeEach(() => {
+      server = new ponos.Server(opts)
+      sinon.stub(RabbitMQ.prototype, 'consume').resolves()
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype.consume.restore()
+    })
+
+    it('should start consuming', () => {
+      return assert.isFulfilled(server.consume())
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype.consume)
+          sinon.assert.calledWithExactly(RabbitMQ.prototype.consume)
+        })
+    })
+  })
+
   describe('_subscribeAll', () => {
     let server
     let opts = {
@@ -153,46 +175,46 @@ describe('Server', () => {
           )
         })
     })
-  })
 
-  describe.skip('_unsubscribe', () => {
-    let server
-    let opts = {
-      tasks: tasks,
-      events: tasks
-    }
+    describe('the worker it creates', () => {
+      const mockJob = { foo: 'bar' }
+      const mockDone = () => {}
 
-    beforeEach(() => {
-      server = new ponos.Server(opts)
-    })
+      beforeEach(() => {
+        sinon.stub(ponos.Server.prototype, '_runWorker').returns()
+        return server._subscribeAll()
+      })
 
-    it('should apply the correct callback for the given queue', () => {
-      return assert.isFulfilled(server._unsubscribe('a', null))
-        .then(() => {
-          assert.ok(server.hermes.unsubscribe.calledOnce)
-          assert.ok(server.hermes.unsubscribe.calledWith('a'))
-        })
-    })
-  })
+      afterEach(() => {
+        ponos.Server.prototype._runWorker.restore()
+      })
 
-  describe.skip('_unsubscribeAll', () => {
-    let server
-    let opts = {
-      tasks: tasks,
-      events: tasks
-    }
+      it('should be created on subscribeToQueue', () => {
+        const worker = RabbitMQ.prototype.subscribeToQueue.firstCall.args.pop()
+        worker(mockJob, mockDone)
+        sinon.assert.calledOnce(ponos.Server.prototype._runWorker)
+        sinon.assert.calledWithExactly(
+          ponos.Server.prototype._runWorker,
+          'test-queue-01',
+          sinon.match.func,
+          mockJob,
+          mockDone
+        )
+      })
 
-    beforeEach(() => {
-      server = new ponos.Server(opts)
-    })
-
-    it.skip('should call `_unsubscribe` for each queue', () => {
-      return assert.isFulfilled(server._unsubscribeAll())
-        .then(() => {
-          assert.ok(server._unsubscribe.calledTwice)
-          assert.ok(server._unsubscribe.calledWith('a'))
-          assert.ok(server._unsubscribe.calledWith('b'))
-        })
+      it('should be created on subscribeToFanoutExchange', () => {
+        const worker = RabbitMQ.prototype.subscribeToFanoutExchange
+          .firstCall.args.pop()
+        worker(mockJob, mockDone)
+        sinon.assert.calledOnce(ponos.Server.prototype._runWorker)
+        sinon.assert.calledWithExactly(
+          ponos.Server.prototype._runWorker,
+          'test-queue-01',
+          sinon.match.func,
+          mockJob,
+          mockDone
+        )
+      })
     })
   })
 
@@ -272,6 +294,39 @@ describe('Server', () => {
     })
   })
 
+  describe('setEvent', () => {
+    const testQueue99 = 'test-queue-99'
+
+    it('should set the event handler', () => {
+      server.setEvent(testQueue99, worker)
+      assert.isFunction(server._events.get(testQueue99))
+    })
+
+    it('should throw if the provided event is not a function', () => {
+      assert.throws(() => {
+        server.setEvent(testQueue99, 'not-a-function')
+      }, /must be a function/)
+    })
+
+    it('should set default worker options', () => {
+      server.setEvent(testQueue99, worker)
+      assert.deepEqual(server._workerOptions[testQueue99], {})
+    })
+
+    it('should set worker options for events', () => {
+      const opts = { msTimeout: 2000 }
+      server.setEvent(testQueue99, worker, opts)
+      assert.deepEqual(server._workerOptions[testQueue99], opts)
+    })
+
+    it('should pick only provided options that are valid', () => {
+      const opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
+      const expectedOpts = { msTimeout: 2000 }
+      server.setEvent(testQueue99, worker, opts)
+      assert.deepEqual(server._workerOptions[testQueue99], expectedOpts)
+    })
+  })
+
   describe('setTask', () => {
     const testQueue99 = 'test-queue-99'
 
@@ -305,6 +360,64 @@ describe('Server', () => {
     })
   })
 
+  describe('setAllEvents', () => {
+    beforeEach(() => {
+      server = new ponos.Server()
+      sinon.stub(server, 'setEvent')
+    })
+
+    afterEach(() => {
+      server.setEvent.restore()
+    })
+
+    it('should throw if not set with object', () => {
+      assert.throws(
+        () => { server.setAllEvents(1738) },
+        /called with.+object/
+      )
+    })
+
+    it('should set multiple tasks', () => {
+      server.setAllEvents(tasks)
+      sinon.assert.callCount(server.setEvent, 2)
+    })
+
+    describe('with task objects', () => {
+      beforeEach(() => {
+        sinon.stub(server.log, 'warn')
+      })
+
+      afterEach(() => {
+        server.log.warn.restore()
+      })
+
+      it('should log a warning if a event is not defined', () => {
+        const brokenEvents = clone(tasks)
+        delete brokenEvents['test-queue-02']
+        brokenEvents['test-queue-01'] = { msTimeout: 2000 }
+        server.setAllEvents(brokenEvents)
+        sinon.assert.calledOnce(server.log.warn)
+        sinon.assert.calledWith(
+          server.log.warn,
+          sinon.match.has('key', 'test-queue-01'),
+          'no task function defined for key'
+        )
+        sinon.assert.notCalled(server.setEvent)
+      })
+
+      it('should pass options when calling setEvent', () => {
+        const newEvents = {}
+        const opts = newEvents['test-queue-99'] = {
+          task: noop,
+          msTimeout: 2000
+        }
+        server.setAllEvents(newEvents)
+        assert.ok(server.setEvent.calledOnce)
+        assert.deepEqual(server.setEvent.firstCall.args[2], opts)
+      })
+    })
+  })
+
   describe('setAllTasks', () => {
     beforeEach(() => {
       server = new ponos.Server()
@@ -313,6 +426,13 @@ describe('Server', () => {
 
     afterEach(() => {
       server.setTask.restore()
+    })
+
+    it('should throw if not set with object', () => {
+      assert.throws(
+        () => { server.setAllTasks(1738) },
+        /called with.+object/
+      )
     })
 
     it('should set multiple tasks', () => {
@@ -358,14 +478,14 @@ describe('Server', () => {
       sinon.stub(RabbitMQ.prototype, 'connect').resolves()
       sinon.stub(ponos.Server.prototype, '_subscribeAll').resolves()
       sinon.stub(ponos.Server.prototype, 'consume').resolves()
-      sinon.stub(server.errorCat, 'report').returns()
+      sinon.stub(errorCat, 'report').returns()
     })
 
     afterEach(() => {
       RabbitMQ.prototype.connect.restore()
       ponos.Server.prototype._subscribeAll.restore()
       ponos.Server.prototype.consume.restore()
-      server.errorCat.report.restore()
+      errorCat.report.restore()
     })
 
     it('should connect to rabbitmq', () => {
@@ -383,26 +503,49 @@ describe('Server', () => {
         /nope error/
       )
         .then(() => {
-          sinon.assert.calledOnce(server.errorCat.report)
-          sinon.assert.calledWithExactly(server.errorCat.report, error)
+          sinon.assert.calledOnce(errorCat.report)
+          sinon.assert.calledWithExactly(errorCat.report, error)
         })
     })
   })
 
-  describe.skip('stop', () => {
-    it('should close the hermes connection', () => {
+  describe('stop', () => {
+    let server
+
+    beforeEach(() => {
+      server = new ponos.Server({ tasks: tasks })
+      sinon.stub(RabbitMQ.prototype, 'unsubscribe').resolves()
+      sinon.stub(RabbitMQ.prototype, 'disconnect').resolves()
+      sinon.stub(errorCat, 'report')
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype.unsubscribe.restore()
+      RabbitMQ.prototype.disconnect.restore()
+      errorCat.report.restore()
+    })
+
+    it('should unsubscribe the rabbitmq connection', () => {
       return assert.isFulfilled(server.stop())
         .then(() => {
-          assert.ok(server.hermes.closeAsync.calledOnce)
+          sinon.assert.calledOnce(RabbitMQ.prototype.unsubscribe)
+        })
+    })
+
+    it('should close the rabbitmq connection', () => {
+      return assert.isFulfilled(server.stop())
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype.disconnect)
         })
     })
 
     it('should report and rethrow stop errors', () => {
-      const closeError = new Error('Hermes is tired...')
-      server.hermes.closeAsync.returns(Promise.reject(closeError))
+      const unsubError = new Error('Hermes is tired...')
+      RabbitMQ.prototype.unsubscribe.rejects(unsubError)
       return assert.isRejected(server.stop())
         .then(() => {
-          assert.ok(server.errorCat.report.calledWith(closeError))
+          sinon.assert.calledOnce(errorCat.report)
+          sinon.assert.calledWithExactly(errorCat.report, unsubError)
         })
     })
   })
