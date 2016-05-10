@@ -65,9 +65,6 @@ class RabbitMQ {
       })
       .then((conn) => {
         this.connection = conn
-        if (!this.connection) {
-          throw new Error('error making connection')
-        }
         this.log.info('connected')
         this.connection.on('error', this._connectionErrorHandler.bind(this))
 
@@ -107,17 +104,24 @@ class RabbitMQ {
     throw err
   }
 
-  subscribeToQueue (queue: string, handler: Function) {
+  _isConnected (): boolean {
+    return !!(this.connection && this.channel)
+  }
+
+  subscribeToQueue (queue: string, handler: Function): Promise {
     const log = this.log.child({
       method: 'subscribeToQueue',
       queue: queue
     })
     log.info('subscribing to queue')
-    if (!this.channel) {
+    if (!this._isConnected()) {
       return Promise.reject(new Error('you must .connect() before subscribing'))
     }
     if (!isFunction(handler)) {
       log.error('handler must be a function')
+      return Promise.reject(
+        new Error(`handler for ${queue} must be a function`)
+      )
     }
     if (this.subscribed.has(`queue:::${queue}`)) {
       log.warn('already subscribed to queue')
@@ -132,7 +136,7 @@ class RabbitMQ {
       })
   }
 
-  _subscribeToExchange (opts: SubscribeObject) {
+  _subscribeToExchange (opts: SubscribeObject): Promise {
     const log = this.log.child({
       method: '_subscribeToExchange',
       opts: opts
@@ -192,7 +196,7 @@ class RabbitMQ {
       })
   }
 
-  subscribeToFanoutExchange (exchange: string, handler: Function) {
+  subscribeToFanoutExchange (exchange: string, handler: Function): Promise {
     return this._subscribeToExchange({
       exchange: exchange,
       type: 'fanout',
@@ -204,7 +208,7 @@ class RabbitMQ {
     exchange: string,
     routingKey: string,
     handler: Function
-  ) {
+  ): Promise {
     return this._subscribeToExchange({
       exchange: exchange,
       type: 'topic',
