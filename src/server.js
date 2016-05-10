@@ -43,12 +43,12 @@ const Worker = require('./worker')
  */
 class Server {
   _events: Map<string, Function>;
+  _opts: Object;
   _rabbitmq: any;
   _tasks: Map<string, Function>;
   _workerOptions: Object;
   errorCat: ErrorCat;
   log: Object;
-  opts: Object;
 
   constructor (opts: Object) {
     this._opts = assign({}, opts)
@@ -66,7 +66,7 @@ class Server {
 
     this.errorCat = this._opts.errorCat || errorCat
 
-    this._rabbitmq = new RabbitMQ(this._opts.rabbitmq)
+    this._rabbitmq = new RabbitMQ(this._opts.rabbitmq || {})
   }
 
   /**

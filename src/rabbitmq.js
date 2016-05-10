@@ -3,7 +3,6 @@
 'use strict'
 
 const amqplib = require('amqplib')
-const assign = require('101/assign')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const Promise = require('bluebird')
@@ -39,8 +38,7 @@ class RabbitMQ {
   subscriptions: Map<string, Function>;
   username: string;
 
-  constructor (opts) {
-    opts = assign({}, opts)
+  constructor (opts: Object) {
     this.hostname = opts.hostname ||
       process.env.RABBITMQ_HOSTNAME ||
       'localhost'
