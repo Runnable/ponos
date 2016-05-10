@@ -88,7 +88,7 @@ class RabbitMQ {
   /**
    * Error handler for the RabbitMQ connection.
    * @private
-   * @throws
+   * @throws Error
    * @param {object} err Error object from event.
    */
   _connectionErrorHandler (err: Error) {
@@ -99,7 +99,7 @@ class RabbitMQ {
   /**
    * Error handler for the RabbitMQ channel.
    * @private
-   * @throws
+   * @throws Error
    * @param {object} err Error object from event.
    */
   _channelErrorHandler (err: Error) {
