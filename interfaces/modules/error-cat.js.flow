@@ -1,7 +1,15 @@
+declare class ErrorCat {
+  report(error: Error): void;
+}
+
 declare module 'error-cat' {
-  declare class ErrorCat {
-    static constructor(): ErrorCat;
-    report(error: Error): void;
-  }
-  declare var exports: Class<ErrorCat>;
+  declare var exports: typeof ErrorCat;
+}
+
+declare class WorkerStopError extends Error {
+  static constructor(message: string, data?: Object, queue?: string, job: Object): WorkerStopError;
+}
+
+declare module 'error-cat/errors/worker-stop-error' {
+  declare var exports: Class<WorkerStopError>
 }

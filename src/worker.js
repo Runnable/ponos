@@ -1,9 +1,9 @@
 /* @flow */
-/* global WorkerError */
+/* global ErrorCat WorkerError */
 'use strict'
 
 const defaults = require('101/defaults')
-const ErrorCat = require('error-cat')
+const errorCat = require('error-cat')
 const exists = require('101/exists')
 const isNumber = require('101/is-number')
 const isObject = require('101/is-object')
@@ -11,11 +11,11 @@ const merge = require('101/put')
 const monitor = require('monitor-dog')
 const pick = require('101/pick')
 const Promise = require('bluebird')
-
-const TimeoutError = Promise.TimeoutError
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const logger = require('./logger')
-const TaskFatalError = require('./errors/task-fatal-error')
+
+const TimeoutError = Promise.TimeoutError
 
 /**
  * Worker class: performs tasks for jobs on a given queue.
@@ -65,7 +65,7 @@ class Worker {
     opts = pick(opts, fields)
     defaults(opts, {
       // default non-required user options
-      errorCat: new ErrorCat(),
+      errorCat: errorCat,
       log: logger.child({ module: 'ponos:worker' }),
       runNow: true,
       // other options
@@ -219,8 +219,20 @@ class Worker {
         // by throwing this type of error, we will retry :)
         throw err
       })
-      // if it's a known type of error, we can't accomplish the task
-      .catch(TaskFatalError, function knownErrDone (err) {
+      .catch(function decorateError (err) {
+        if (!isObject(err.data)) {
+          err.data = {}
+        }
+        if (!err.data.queue) {
+          err.data.queue = this.queue
+        }
+        if (!err.data.job) {
+          err.data.job = this.job
+        }
+        throw err
+      })
+      // if it's a WorkerStopError, we can't accomplish the task
+      .catch(WorkerStopError, function knownErrDone (err) {
         log.error({ err: err }, 'Worker task fatally errored')
         this._incMonitor('ponos.finish', { result: 'fatal-error' })
         this._reportError(err)

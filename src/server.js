@@ -1,9 +1,10 @@
 /* @flow */
+/* global ErrorCat */
 'use strict'
 
 const clone = require('101/clone')
 const defaults = require('101/defaults')
-const ErrorCat = require('error-cat')
+const errorCat = require('error-cat')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
@@ -62,7 +63,7 @@ class Server {
       this.setAllEvents(this.opts.events)
     }
 
-    this.errorCat = this.opts.errorCat || new ErrorCat()
+    this.errorCat = this.opts.errorCat || errorCat
 
     this._rabbitmq = new RabbitMQ()
   }

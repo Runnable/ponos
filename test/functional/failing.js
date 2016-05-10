@@ -3,12 +3,12 @@
 const chai = require('chai')
 const Promise = require('bluebird')
 const sinon = require('sinon')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const assert = chai.assert
 
 // Ponos Tooling
 const ponos = require('../../src')
-const TaskFatalError = ponos.TaskFatalError
 const testWorker = require('./fixtures/worker')
 const testWorkerEmitter = testWorker.emitter
 
@@ -17,7 +17,7 @@ const _Worker = require('../../src/worker')
 
 /*
  *  In this example, we are going to pass an invalid job to the worker that will
- *  throw a TaskFatalError, acknowledge the job, and not run it a second time.
+ *  throw a WorkerStopError, acknowledge the job, and not run it a second time.
  */
 describe('Basic Failing Task', () => {
   let server
@@ -47,7 +47,7 @@ describe('Basic Failing Task', () => {
   before(() => {
     return assert.isRejected(
       testWorker(job),
-      TaskFatalError,
+      WorkerStopError,
       /message.+required/
     )
   })
@@ -68,7 +68,7 @@ describe('Basic Failing Task', () => {
         assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
         /*
          *  We can get the promise and assure that it was fulfilled!
-         *  This should be _fulfilled_ because it threw a TaskFatalError and
+         *  This should be _fulfilled_ because it threw a WorkerStopError and
          *  acknowledged that the task was completed (even though the task
          *  rejected with an error)
          */
@@ -79,7 +79,7 @@ describe('Basic Failing Task', () => {
           'worker._reportError called once'
         )
         const err = _Worker.prototype._reportError.firstCall.args[0]
-        assert.instanceOf(err, TaskFatalError)
+        assert.instanceOf(err, WorkerStopError)
         assert.match(err, /message.+required/)
       })
   })
