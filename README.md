@@ -16,20 +16,18 @@ options         | environment         | default
 ----------------|---------------------|--------------
 `opts.hostname` | `RABBITMQ_HOSTNAME` | `'localhost'`
 `opts.port`     | `RABBITMQ_PORT`     | `'5672'`
-`opts.username` | `RABBITMQ_USERNAME` | `'guest'`
-`opts.password` | `RABBITMQ_PASSWORD` | `'guest'`
-`opts.log`      | *N/A*               | Basic [bunyan](https://github.com/trentm/node-bunyan) instance with `stdout` stream (for logging)
-`opts.errorCat` | *N/A*               | Basic [error-cat](https://github.com/runnable/error-cat) instance (for rollbar error reporting)
-
+`opts.username` | `RABBITMQ_USERNAME` | _none_
+`opts.password` | `RABBITMQ_PASSWORD` | _none_
+`opts.log`      | _N/A_               | Basic [bunyan](https://github.com/trentm/node-bunyan) instance with `stdout` stream (for logging)
+`opts.errorCat` | _N/A_               | Basic [error-cat](https://github.com/runnable/error-cat) instance (for rollbar error reporting)
 
 Other options for Ponos are as follows:
 
-Environment              | default | description
+environment variable     | default | description
 -------------------------|---------|------------
 `WORKER_MAX_RETRY_DELAY` | `0`     | The maximum time, in milliseconds, that the worker will wait before retrying a task. The timeout will exponentially increase from `MIN_RETRY_DELAY` to `MAX_RETRY_DELAY` if the latter is set higher than the former. If this value is not set, the worker will not exponentially back off.
 `WORKER_MIN_RETRY_DELAY` | `1`     | Time, in milliseconds, the worker will wait at minimum will wait before retrying a task.
 `WORKER_TIMEOUT`         | `0`     | Timeout, in milliseconds, at which the worker task will be retried.
-
 
 ## Usage
 
@@ -52,48 +50,21 @@ function myWorker (job) {
 
 This worker takes the `job`, does work with it, and returns the result. Since (in theory) this does not throw any errors, the worker will see this resolution and acknowledge the job.
 
-### Interacting with RabbitMQ and Ponos Server
+## Tasks vs. Events
 
-Workers optionally can take a second argument that allows them to interact with the Ponos server and RabbitMQ topology. For example, if topic exchange queues needed to be created on the fly and subscribed to, we could do the following:
+Ponos provides (currently) two paradigms for doing work. First is subscribing directly to queues in RabbitMQ using the `tasks` parameter in the constructor. The other is the ability to subscribe to a fanout exchange using the `events` parameter, which can provide for a much more useful utilization of RabbitMQ's structure.
 
 ```javascript
-function workerFoo (job) {
-  console.log('foo received a job')
-  return Promise.resolve()
-}
-
-function workerBar (job, ponos) {
-  console.log('bar received a job')
-  // subscribe to the exchange with the routing key
-  return ponos.subscribe({
-    exchange: 'hello-exchange',
-    routingKey: '#.foo',
-    handler: workerFoo
-  })
-    .then(() => {
-      // trigger a consume, starting the new queue
-      return ponos.consume()
-    })
-    .then(() => {
-      console.log('new route queue created and subscribed')
-    })
-}
-
-// create a server that subscribes to the #.bar route
-const server = new Ponos.Server({
-  exchanges: [{
-    exchange: 'hello-exchange',
-    routingKey: '#.bar',
-    handler: workerBar
-  }]
+const ponos = require('ponos')
+const server = new ponos.Server({
+  tasks: {
+    'a-queue': (job) => { return Promise.resolve(job) }
+  },
+  events: {
+    'an-exchange': (job) => { return Promise.resolve(job) }
+  }
 })
-// start the server
-server.start()
 ```
-
-Initially, if we publish a job to `hello-exchange` with the key `a.foo`, we will not receive any message that `foo received a job`. When we publish a job that triggers `workerBar`, it has Ponos subscribe to and consume on the exchange with a new routing key. Now when we publish back with `a.foo`, we see the log that `foo received a job`.
-
-A picture says a thousand words, so check out `topic-exchanges-on-the-fly.js` in the `examples` folder work a working version of this concept.
 
 ### Worker Errors
 
@@ -173,6 +144,8 @@ server.setAllTasks({
 })
 ```
 
+These options are also available for `setEvent` and `setAllEvents`.
+
 ## Full Example
 
 ```javascript
@@ -183,29 +156,26 @@ const tasks = {
   'queue-2': (job) => { return Promise.resolve(job) }
 }
 
+const events = {
+  'exchange-1': (job) => { return Promise.resolve(job) }
+}
+
 // Create the server
 var server = new ponos.Server({
-  queues: Object.keys(tasks)
+  events: events,
+  tasks: tasks
 })
 
-// Set tasks for workers handling jobs on each queue
+// If tasks were not provided in the constructor, set tasks for workers handling
+// jobs on each queue
 server.setAllTasks(tasks)
+// Similarly, you can set events.
+server.setAllEvents(events)
 
 // Start the server!
 server.start()
   .then(() => { console.log('Server started!') })
   .catch((err) => { console.error('Server failed', err) })
-
-// Or, start using your own hermes client
-const hermes = require('runnable-hermes')
-const server = new ponos.Server({
-  hermes: hermes.hermesSingletonFactory({...})
-})
-
-// You can also nicely chain the promises!
-server.start()
-  .then(() => { /*...*/ })
-  .catch((err) => { /*...*/ })
 ```
 
 ## License
