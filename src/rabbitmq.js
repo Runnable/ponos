@@ -43,13 +43,19 @@ class RabbitMQ {
       process.env.RABBITMQ_HOSTNAME ||
       'localhost'
     this.port = opts.port || parseInt(process.env.RABBITMQ_PORT, 10) || 5672
-    this.username = opts.username || `${process.env.RABBITMQ_USERNAME}`
-    this.password = opts.password || `${process.env.RABBITMQ_PASSWORD}`
+    this.username = opts.username || process.env.RABBITMQ_USERNAME
+    this.password = opts.password || process.env.RABBITMQ_PASSWORD
     this.log = logger.child({
       module: 'ponos:rabbitmq',
       hostname: this.hostname,
       port: this.port
     })
+    if (!this.username || !this.password) {
+      this.log.warn(
+        'RabbitMQ username and password not found. See Ponos Server ' +
+        'constructor documentation.'
+      )
+    }
     this.subscriptions = new Immutable.Map()
     this.subscribed = new Immutable.Set()
     this.consuming = new Immutable.Map()

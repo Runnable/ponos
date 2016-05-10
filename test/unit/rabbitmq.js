@@ -33,6 +33,14 @@ describe('rabbitmq', () => {
   })
 
   describe('constructor', () => {
+    beforeEach(() => {
+      sinon.stub(Bunyan.prototype, 'warn')
+    })
+
+    afterEach(() => {
+      Bunyan.prototype.warn.restore()
+    })
+
     it('should accept passed in values for connection', () => {
       const r = new RabbitMQ({
         hostname: 'luke',
@@ -44,6 +52,30 @@ describe('rabbitmq', () => {
       assert.equal(r.port, 4242)
       assert.equal(r.username, 'myusername')
       assert.equal(r.password, 'mypassword')
+    })
+
+    it('should warn if username and password not provided', () => {
+      delete process.env.RABBITMQ_USERNAME
+      delete process.env.RABBITMQ_PASSWORD
+      const r = new RabbitMQ({})
+      assert.ok(r)
+      sinon.assert.calledOnce(Bunyan.prototype.warn)
+      sinon.assert.calledWithExactly(
+        Bunyan.prototype.warn,
+        sinon.match(/username.+password/)
+      )
+    })
+
+    it('should warn if password not provided', () => {
+      delete process.env.RABBITMQ_USERNAME
+      delete process.env.RABBITMQ_PASSWORD
+      const r = new RabbitMQ({ username: 'username' })
+      assert.ok(r)
+      sinon.assert.calledOnce(Bunyan.prototype.warn)
+      sinon.assert.calledWithExactly(
+        Bunyan.prototype.warn,
+        sinon.match(/username.+password/)
+      )
     })
   })
 
