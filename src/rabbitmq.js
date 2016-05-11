@@ -196,7 +196,14 @@ class RabbitMQ {
         return true
       }
       function wrapper (msg) {
-        const job = JSON.parse(msg.content)
+        let job
+        try {
+          job = JSON.parse(msg.content)
+        } catch (err) {
+          // relatively safe stringifying - could be buffer, could be invalid
+          log.error({ job: '' + msg.content }, 'content not valid JSON')
+          return channel.ack(msg)
+        }
         handler(job, () => {
           channel.ack(msg)
         })
