@@ -12,7 +12,7 @@ declare module '101/clone' {
 
 declare module '101/defaults' {
   declare var exports: {
-    (value: Object, defaults: Object): Object;
+    (value: ?Object, defaults: Object): Object;
   }
 }
 
