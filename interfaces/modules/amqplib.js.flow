@@ -1,3 +1,5 @@
+type ExchangeType = 'direct' | 'fanout' | 'topic';
+
 declare class RabbitMQConnection {
   on(event: string, handler: Function): void;
   close(): Promise<void>;
@@ -18,18 +20,17 @@ type QueueObject = {
   queue: string
 }
 
+declare class RabbitMQ {
+  static connect(url: string, opts: ?Object): RabbitMQConnection;
+}
+
 declare module 'amqplib' {
-
-  declare class RabbitMQ {
-    static connect(url: string, opts: ?Object): RabbitMQConnection;
-  }
-
   declare var exports: typeof RabbitMQ;
 }
 
 type SubscribeObject = {
   exchange: string,
-  type: string,
+  type: ExchangeType,
   routingKey?: string,
   handler: Function
 }
