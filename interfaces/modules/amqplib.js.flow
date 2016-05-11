@@ -30,7 +30,9 @@ declare module 'amqplib' {
 
 type SubscribeObject = {
   exchange: string,
-  type: ExchangeType,
+  exchangeOptions?: Object,
+  handler: Function,
+  queueOptions?: Object,
   routingKey?: string,
-  handler: Function
+  type: ExchangeType
 }
