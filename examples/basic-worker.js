@@ -1,9 +1,9 @@
 'use strict'
 
 const Promise = require('bluebird')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const Ponos = require('../')
-const TaskFatalError = Ponos.TaskFatalError
 
 /**
  * A simple worker that will publish a message to a queue.
@@ -15,7 +15,7 @@ function basicWorker (job) {
   return Promise.resolve()
     .then(() => {
       if (!job.message) {
-        throw new TaskFatalError('queue', 'message is required')
+        throw new WorkerStopError('queue', 'message is required')
       }
       console.log(`hello world: ${job.message}`)
     })
