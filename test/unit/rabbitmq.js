@@ -717,6 +717,14 @@ describe('rabbitmq', () => {
         )
       })
 
+      it('should just acknowledge malformed jobs, not handle it', () => {
+        const message = { content: new Buffer('{ nope: 1 }') }
+        func(message)
+        sinon.assert.calledOnce(rabbitmq.channel.ack)
+        sinon.assert.calledWithExactly(rabbitmq.channel.ack, message)
+        sinon.assert.notCalled(mockHandler)
+      })
+
       it('should acknowledge the message when done', () => {
         const message = { content: JSON.stringify({ foo: 'bar' }) }
         func(message)
