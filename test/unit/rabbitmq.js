@@ -212,11 +212,11 @@ describe('rabbitmq', () => {
 
   describe('_connectionErrorHandler', () => {
     beforeEach(() => {
-      sinon.stub(Bunyan.prototype, 'error')
+      sinon.stub(Bunyan.prototype, 'fatal')
     })
 
     afterEach(() => {
-      Bunyan.prototype.error.restore()
+      Bunyan.prototype.fatal.restore()
     })
 
     it('should throw the error', () => {
@@ -232,9 +232,9 @@ describe('rabbitmq', () => {
         () => { rabbitmq._connectionErrorHandler(error) },
         'foobar'
       )
-      sinon.assert.calledOnce(Bunyan.prototype.error)
+      sinon.assert.calledOnce(Bunyan.prototype.fatal)
       sinon.assert.calledWithExactly(
-        Bunyan.prototype.error,
+        Bunyan.prototype.fatal,
         sinon.match.has('err', error),
         'connection has caused an error'
       )
@@ -243,11 +243,11 @@ describe('rabbitmq', () => {
 
   describe('_channelErrorHandler', () => {
     beforeEach(() => {
-      sinon.stub(Bunyan.prototype, 'error')
+      sinon.stub(Bunyan.prototype, 'fatal')
     })
 
     afterEach(() => {
-      Bunyan.prototype.error.restore()
+      Bunyan.prototype.fatal.restore()
     })
 
     it('should throw the error', () => {
@@ -263,9 +263,9 @@ describe('rabbitmq', () => {
         () => { rabbitmq._channelErrorHandler(error) },
         'foobar'
       )
-      sinon.assert.calledOnce(Bunyan.prototype.error)
+      sinon.assert.calledOnce(Bunyan.prototype.fatal)
       sinon.assert.calledWithExactly(
-        Bunyan.prototype.error,
+        Bunyan.prototype.fatal,
         sinon.match.has('err', error),
         'channel has caused an error'
       )
