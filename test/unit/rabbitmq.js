@@ -3,6 +3,7 @@
 const amqplib = require('amqplib')
 const Bunyan = require('bunyan')
 const chai = require('chai')
+const clone = require('101/clone')
 const Immutable = require('immutable')
 const omit = require('101/omit')
 const sinon = require('sinon')
@@ -357,7 +358,31 @@ describe('rabbitmq', () => {
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
               mockQueue,
-              { durable: true }
+              RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
+            )
+          })
+      })
+
+      it('should assert a queue with provided options', () => {
+        return assert.isFulfilled(
+          rabbitmq.subscribeToQueue(
+            mockQueue,
+            mockHandler,
+            {
+              someNewOption: true,
+              durable: false // override
+            }
+          )
+        )
+          .then(() => {
+            const opts = clone(RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
+            opts.durable = false
+            opts.someNewOption = true
+            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertQueue,
+              mockQueue,
+              opts
             )
           })
       })
@@ -409,8 +434,46 @@ describe('rabbitmq', () => {
             {
               exchange: 'exchange',
               type: 'fanout',
-              handler: mockHandler
+              handler: mockHandler,
+              queueOptions: {},
+              exchangeOptions: {}
             }
+          )
+        })
+    })
+
+    it('should accept and pass through queue options', () => {
+      const fakeQueueOptions = { foobar: true }
+      return assert.isFulfilled(
+        rabbitmq.subscribeToFanoutExchange(
+          'exchange',
+          mockHandler,
+          { queueOptions: fakeQueueOptions }
+        )
+      )
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._subscribeToExchange)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype._subscribeToExchange,
+            sinon.match.has('queueOptions', fakeQueueOptions)
+          )
+        })
+    })
+
+    it('should accept and pass through exchange options', () => {
+      const fakeExchangeOptions = { foobar: true }
+      return assert.isFulfilled(
+        rabbitmq.subscribeToFanoutExchange(
+          'exchange',
+          mockHandler,
+          { exchangeOptions: fakeExchangeOptions }
+        )
+      )
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._subscribeToExchange)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype._subscribeToExchange,
+            sinon.match.has('exchangeOptions', fakeExchangeOptions)
           )
         })
     })
@@ -439,8 +502,48 @@ describe('rabbitmq', () => {
               exchange: 'exchange',
               type: 'topic',
               routingKey: 'route',
-              handler: mockHandler
+              handler: mockHandler,
+              queueOptions: {},
+              exchangeOptions: {}
             }
+          )
+        })
+    })
+
+    it('should accept and pass through queue options', () => {
+      const fakeQueueOptions = { foobar: true }
+      return assert.isFulfilled(
+        rabbitmq.subscribeToTopicExchange(
+          'exchange',
+          'route',
+          mockHandler,
+          { queueOptions: fakeQueueOptions }
+        )
+      )
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._subscribeToExchange)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype._subscribeToExchange,
+            sinon.match.has('queueOptions', fakeQueueOptions)
+          )
+        })
+    })
+
+    it('should accept and pass through exchange options', () => {
+      const fakeExchangeOptions = { foobar: true }
+      return assert.isFulfilled(
+        rabbitmq.subscribeToTopicExchange(
+          'exchange',
+          'route',
+          mockHandler,
+          { exchangeOptions: fakeExchangeOptions }
+        )
+      )
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._subscribeToExchange)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype._subscribeToExchange,
+            sinon.match.has('exchangeOptions', fakeExchangeOptions)
           )
         })
     })
@@ -485,7 +588,7 @@ describe('rabbitmq', () => {
         })
       })
 
-      it('should subscribe to the exchange', () => {
+      it('should assert the exchange', () => {
         return assert
           .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
           .then(() => {
@@ -494,7 +597,29 @@ describe('rabbitmq', () => {
               rabbitmq.channel.assertExchange,
               'fanout-exchange',
               'fanout',
-              { durable: false }
+              RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
+            )
+          })
+      })
+
+      it('should assert an exchange with provided options', () => {
+        const newOpts = clone(mockFanoutSubscribe)
+        newOpts.exchangeOptions = {
+          someNewOption: true,
+          durable: false // override
+        }
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
+          .then(() => {
+            const opts = clone(RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
+            opts.durable = false
+            opts.someNewOption = true
+            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertExchange,
+              'fanout-exchange',
+              'fanout',
+              opts
             )
           })
       })
@@ -507,7 +632,28 @@ describe('rabbitmq', () => {
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
               'ponos.fanout-exchange',
-              { exclusive: true }
+              RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
+            )
+          })
+      })
+
+      it('should assert a queue with provided options', () => {
+        const newOpts = clone(mockFanoutSubscribe)
+        newOpts.queueOptions = {
+          someNewOption: true,
+          durable: false // override
+        }
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
+          .then(() => {
+            const opts = clone(RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
+            opts.durable = false
+            opts.someNewOption = true
+            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertQueue,
+              'ponos.fanout-exchange',
+              opts
             )
           })
       })
@@ -577,7 +723,7 @@ describe('rabbitmq', () => {
           })
       })
 
-      it('should subscribe to the exchange', () => {
+      it('should assert the exchange', () => {
         return assert
           .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
           .then(() => {
@@ -586,7 +732,29 @@ describe('rabbitmq', () => {
               rabbitmq.channel.assertExchange,
               'topic-exchange',
               'topic',
-              { durable: false }
+              RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
+            )
+          })
+      })
+
+      it('should assert an exchange with provided options', () => {
+        const newOpts = clone(mockTopicSubscribe)
+        newOpts.exchangeOptions = {
+          someNewOption: true,
+          durable: false // override
+        }
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
+          .then(() => {
+            const opts = clone(RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
+            opts.durable = false
+            opts.someNewOption = true
+            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertExchange,
+              'topic-exchange',
+              'topic',
+              opts
             )
           })
       })
@@ -599,7 +767,28 @@ describe('rabbitmq', () => {
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
               'ponos.topic-exchange.route-key',
-              { exclusive: true }
+              RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
+            )
+          })
+      })
+
+      it('should assert a queue with provided options', () => {
+        const newOpts = clone(mockTopicSubscribe)
+        newOpts.queueOptions = {
+          someNewOption: true,
+          durable: false // override
+        }
+        return assert
+          .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
+          .then(() => {
+            const opts = clone(RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
+            opts.durable = false
+            opts.someNewOption = true
+            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledWithExactly(
+              rabbitmq.channel.assertQueue,
+              'ponos.topic-exchange.route-key',
+              opts
             )
           })
       })

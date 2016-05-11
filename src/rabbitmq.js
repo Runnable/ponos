@@ -1,5 +1,5 @@
 /* @flow */
-/* global RabbitMQChannel RabbitMQConnection SubscribeObject */
+/* global RabbitMQChannel RabbitMQConnection SubscribeObject RabbitMQOptions */
 'use strict'
 
 const amqplib = require('amqplib')
@@ -28,6 +28,9 @@ const logger = require('./logger')
  * @param {String} [opts.password] Username for Password.
  */
 class RabbitMQ {
+  static AMQPLIB_QUEUE_DEFAULTS: Object;
+  static AMQPLIB_EXCHANGE_DEFAULTS: Object;
+
   channel: RabbitMQChannel;
   connection: RabbitMQConnection;
   consuming: Map<string, string>;
@@ -152,20 +155,30 @@ class RabbitMQ {
    *
    * @param {String} exchange Name of fanout exchange.
    * @param {Function} handler Handler for jobs.
-   * @param {Object} [queueOptions] Options for the queue.
+   * @param {Object} [rabbitMQOptions] Options for the queues and exchanges.
+   * @param {Object} [rabbitMQOptions.queueOptions] Options for the queue.
+   * @param {Object} [rabbitMQOptions.exchangeOptions] Options for the exchange.
    * @return {Promise} Promise resolved once subscribed.
    */
   subscribeToFanoutExchange (
     exchange: string,
     handler: Function,
-    queueOptions?: Object
+    rabbitMQOptions?: RabbitMQOptions
   ): Promise {
-    return this._subscribeToExchange({
+    const opts = {
       exchange: exchange,
       type: 'fanout',
       handler: handler,
-      queueOptions: queueOptions
-    })
+      queueOptions: {},
+      exchangeOptions: {}
+    }
+    if (rabbitMQOptions && rabbitMQOptions.queueOptions) {
+      opts.queueOptions = rabbitMQOptions.queueOptions
+    }
+    if (rabbitMQOptions && rabbitMQOptions.exchangeOptions) {
+      opts.exchangeOptions = rabbitMQOptions.exchangeOptions
+    }
+    return this._subscribeToExchange(opts)
   }
 
   /**
@@ -174,22 +187,32 @@ class RabbitMQ {
    * @param {String} exchange Name of topic exchange.
    * @param {String} routingKey Routing key for topic exchange.
    * @param {Function} handler Handler for jobs.
-   * @param {Object} [queueOptions] Options for the queue.
+   * @param {Object} [rabbitMQOptions] Options for the queues and exchanges.
+   * @param {Object} [rabbitMQOptions.queueOptions] Options for the queue.
+   * @param {Object} [rabbitMQOptions.exchangeOptions] Options for the exchange.
    * @return {Promise} Promise resolved once subscribed.
    */
   subscribeToTopicExchange (
     exchange: string,
     routingKey: string,
     handler: Function,
-    queueOptions?: Object
+    rabbitMQOptions?: RabbitMQOptions
   ): Promise {
-    return this._subscribeToExchange({
+    const opts = {
       exchange: exchange,
       type: 'topic',
       routingKey: routingKey,
       handler: handler,
-      queueOptions: queueOptions
-    })
+      queueOptions: {},
+      exchangeOptions: {}
+    }
+    if (rabbitMQOptions && rabbitMQOptions.queueOptions) {
+      opts.queueOptions = rabbitMQOptions.queueOptions
+    }
+    if (rabbitMQOptions && rabbitMQOptions.exchangeOptions) {
+      opts.exchangeOptions = rabbitMQOptions.exchangeOptions
+    }
+    return this._subscribeToExchange(opts)
   }
 
   /**

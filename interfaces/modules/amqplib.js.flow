@@ -36,3 +36,8 @@ type SubscribeObject = {
   routingKey?: string,
   type: ExchangeType
 }
+
+type RabbitMQOptions = {
+  queueOptions?: Object,
+  exchangeOptions?: Object
+}
