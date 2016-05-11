@@ -13,7 +13,7 @@
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- $npm_package_options_mocha test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
-    "docs": "npm run build && jsdoc --recurse --readme ./README.md lib/ && npm run build:clean",
+    "docs": "npm run build && jsdoc --recurse --readme ./README.md lib/",
     "format": "standard --format",
     "functional": "mocha $npm_package_options_mocha test/functional",
     "lint": "npm run lint:format && npm run lint:type",
