@@ -80,7 +80,7 @@ class RabbitMQ {
     return Promise
       .resolve(amqplib.connect(url, {}))
       .catch((err) => {
-        this.log.error({ err: err }, 'an error occured while connecting')
+        this.log.fatal({ err: err }, 'an error occured while connecting')
         throw err
       })
       .then((conn) => {
@@ -91,7 +91,7 @@ class RabbitMQ {
         this.log.info('creating channel')
         return Promise.resolve(this.connection.createChannel())
           .catch((err) => {
-            this.log.error({ err: err }, 'an error occured creating channel')
+            this.log.fatal({ err: err }, 'an error occured creating channel')
             throw err
           })
       })
@@ -246,7 +246,7 @@ class RabbitMQ {
    * @param {object} err Error object from event.
    */
   _connectionErrorHandler (err: Error) {
-    this.log.error({ err: err }, 'connection has caused an error')
+    this.log.fatal({ err: err }, 'connection has caused an error')
     throw err
   }
 
@@ -257,7 +257,7 @@ class RabbitMQ {
    * @param {object} err Error object from event.
    */
   _channelErrorHandler (err: Error) {
-    this.log.error({ err: err }, 'channel has caused an error')
+    this.log.fatal({ err: err }, 'channel has caused an error')
     throw err
   }
 
