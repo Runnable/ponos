@@ -111,6 +111,8 @@ class RabbitMQ {
    *
    * @param {String} queue Queue name.
    * @param {Function} handler Handler for jobs.
+   * @param {Object} [queueOptions] Options for the queue.
+   * @see RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
    * @return {Promise} Promise that is resolved once queue is subscribed.
    */
   subscribeToQueue (
@@ -157,7 +159,9 @@ class RabbitMQ {
    * @param {Function} handler Handler for jobs.
    * @param {Object} [rabbitMQOptions] Options for the queues and exchanges.
    * @param {Object} [rabbitMQOptions.queueOptions] Options for the queue.
+   * @see RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
    * @param {Object} [rabbitMQOptions.exchangeOptions] Options for the exchange.
+   * @see RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
    * @return {Promise} Promise resolved once subscribed.
    */
   subscribeToFanoutExchange (
@@ -188,8 +192,10 @@ class RabbitMQ {
    * @param {String} routingKey Routing key for topic exchange.
    * @param {Function} handler Handler for jobs.
    * @param {Object} [rabbitMQOptions] Options for the queues and exchanges.
-   * @param {Object} [rabbitMQOptions.queueOptions] Options for the queue.
    * @param {Object} [rabbitMQOptions.exchangeOptions] Options for the exchange.
+   * @see RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
+   * @param {Object} [rabbitMQOptions.queueOptions] Options for the queue.
+   * @see RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
    * @return {Promise} Promise resolved once subscribed.
    */
   subscribeToTopicExchange (
@@ -340,7 +346,9 @@ class RabbitMQ {
    * @param {String} opts.handler Handler of jobs.
    * @param {String} opts.type Type of exchange: 'fanout' or 'topic'.
    * @param {Object} [opts.exchangeOptions] Options for the exchange.
+   * @see RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
    * @param {Object} [opts.queueOptions] Options for the queue.
+   * @see RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
    * @param {String} [opts.routingKey] Routing key for a topic exchange.
    * @return {Promise} Promise resolved when subcribed to exchange.
    */
