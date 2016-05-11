@@ -3,6 +3,7 @@
 'use strict'
 
 const amqplib = require('amqplib')
+const defaults = require('101/defaults')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const Promise = require('bluebird')
@@ -109,7 +110,11 @@ class RabbitMQ {
    * @param {Function} handler Handler for jobs.
    * @return {Promise} Promise that is resolved once queue is subscribed.
    */
-  subscribeToQueue (queue: string, handler: Function): Promise {
+  subscribeToQueue (
+    queue: string,
+    handler: Function,
+    queueOptions?: Object
+  ): Promise {
     const log = this.log.child({
       method: 'subscribeToQueue',
       queue: queue
@@ -129,7 +134,12 @@ class RabbitMQ {
       return Promise.resolve()
     }
     return Promise
-      .resolve(this.channel.assertQueue(queue, { durable: true }))
+      .resolve(
+        this.channel.assertQueue(
+          queue,
+          defaults(queueOptions, RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
+        )
+      )
       .then(() => {
         log.info('queue asserted, binding queue')
         this.subscriptions = this.subscriptions.set(queue, handler)
@@ -142,13 +152,19 @@ class RabbitMQ {
    *
    * @param {String} exchange Name of fanout exchange.
    * @param {Function} handler Handler for jobs.
+   * @param {Object} [queueOptions] Options for the queue.
    * @return {Promise} Promise resolved once subscribed.
    */
-  subscribeToFanoutExchange (exchange: string, handler: Function): Promise {
+  subscribeToFanoutExchange (
+    exchange: string,
+    handler: Function,
+    queueOptions?: Object
+  ): Promise {
     return this._subscribeToExchange({
       exchange: exchange,
       type: 'fanout',
-      handler: handler
+      handler: handler,
+      queueOptions: queueOptions
     })
   }
 
@@ -158,18 +174,21 @@ class RabbitMQ {
    * @param {String} exchange Name of topic exchange.
    * @param {String} routingKey Routing key for topic exchange.
    * @param {Function} handler Handler for jobs.
+   * @param {Object} [queueOptions] Options for the queue.
    * @return {Promise} Promise resolved once subscribed.
    */
   subscribeToTopicExchange (
     exchange: string,
     routingKey: string,
-    handler: Function
+    handler: Function,
+    queueOptions?: Object
   ): Promise {
     return this._subscribeToExchange({
       exchange: exchange,
       type: 'topic',
       routingKey: routingKey,
-      handler: handler
+      handler: handler,
+      queueOptions: queueOptions
     })
   }
 
@@ -297,6 +316,8 @@ class RabbitMQ {
    * @param {String} opts.exchange Name of exchange.
    * @param {String} opts.handler Handler of jobs.
    * @param {String} opts.type Type of exchange: 'fanout' or 'topic'.
+   * @param {Object} [opts.exchangeOptions] Options for the exchange.
+   * @param {Object} [opts.queueOptions] Options for the queue.
    * @param {String} [opts.routingKey] Routing key for a topic exchange.
    * @return {Promise} Promise resolved when subcribed to exchange.
    */
@@ -325,7 +346,7 @@ class RabbitMQ {
         this.channel.assertExchange(
           opts.exchange,
           opts.type,
-          { durable: false }
+          defaults(opts.exchangeOptions, RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
         )
       )
       .then(() => {
@@ -334,8 +355,12 @@ class RabbitMQ {
         if (opts.type === 'topic') {
           queueName = `${queueName}.${opts.routingKey}`
         }
-        return Promise
-          .resolve(this.channel.assertQueue(queueName, { exclusive: true }))
+        return Promise.resolve(
+          this.channel.assertQueue(
+            queueName,
+            defaults(opts.queueOptions, RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
+          )
+        )
       })
       .then((queueInfo) => {
         const queue = queueInfo.queue
@@ -356,6 +381,45 @@ class RabbitMQ {
         this.subscribed = this.subscribed.add(subscribedKey)
       })
   }
+}
+
+/**
+ * Default options provided for asserted queues.
+ *
+ * Reference the [amqplib docs]{@link
+ * http://www.squaremobius.net/amqp.node/channel_api.html#channel_assertQueue}
+ * for more information.
+ *
+ * @typedef AMQPLIB_QUEUE_DEFAULTS
+ * @const {Object}
+ * @property {Boolean} autoDelete=false Delete queue when it has 0 consumers.
+ * @property {Boolean} durable=true Queue survives broker restarts.
+ * @property {Boolean} exclusive=false Scopes the queue to the connection.
+ */
+RabbitMQ.AMQPLIB_QUEUE_DEFAULTS = {
+  exclusive: false,
+  durable: true,
+  autoDelete: false
+}
+
+/**
+ * Default options provided for asserted exchanges.
+ *
+ * Reference the [amqplib docs]{@link
+ * http://www.squaremobius.net/amqp.node/channel_api.html#channel_assertExchange}
+ * for more information.
+ *
+ * @typedef AMQPLIB_EXCHANGE_DEFAULTS
+ * @const {Object}
+ * @property {Boolean} autoDelete=false Delete exchange when it has 0 bindings.
+ * @property {Boolean} durable=true Queue survives broker restarts.
+ * @property {Boolean} internal=false Messages cannot be published directly to
+ *   the exchange.
+ */
+RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS = {
+  durable: true,
+  internal: false,
+  autoDelete: false
 }
 
 /**
