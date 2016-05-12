@@ -60,9 +60,7 @@ class RabbitMQ {
         'constructor documentation.'
       )
     }
-    this.subscriptions = new Immutable.Map()
-    this.subscribed = new Immutable.Set()
-    this.consuming = new Immutable.Map()
+    this._setCleanState()
     return this
   }
 
@@ -289,9 +287,25 @@ class RabbitMQ {
       return Promise.reject(new Error('not connected. cannot disconnect.'))
     }
     return Promise.resolve(this.connection.close())
+      .then(() => {
+        this._setCleanState()
+      })
   }
 
   // Private Methods
+
+  /**
+   * Helper method to re-set the state of the model to be 'clean'.
+   *
+   * @private
+   */
+  _setCleanState (): void {
+    delete this.channel
+    delete this.connection
+    this.subscriptions = new Immutable.Map()
+    this.subscribed = new Immutable.Set()
+    this.consuming = new Immutable.Map()
+  }
 
   /**
    * Error handler for the RabbitMQ connection.
@@ -307,6 +321,7 @@ class RabbitMQ {
 
   /**
    * Error handler for the RabbitMQ channel.
+   *
    * @private
    * @throws Error
    * @param {object} err Error object from event.

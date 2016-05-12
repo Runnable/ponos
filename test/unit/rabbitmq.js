@@ -958,10 +958,37 @@ describe('rabbitmq', () => {
     })
   })
 
-  describe('disconnect', () => {
+  describe('_setCleanState', () => {
     beforeEach(() => {
       rabbitmq.connection = {}
+      rabbitmq.channel = {}
+      rabbitmq.subscriptions = rabbitmq.subscriptions.set('foo', 'bar')
+      rabbitmq.subscribed = rabbitmq.subscribed.add('foo')
+      rabbitmq.consuming = rabbitmq.consuming.set('bar', 'foo')
+    })
+
+    it('should reset the state of the model', () => {
+      assert.equal(rabbitmq.subscriptions.size, 1)
+      rabbitmq._setCleanState()
+      assert.notOk(rabbitmq.connection)
+      assert.notOk(rabbitmq.channel)
+      assert.equal(rabbitmq.subscriptions.size, 0)
+      assert.equal(rabbitmq.subscribed.size, 0)
+      assert.equal(rabbitmq.consuming.size, 0)
+    })
+  })
+
+  describe('disconnect', () => {
+    const connection = {}
+
+    beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, '_setCleanState').returns()
+      rabbitmq.connection = connection
       rabbitmq.connection.close = sinon.stub().resolves()
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype._setCleanState.restore()
     })
 
     describe('when connected', () => {
@@ -972,7 +999,15 @@ describe('rabbitmq', () => {
       it('should disconnect', () => {
         return assert.isFulfilled(rabbitmq.disconnect())
           .then(() => {
-            sinon.assert.calledOnce(rabbitmq.connection.close)
+            sinon.assert.calledOnce(connection.close)
+          })
+      })
+
+      it('should reset the state of the model', () => {
+        rabbitmq.channel = {}
+        return assert.isFulfilled(rabbitmq.disconnect())
+          .then(() => {
+            sinon.assert.calledOnce(RabbitMQ.prototype._setCleanState)
           })
       })
     })
@@ -985,7 +1020,7 @@ describe('rabbitmq', () => {
       it('should reject with error', () => {
         return assert.isRejected(rabbitmq.disconnect(), /not connected/)
           .then(() => {
-            sinon.assert.notCalled(rabbitmq.connection.close)
+            sinon.assert.notCalled(connection.close)
           })
       })
     })
