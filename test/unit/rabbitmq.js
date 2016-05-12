@@ -22,7 +22,7 @@ describe('rabbitmq', () => {
   beforeEach(() => {
     process.env.RABBITMQ_USERNAME = 'guest'
     process.env.RABBITMQ_PASSWORD = 'guest'
-    rabbitmq = new RabbitMQ({})
+    rabbitmq = new RabbitMQ({ name: 'test-client' })
     mockConnection.on = sinon.stub()
     mockConnection.createChannel = sinon.stub().resolves(mockChannel)
     mockChannel.on = sinon.stub()
@@ -40,6 +40,16 @@ describe('rabbitmq', () => {
 
     afterEach(() => {
       Bunyan.prototype.warn.restore()
+    })
+
+    it('should default the name to ponos', () => {
+      const r = new RabbitMQ({})
+      assert.equal(r.name, 'ponos')
+    })
+
+    it('should accept a name', () => {
+      const r = new RabbitMQ({ name: 'new-ponos' })
+      assert.equal(r.name, 'new-ponos')
     })
 
     it('should accept passed in values for connection', () => {
@@ -82,32 +92,28 @@ describe('rabbitmq', () => {
 
   describe('connect', () => {
     beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, '_isConnected').returns(false)
       sinon.stub(amqplib, 'connect').resolves(mockConnection)
     })
 
     afterEach(() => {
+      RabbitMQ.prototype._isConnected.restore()
       amqplib.connect.restore()
     })
 
-    it('does not connect twice', () => {
+    it('checks to see if it is connected', () => {
       return assert.isFulfilled(rabbitmq.connect())
         .then(() => {
-          return assert.isRejected(
-            rabbitmq.connect(),
-            /cannot call connect twice/
-          )
+          sinon.assert.calledOnce(RabbitMQ.prototype._isConnected)
         })
     })
 
-    it('does not connect twice if channel failed', () => {
-      return assert.isFulfilled(rabbitmq.connect())
-        .then(() => {
-          delete rabbitmq.channel
-          return assert.isRejected(
-            rabbitmq.connect(),
-            /cannot call connect twice/
-          )
-        })
+    it('does not connect twice', () => {
+      RabbitMQ.prototype._isConnected.returns(true)
+      return assert.isRejected(
+        rabbitmq.connect(),
+        /cannot call connect twice/
+      )
     })
 
     describe('with authentication', () => {
@@ -631,7 +637,7 @@ describe('rabbitmq', () => {
             sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
-              'ponos.fanout-exchange',
+              'test-client.fanout-exchange',
               RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
             )
           })
@@ -652,7 +658,7 @@ describe('rabbitmq', () => {
             sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
-              'ponos.fanout-exchange',
+              'test-client.fanout-exchange',
               opts
             )
           })
@@ -766,7 +772,7 @@ describe('rabbitmq', () => {
             sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
-              'ponos.topic-exchange.route-key',
+              'test-client.topic-exchange.route-key',
               RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
             )
           })
@@ -787,7 +793,7 @@ describe('rabbitmq', () => {
             sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
             sinon.assert.calledWithExactly(
               rabbitmq.channel.assertQueue,
-              'ponos.topic-exchange.route-key',
+              'test-client.topic-exchange.route-key',
               opts
             )
           })
