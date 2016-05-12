@@ -959,8 +959,10 @@ describe('rabbitmq', () => {
   })
 
   describe('disconnect', () => {
+    const connection = {}
+
     beforeEach(() => {
-      rabbitmq.connection = {}
+      rabbitmq.connection = connection
       rabbitmq.connection.close = sinon.stub().resolves()
     })
 
@@ -972,7 +974,16 @@ describe('rabbitmq', () => {
       it('should disconnect', () => {
         return assert.isFulfilled(rabbitmq.disconnect())
           .then(() => {
-            sinon.assert.calledOnce(rabbitmq.connection.close)
+            sinon.assert.calledOnce(connection.close)
+          })
+      })
+
+      it('should delete the connection and channel', () => {
+        rabbitmq.channel = {}
+        return assert.isFulfilled(rabbitmq.disconnect())
+          .then(() => {
+            assert.notOk(rabbitmq.channel)
+            assert.notOk(rabbitmq.connection)
           })
       })
     })
@@ -985,7 +996,7 @@ describe('rabbitmq', () => {
       it('should reject with error', () => {
         return assert.isRejected(rabbitmq.disconnect(), /not connected/)
           .then(() => {
-            sinon.assert.notCalled(rabbitmq.connection.close)
+            sinon.assert.notCalled(connection.close)
           })
       })
     })

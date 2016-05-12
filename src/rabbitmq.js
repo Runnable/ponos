@@ -289,6 +289,10 @@ class RabbitMQ {
       return Promise.reject(new Error('not connected. cannot disconnect.'))
     }
     return Promise.resolve(this.connection.close())
+      .then(() => {
+        delete this.channel
+        delete this.connection
+      })
   }
 
   // Private Methods
