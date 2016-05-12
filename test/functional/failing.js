@@ -8,12 +8,12 @@ const WorkerStopError = require('error-cat/errors/worker-stop-error')
 const assert = chai.assert
 
 // Ponos Tooling
-const ponos = require('../../')
+const ponos = require('../../src')
 const testWorker = require('./fixtures/worker')
 const testWorkerEmitter = testWorker.emitter
 
 // require the Worker class so we can verify the task is running
-const _Worker = require('../../lib/worker')
+const _Worker = require('../../src/worker')
 
 /*
  *  In this example, we are going to pass an invalid job to the worker that will
@@ -28,8 +28,8 @@ describe('Basic Failing Task', () => {
     const tasks = {
       'ponos-test:one': testWorker
     }
-    server = new ponos.Server({ queues: Object.keys(tasks) })
-    return server.setAllTasks(tasks).start()
+    server = new ponos.Server({ tasks: tasks })
+    return server.start()
   })
 
   after(() => {
@@ -56,7 +56,7 @@ describe('Basic Failing Task', () => {
     testWorkerEmitter.on('will-never-emit', () => {
       throw new Error('failing worker should not have emitted')
     })
-    server.hermes.publish('ponos-test:one', job)
+    server._rabbitmq.channel.sendToQueue('ponos-test:one', new Buffer(JSON.stringify(job)))
 
     // wait until .run is called
     return Promise.resolve().then(function loop () {

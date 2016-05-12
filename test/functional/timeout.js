@@ -6,13 +6,13 @@ const sinon = require('sinon')
 const assert = chai.assert
 
 // Ponos Tooling
-const ponos = require('../../')
+const ponos = require('../../src')
 const TimeoutError = require('bluebird').TimeoutError
 const testWorker = require('./fixtures/timeout-worker')
 const testWorkerEmitter = testWorker.emitter
 
 // require the Worker class so we can verify the task is running
-const _Worker = require('../../lib/worker')
+const _Worker = require('../../src/worker')
 // require the error module so we can see the error printed
 const _Bunyan = require('bunyan')
 
@@ -28,7 +28,7 @@ describe('Basic Timeout Task', function () {
     const tasks = {
       'ponos-test:one': testWorker
     }
-    server = new ponos.Server({ queues: Object.keys(tasks) })
+    server = new ponos.Server({ tasks: tasks })
     return server.setAllTasks(tasks).start()
   })
   after(() => {
@@ -93,7 +93,7 @@ describe('Basic Timeout Task', function () {
         })
       })
 
-      server.hermes.publish('ponos-test:one', job)
+      server._rabbitmq.channel.sendToQueue('ponos-test:one', new Buffer(JSON.stringify(job)))
     })
   })
 })

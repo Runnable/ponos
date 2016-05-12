@@ -1,0 +1,5 @@
+declare class WorkerError extends Error {
+  data: ?Object
+}
+
+export { WorkerError }

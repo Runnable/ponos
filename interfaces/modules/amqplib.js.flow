@@ -1,0 +1,43 @@
+type ExchangeType = 'direct' | 'fanout' | 'topic';
+
+declare class RabbitMQConnection {
+  on(event: string, handler: Function): void;
+  close(): Promise<void>;
+  createChannel(): RabbitMQChannel;
+}
+
+declare class RabbitMQChannel {
+  ack(message: Object): void;
+  assertExchange(exchange: string, type: string, opts: ?Object): Promise<void>;
+  assertQueue(queue: string, opts: ?Object): Promise<QueueObject>;
+  bindQueue(queue: string, exchange: string, routingKey: string): Promise<void>;
+  cancel(consumerTag: string): Promise<void>;
+  consume(queue: string, handler: Function): void;
+  on(event: string, handler: Function): void;
+}
+
+type QueueObject = {
+  queue: string
+}
+
+declare class RabbitMQ {
+  static connect(url: string, opts: ?Object): RabbitMQConnection;
+}
+
+declare module 'amqplib' {
+  declare var exports: typeof RabbitMQ;
+}
+
+type SubscribeObject = {
+  exchange: string,
+  exchangeOptions?: Object,
+  handler: Function,
+  queueOptions?: Object,
+  routingKey?: string,
+  type: ExchangeType
+}
+
+type RabbitMQOptions = {
+  queueOptions?: Object,
+  exchangeOptions?: Object
+}

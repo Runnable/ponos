@@ -1,0 +1,13 @@
+declare class DDTimer {
+  stop(): void;
+}
+
+declare class Monitor {
+  static constructor(): Monitor;
+  static increment(monitor: string, tags?: Array<string> | Object): void;
+  static timer(monitor: string, something: boolean, tags?: Array<string> | Object): DDTimer;
+}
+
+declare module 'monitor-dog' {
+  declare var exports: Class<Monitor>;
+}

@@ -1,6 +1,6 @@
 'use strict'
 
-const Server = require('./lib/server')
+const Server = require('./server')
 
 module.exports = {
   Server: Server

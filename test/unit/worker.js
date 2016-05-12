@@ -15,7 +15,7 @@ const WorkerStopError = require('error-cat/errors/worker-stop-error')
 const assert = chai.assert
 const TimeoutError = Promise.TimeoutError
 
-const Worker = require('../../lib/worker')
+const Worker = require('../../src/worker')
 
 describe('Worker', () => {
   let opts
@@ -122,31 +122,6 @@ describe('Worker', () => {
 
     afterEach(() => {
       worker.errorCat.report.restore()
-    })
-
-    it('should set data on the error', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.isObject(error.data)
-    })
-
-    it('should set queue data', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.equal(error.data.queue, queue)
-    })
-
-    it('should set job data', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.deepEqual(error.data.job, job)
-    })
-
-    it('should not remove given data', () => {
-      const error = new Error('an error')
-      error.data = { custom: 'foo' }
-      worker._reportError(error)
-      assert.equal(error.data.custom, 'foo')
     })
 
     it('should report the error via error-cat', () => {
