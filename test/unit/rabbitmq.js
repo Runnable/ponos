@@ -958,12 +958,37 @@ describe('rabbitmq', () => {
     })
   })
 
+  describe('_setCleanState', () => {
+    beforeEach(() => {
+      rabbitmq.connection = {}
+      rabbitmq.channel = {}
+      rabbitmq.subscriptions = rabbitmq.subscriptions.set('foo', 'bar')
+      rabbitmq.subscribed = rabbitmq.subscribed.add('foo')
+      rabbitmq.consuming = rabbitmq.consuming.set('bar', 'foo')
+    })
+
+    it('should reset the state of the model', () => {
+      assert.equal(rabbitmq.subscriptions.size, 1)
+      rabbitmq._setCleanState()
+      assert.notOk(rabbitmq.connection)
+      assert.notOk(rabbitmq.channel)
+      assert.equal(rabbitmq.subscriptions.size, 0)
+      assert.equal(rabbitmq.subscribed.size, 0)
+      assert.equal(rabbitmq.consuming.size, 0)
+    })
+  })
+
   describe('disconnect', () => {
     const connection = {}
 
     beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, '_setCleanState').returns()
       rabbitmq.connection = connection
       rabbitmq.connection.close = sinon.stub().resolves()
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype._setCleanState.restore()
     })
 
     describe('when connected', () => {
@@ -978,12 +1003,11 @@ describe('rabbitmq', () => {
           })
       })
 
-      it('should delete the connection and channel', () => {
+      it('should reset the state of the model', () => {
         rabbitmq.channel = {}
         return assert.isFulfilled(rabbitmq.disconnect())
           .then(() => {
-            assert.notOk(rabbitmq.channel)
-            assert.notOk(rabbitmq.connection)
+            sinon.assert.calledOnce(RabbitMQ.prototype._setCleanState)
           })
       })
     })
