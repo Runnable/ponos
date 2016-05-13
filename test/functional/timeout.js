@@ -7,6 +7,7 @@ const assert = chai.assert
 
 // Ponos Tooling
 const ponos = require('../../src')
+const RabbitMQ = require('../../src/rabbitmq')
 const TimeoutError = require('bluebird').TimeoutError
 const testWorker = require('./fixtures/timeout-worker')
 const testWorkerEmitter = testWorker.emitter
@@ -22,19 +23,28 @@ const _Bunyan = require('bunyan')
  */
 describe('Basic Timeout Task', function () {
   let server
+  let rabbitmq
+
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
     sinon.spy(_Bunyan.prototype, 'warn')
+    rabbitmq = new RabbitMQ({})
     const tasks = {
       'ponos-test:one': testWorker
     }
     server = new ponos.Server({ tasks: tasks })
-    return server.setAllTasks(tasks).start()
+    return server.start()
+      .then(() => {
+        return rabbitmq.connect()
+      })
   })
   after(() => {
     _Worker.prototype.run.restore()
     _Bunyan.prototype.warn.restore()
     return server.stop()
+      .then(() => {
+        return rabbitmq.disconnect()
+      })
   })
 
   const job = {
@@ -93,7 +103,7 @@ describe('Basic Timeout Task', function () {
         })
       })
 
-      server._rabbitmq.channel.sendToQueue('ponos-test:one', new Buffer(JSON.stringify(job)))
+      rabbitmq.publishToQueue('ponos-test:one', job)
     })
   })
 })
