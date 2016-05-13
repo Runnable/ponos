@@ -242,7 +242,7 @@ describe('rabbitmq', () => {
       RabbitMQ.prototype._isConnected.restore()
     })
 
-    it('should reject if we are not conencted', () => {
+    it('should reject if we are not connected', () => {
       RabbitMQ.prototype._isConnected.returns(false)
       return assert.isRejected(
         rabbitmq.publishToQueue(mockQueue, mockJob),
@@ -313,7 +313,7 @@ describe('rabbitmq', () => {
       Bunyan.prototype.info.restore()
     })
 
-    it('should reject if we are not conencted', () => {
+    it('should reject if we are not connected', () => {
       RabbitMQ.prototype._isConnected.returns(false)
       return assert.isRejected(
         rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob),
