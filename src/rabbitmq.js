@@ -36,6 +36,7 @@ class RabbitMQ {
   consuming: Map<string, string>;
   hostname: string;
   log: Object;
+  name: string;
   password: string;
   port: number;
   subscribed: Set<string>;
