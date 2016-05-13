@@ -228,6 +228,178 @@ describe('rabbitmq', () => {
     })
   })
 
+  describe('publishToQueue', () => {
+    const mockQueue = 'some-queue'
+    const mockJob = { hello: 'world' }
+
+    beforeEach(() => {
+      rabbitmq.channel = {}
+      rabbitmq.channel.sendToQueue = sinon.stub().resolves()
+      sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype._isConnected.restore()
+    })
+
+    it('should reject if we are not conencted', () => {
+      RabbitMQ.prototype._isConnected.returns(false)
+      return assert.isRejected(
+        rabbitmq.publishToQueue(mockQueue, mockJob),
+        /call.+connect/
+      )
+    })
+
+    it('should reject if queue is not a string', () => {
+      return assert.isRejected(
+        rabbitmq.publishToQueue(1, mockJob),
+        /queue.+string/
+      )
+    })
+
+    it('should reject if queue is an empty string', () => {
+      return assert.isRejected(
+        rabbitmq.publishToQueue('', mockJob),
+        /queue.+string/
+      )
+    })
+
+    it('should reject if content is not an object', () => {
+      return assert.isRejected(
+        rabbitmq.publishToQueue(mockQueue, 1),
+        /content.+object/
+      )
+    })
+
+    it('should reject if content fails to be stringified', () => {
+      sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))
+      return assert.isRejected(
+        rabbitmq.publishToQueue(mockQueue, mockJob),
+        /custom json error/
+      )
+        .then(() => { JSON.stringify.restore() })
+    })
+
+    it('should publish with a buffer of the content', () => {
+      return assert.isFulfilled(rabbitmq.publishToQueue(mockQueue, mockJob))
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.sendToQueue)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.sendToQueue,
+            mockQueue,
+            sinon.match.any
+          )
+          const content = rabbitmq.channel.sendToQueue.firstCall.args.pop()
+          assert.ok(Buffer.isBuffer(content))
+          assert.equal(content.toString(), JSON.stringify(mockJob))
+        })
+    })
+  })
+
+  describe('publishToExchange', () => {
+    const mockExchange = 'some-exchange'
+    const mockRoutingKey = 'some-key'
+    const mockJob = { hello: 'world' }
+
+    beforeEach(() => {
+      rabbitmq.channel = {}
+      rabbitmq.channel.publish = sinon.stub().resolves()
+      sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
+      sinon.stub(Bunyan.prototype, 'info')
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype._isConnected.restore()
+      Bunyan.prototype.info.restore()
+    })
+
+    it('should reject if we are not conencted', () => {
+      RabbitMQ.prototype._isConnected.returns(false)
+      return assert.isRejected(
+        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob),
+        /call.+connect/
+      )
+    })
+
+    it('should reject if exchange is not a string', () => {
+      return assert.isRejected(
+        rabbitmq.publishToExchange(1, mockRoutingKey, mockJob),
+        /exchange.+string/
+      )
+    })
+
+    it('should reject if exchange is an empty string', () => {
+      return assert.isRejected(
+        rabbitmq.publishToExchange('', mockRoutingKey, mockJob),
+        /exchange.+string/
+      )
+    })
+
+    it('should reject if routingKey is not a string', () => {
+      return assert.isRejected(
+        rabbitmq.publishToExchange(mockExchange, 1, mockJob),
+        /routingKey.+string/
+      )
+    })
+
+    it('should resolve if routingKey is empty, but log info', () => {
+      return assert.isFulfilled(
+        rabbitmq.publishToExchange(mockExchange, '', mockJob)
+      )
+        .then(() => {
+          sinon.assert.calledOnce(Bunyan.prototype.info)
+          sinon.assert.calledWithExactly(
+            Bunyan.prototype.info,
+            sinon.match.object,
+            sinon.match(/routingKey.+empty.+publishToQueue/)
+          )
+        })
+    })
+
+    it('should resolve if routingKey is empty, but still publish', () => {
+      return assert.isFulfilled(
+        rabbitmq.publishToExchange(mockExchange, '', mockJob)
+      )
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.publish)
+        })
+    })
+
+    it('should reject if content is not an object', () => {
+      return assert.isRejected(
+        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, 1),
+        /content.+object/
+      )
+    })
+
+    it('should reject if content fails to be stringified', () => {
+      sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))
+      return assert.isRejected(
+        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob),
+        /custom json error/
+      )
+        .then(() => { JSON.stringify.restore() })
+    })
+
+    it('should publish with a buffer of the content', () => {
+      return assert.isFulfilled(
+        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob)
+      )
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.publish)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.publish,
+            mockExchange,
+            mockRoutingKey,
+            sinon.match.any
+          )
+          const content = rabbitmq.channel.publish.firstCall.args.pop()
+          assert.ok(Buffer.isBuffer(content))
+          assert.equal(content.toString(), JSON.stringify(mockJob))
+        })
+    })
+  })
+
   describe('_connectionErrorHandler', () => {
     beforeEach(() => {
       sinon.stub(Bunyan.prototype, 'fatal')
