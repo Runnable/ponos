@@ -6,6 +6,8 @@ const amqplib = require('amqplib')
 const defaults = require('101/defaults')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
+const isObject = require('101/is-object')
+const isString = require('101/is-string')
 const Promise = require('bluebird')
 
 const logger = require('./logger')
@@ -19,13 +21,16 @@ const logger = require('./logger')
  * - RABBITMQ_USERNAME (no default)
  * - RABBITMQ_PASSWORD (no default)
  *
- * @private
  * @author Bryan Kendall
  * @param {Object} [opts] RabbitMQ connection options.
- * @param {String} [opts.hostname] Hostname for RabbitMQ.
- * @param {Number} [opts.port] Port for RabbitMQ.
- * @param {String} [opts.username] Username for RabbitMQ.
- * @param {String} [opts.password] Username for Password.
+ * @param {String} [opts.hostname=localhost] Hostname for RabbitMQ. Can be set
+ *   with environment variable RABBITMQ_HOSTNAME.
+ * @param {Number} [opts.port=5672] Port for RabbitMQ. Can be set with
+ *   environment variable RABBITMQ_PORT.
+ * @param {String} [opts.username] Username for RabbitMQ. Can be set with
+ *   environment variable RABBITMQ_USERNAME.
+ * @param {String} [opts.password] Username for Password. Can be set with
+ *   environment variable RABBITMQ_PASSWORD.
  */
 class RabbitMQ {
   static AMQPLIB_QUEUE_DEFAULTS: Object;
@@ -107,8 +112,80 @@ class RabbitMQ {
   }
 
   /**
+   * Takes an object representing a message and sends it to a queue.
+   *
+   * @param {String} queue Queue to receive the message.
+   * @param {Object} content Content to send.
+   * @return {Promise} Promise resolved when message is sent to queue.
+   */
+  publishToQueue (queue: string, content: Object): Promise {
+    return Promise.try(() => {
+      if (!this._isConnected()) {
+        throw new Error('you must call .connect() before publishing')
+      }
+      // flowtype does not prevent users from using this function incorrectly.
+      if (!isString(queue) || queue === '') {
+        throw new Error('queue name must be a non-empty string')
+      }
+      if (!isObject(content)) {
+        throw new Error('content must be an object')
+      }
+      const stringContent = JSON.stringify(content)
+      const bufferContent = new Buffer(stringContent)
+      return Promise.resolve(this.channel.sendToQueue(queue, bufferContent))
+    })
+  }
+
+  /**
+   * Takes an object representing a message and sends it to an exchange using
+   * a provided routing key.
+   *
+   * Note: Providing an empty string as the routing key is functionally the same
+   * as sending the message directly to a named queue. The function
+   * {@link RabbitMQ#publishToQueue} is preferred in this case.
+   *
+   * @param {String} queue Exchange to receive the message.
+   * @param {String} routingKey Routing Key for the exchange.
+   * @param {Object} content Content to send.
+   * @return {Promise} Promise resolved when message is sent to the exchange.
+   */
+  publishToExchange (
+    exchange: string,
+    routingKey: string,
+    content: Object
+  ): Promise {
+    return Promise.try(() => {
+      if (!this._isConnected()) {
+        throw new Error('you must call .connect() before publishing')
+      }
+      // flowtype does not prevent users from using this function incorrectly.
+      if (!isString(exchange) || exchange === '') {
+        throw new Error('exchange name must be a string')
+      }
+      if (!isString(routingKey)) {
+        throw new Error('routingKey must be a string')
+      }
+      if (routingKey === '') {
+        this.log.info({
+          method: 'publishToExchange',
+          exchange: exchange
+        }, 'setting routingKey to empty string is the same as publishing to ' +
+          'a queue directly. use `publishToQueue` to ignore this message.')
+      }
+      if (!isObject(content)) {
+        throw new Error('content must be an object')
+      }
+      const stringContent = JSON.stringify(content)
+      const bufferContent = new Buffer(stringContent)
+      return Promise
+        .resolve(this.channel.publish(exchange, routingKey, bufferContent))
+    })
+  }
+
+  /**
    * Subscribe to a specific direct queue.
    *
+   * @private
    * @param {String} queue Queue name.
    * @param {Function} handler Handler for jobs.
    * @param {Object} [queueOptions] Options for the queue.
@@ -155,6 +232,7 @@ class RabbitMQ {
   /**
    * Subcribe to fanout exchange.
    *
+   * @private
    * @param {String} exchange Name of fanout exchange.
    * @param {Function} handler Handler for jobs.
    * @param {Object} [rabbitMQOptions] Options for the queues and exchanges.
@@ -188,6 +266,7 @@ class RabbitMQ {
   /**
    * Subscribe to topic exchange.
    *
+   * @private
    * @param {String} exchange Name of topic exchange.
    * @param {String} routingKey Routing key for topic exchange.
    * @param {Function} handler Handler for jobs.
@@ -224,6 +303,7 @@ class RabbitMQ {
   /**
    * Start consuming from subscribed queues.
    *
+   * @private
    * @return {Promise} Promise resolved when all queues consuming.
    */
   consume (): Promise {
@@ -266,6 +346,7 @@ class RabbitMQ {
   /**
    * Unsubscribe and stop consuming from all queues.
    *
+   * @private
    * @return {Promise} Promise resolved when all queues canceled.
    */
   unsubscribe (): Promise {
@@ -336,6 +417,7 @@ class RabbitMQ {
   /**
    * Check to see if model is connected.
    *
+   * @private
    * @return {Boolean} True if model is connected and channel is established.
    */
   _isConnected (): boolean {
@@ -346,6 +428,7 @@ class RabbitMQ {
    * Check to see if model is _partially_ connected. This means that the
    * connection was established, but the channel was not.
    *
+   * @private
    * @return {Boolean} True if connection is established.
    */
   _isPartlyConnected (): boolean {
@@ -472,7 +555,7 @@ RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS = {
 
 /**
  * RabbitMQ model.
- * @private
+ *
  * @module ponos/lib/rabbitmq
  * @see RabbitMQ
  */

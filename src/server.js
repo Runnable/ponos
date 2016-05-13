@@ -33,12 +33,16 @@ const Worker = require('./worker')
  * @param {Object<String, Function>} [opts.events] Mapping of event (fanout)
  *   exchanges which to subscribe and handlers.
  * @param {bunyan} [opts.log] A bunyan logger to use for the server.
- * @param {String} [opts.name] A name to namespace the created exchange queues.
+ * @param {String} [opts.name=ponos] A name to namespace the created exchange queues.
  * @param {Object} [opts.rabbitmq] RabbitMQ connection options.
- * @param {String} [opts.rabbitmq.hostname] Hostname for RabbitMQ.
- * @param {Number} [opts.rabbitmq.port] Port for RabbitMQ.
- * @param {String} [opts.rabbitmq.username] Username for RabbitMQ.
- * @param {String} [opts.rabbitmq.password] Username for Password.
+ * @param {String} [opts.rabbitmq.hostname=localhost] Hostname for RabbitMQ. Can
+ *   be set with environment variable RABBITMQ_HOSTNAME.
+ * @param {Number} [opts.rabbitmq.port=5672] Port for RabbitMQ. Can be set with
+ *   environment variable RABBITMQ_PORT.
+ * @param {String} [opts.rabbitmq.username] Username for RabbitMQ. Can be set
+ *   with environment variable RABBITMQ_USERNAME.
+ * @param {String} [opts.rabbitmq.password] Username for Password. Can be set
+ *   with environment variable RABBITMQ_PASSWORD.
  * @param {Object<String, Function>} [opts.tasks] Mapping of queues to subscribe
  *   directly with handlers.
  */
@@ -72,7 +76,6 @@ class Server {
       this._opts.rabbitmq || {},
       { name: this._opts.name }
     )
-    console.log(rabbitmqOpts)
     this._rabbitmq = new RabbitMQ(rabbitmqOpts)
   }
 
