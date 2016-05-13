@@ -23,10 +23,14 @@ const logger = require('./logger')
  *
  * @author Bryan Kendall
  * @param {Object} [opts] RabbitMQ connection options.
- * @param {String} [opts.hostname] Hostname for RabbitMQ.
- * @param {Number} [opts.port] Port for RabbitMQ.
- * @param {String} [opts.username] Username for RabbitMQ.
- * @param {String} [opts.password] Username for Password.
+ * @param {String} [opts.hostname=localhost] Hostname for RabbitMQ. Can be set
+ *   with environment variable RABBITMQ_HOSTNAME.
+ * @param {Number} [opts.port=5672] Port for RabbitMQ. Can be set with
+ *   environment variable RABBITMQ_PORT.
+ * @param {String} [opts.username] Username for RabbitMQ. Can be set with
+ *   environment variable RABBITMQ_USERNAME.
+ * @param {String} [opts.password] Username for Password. Can be set with
+ *   environment variable RABBITMQ_PASSWORD.
  */
 class RabbitMQ {
   static AMQPLIB_QUEUE_DEFAULTS: Object;
