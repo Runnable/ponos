@@ -76,7 +76,6 @@ class Server {
       this._opts.rabbitmq || {},
       { name: this._opts.name }
     )
-    console.log(rabbitmqOpts)
     this._rabbitmq = new RabbitMQ(rabbitmqOpts)
   }
 
