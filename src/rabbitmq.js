@@ -130,9 +130,9 @@ class RabbitMQ {
       if (!isObject(content)) {
         throw new Error('content must be an object')
       }
-      content = JSON.stringify(content)
-      content = new Buffer(content)
-      return Promise.resolve(this.channel.sendToQueue(queue, content))
+      const stringContent = JSON.stringify(content)
+      const bufferContent = new Buffer(stringContent)
+      return Promise.resolve(this.channel.sendToQueue(queue, bufferContent))
     })
   }
 
@@ -175,10 +175,10 @@ class RabbitMQ {
       if (!isObject(content)) {
         throw new Error('content must be an object')
       }
-      content = JSON.stringify(content)
-      content = new Buffer(content)
+      const stringContent = JSON.stringify(content)
+      const bufferContent = new Buffer(stringContent)
       return Promise
-        .resolve(this.channel.publish(exchange, routingKey, content))
+        .resolve(this.channel.publish(exchange, routingKey, bufferContent))
     })
   }
 

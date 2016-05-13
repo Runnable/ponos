@@ -17,6 +17,7 @@ declare class Promise<R> {
   ): Promise<Array<U>>;
   static reject<T>(error?: any): Promise<T>;
   static resolve<T>(object?: Promise<T> | T): Promise<T>;
+  static try<T>(fn: () => T|Promise<T>, args: ?Array<any>, ctx: ?any): Promise<T>;
 
   constructor(callback: (
   resolve: (result?: Promise<R> | R) => void,

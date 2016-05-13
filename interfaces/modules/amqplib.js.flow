@@ -14,6 +14,8 @@ declare class RabbitMQChannel {
   cancel(consumerTag: string): Promise<void>;
   consume(queue: string, handler: Function): void;
   on(event: string, handler: Function): void;
+  publish(exchange: string, routingKey: string, content: Buffer): Promise<void>;
+  sendToQueue(queue: string, content: Buffer): Promise<void>;
 }
 
 type QueueObject = {
