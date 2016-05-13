@@ -72,7 +72,7 @@ class RabbitMQ {
    * @return {Promise} Promise that resolves once connection is established.
    */
   connect (): Promise {
-    if (this._isConnected()) {
+    if (this._isPartlyConnected() || this._isConnected()) {
       return Promise.reject(new Error('cannot call connect twice'))
     }
     let authString = ''

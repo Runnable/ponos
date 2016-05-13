@@ -93,11 +93,13 @@ describe('rabbitmq', () => {
   describe('connect', () => {
     beforeEach(() => {
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(false)
+      sinon.stub(RabbitMQ.prototype, '_isPartlyConnected').returns(false)
       sinon.stub(amqplib, 'connect').resolves(mockConnection)
     })
 
     afterEach(() => {
       RabbitMQ.prototype._isConnected.restore()
+      RabbitMQ.prototype._isPartlyConnected.restore()
       amqplib.connect.restore()
     })
 
@@ -105,11 +107,20 @@ describe('rabbitmq', () => {
       return assert.isFulfilled(rabbitmq.connect())
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype._isConnected)
+          sinon.assert.calledOnce(RabbitMQ.prototype._isPartlyConnected)
         })
     })
 
     it('does not connect twice', () => {
       RabbitMQ.prototype._isConnected.returns(true)
+      return assert.isRejected(
+        rabbitmq.connect(),
+        /cannot call connect twice/
+      )
+    })
+
+    it('does not connect twice if partly connected', () => {
+      RabbitMQ.prototype._isPartlyConnected.returns(true)
       return assert.isRejected(
         rabbitmq.connect(),
         /cannot call connect twice/
