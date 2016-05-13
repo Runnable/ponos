@@ -107,6 +107,21 @@ describe('Server', () => {
       })
       assert.equal(s._rabbitmq.hostname, 'foobar')
     })
+
+    it('should default the name of the rabbitmq client to ponos', () => {
+      const s = new ponos.Server({
+        rabbitmq: { hostname: 'foobar' }
+      })
+      assert.equal(s._rabbitmq.name, 'ponos')
+    })
+
+    it('should should name the rabbitmq client if we named our server', () => {
+      const s = new ponos.Server({
+        name: 'my-awesome-ponos-server',
+        rabbitmq: { hostname: 'foobar' }
+      })
+      assert.equal(s._rabbitmq.name, 'my-awesome-ponos-server')
+    })
   })
 
   describe('consume', () => {

@@ -33,6 +33,7 @@ const Worker = require('./worker')
  * @param {Object<String, Function>} [opts.events] Mapping of event (fanout)
  *   exchanges which to subscribe and handlers.
  * @param {bunyan} [opts.log] A bunyan logger to use for the server.
+ * @param {String} [opts.name] A name to namespace the created exchange queues.
  * @param {Object} [opts.rabbitmq] RabbitMQ connection options.
  * @param {String} [opts.rabbitmq.hostname] Hostname for RabbitMQ.
  * @param {Number} [opts.rabbitmq.port] Port for RabbitMQ.
@@ -66,7 +67,13 @@ class Server {
 
     this.errorCat = this._opts.errorCat || errorCat
 
-    this._rabbitmq = new RabbitMQ(this._opts.rabbitmq || {})
+    // add the name to RabbitMQ options
+    const rabbitmqOpts = defaults(
+      this._opts.rabbitmq || {},
+      { name: this._opts.name }
+    )
+    console.log(rabbitmqOpts)
+    this._rabbitmq = new RabbitMQ(rabbitmqOpts)
   }
 
   /**

@@ -36,6 +36,7 @@ class RabbitMQ {
   consuming: Map<string, string>;
   hostname: string;
   log: Object;
+  name: string;
   password: string;
   port: number;
   subscribed: Set<string>;
@@ -43,6 +44,7 @@ class RabbitMQ {
   username: string;
 
   constructor (opts: Object) {
+    this.name = opts.name || 'ponos'
     this.hostname = opts.hostname ||
       process.env.RABBITMQ_HOSTNAME ||
       'localhost'
@@ -52,7 +54,8 @@ class RabbitMQ {
     this.log = logger.child({
       module: 'ponos:rabbitmq',
       hostname: this.hostname,
-      port: this.port
+      port: this.port,
+      clientName: this.name
     })
     if (!this.username || !this.password) {
       this.log.warn(
@@ -61,7 +64,6 @@ class RabbitMQ {
       )
     }
     this._setCleanState()
-    return this
   }
 
   /**
@@ -70,7 +72,7 @@ class RabbitMQ {
    * @return {Promise} Promise that resolves once connection is established.
    */
   connect (): Promise {
-    if (this.connection || this.channel) {
+    if (this._isPartlyConnected() || this._isConnected()) {
       return Promise.reject(new Error('cannot call connect twice'))
     }
     let authString = ''
@@ -397,7 +399,7 @@ class RabbitMQ {
       )
       .then(() => {
         log.info('exchange asserted')
-        let queueName = `ponos.${opts.exchange}`
+        let queueName = `${this.name}.${opts.exchange}`
         if (opts.type === 'topic') {
           queueName = `${queueName}.${opts.routingKey}`
         }
