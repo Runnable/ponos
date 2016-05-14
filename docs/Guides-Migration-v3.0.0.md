@@ -75,7 +75,7 @@ rabbit.connect()
 
 #### Queues Pre-definition
 
-`queues` are no longer required up-front when creating a server. Setting tasks and events through `setTask`, `setAllTasks`, `setEvents`, and `setAllEvents` are available, but `tasks` and `events` can be set up in the constructor now as well.
+`queues` are no longer required up-front when creating a server. Setting tasks and events through `setTask`, `setAllTasks`, `setEvent`, and `setAllEvents` are available, but `tasks` and `events` can be set up in the constructor now as well.
 
 ```javascript
 const server = new ponos.Server({
@@ -102,4 +102,4 @@ new WorkerError('message about error', { optional: 'data' })
 new WorkerStopError('message about error', { optional: 'data' })
 ```
 
-These constructors have almost an identical structure, but do not require the queue name as the first parameter any longer. Ponos's worker will decorate the error with the queue name and the job for you, so you have to pass less data to these errors up front.
+These constructors have almost an identical structure, but do not require the queue name as the first parameter. Ponos's worker will decorate the error with the queue name and the job for you, so you have to pass less data to these errors up front.
