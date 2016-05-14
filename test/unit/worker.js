@@ -9,13 +9,13 @@ const omit = require('101/omit')
 const Promise = require('bluebird')
 const put = require('101/put')
 const sinon = require('sinon')
+const WorkerError = require('error-cat/errors/worker-error')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const assert = chai.assert
 const TimeoutError = Promise.TimeoutError
 
-const TaskError = require('../../lib/errors/task-error')
-const TaskFatalError = require('../../lib/errors/task-fatal-error')
-const Worker = require('../../lib/worker')
+const Worker = require('../../src/worker')
 
 describe('Worker', () => {
   let opts
@@ -122,31 +122,6 @@ describe('Worker', () => {
 
     afterEach(() => {
       worker.errorCat.report.restore()
-    })
-
-    it('should set data on the error', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.isObject(error.data)
-    })
-
-    it('should set queue data', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.equal(error.data.queue, queue)
-    })
-
-    it('should set job data', () => {
-      const error = new Error('an error')
-      worker._reportError(error)
-      assert.deepEqual(error.data.job, job)
-    })
-
-    it('should not remove given data', () => {
-      const error = new Error('an error')
-      error.data = { custom: 'foo' }
-      worker._reportError(error)
-      assert.equal(error.data.custom, 'foo')
     })
 
     it('should report the error via error-cat', () => {
@@ -456,8 +431,8 @@ describe('Worker', () => {
         worker._reportError.restore()
       })
 
-      it('should catch TaskFatalError, not retry, and call done', () => {
-        taskHandler = sinon.stub().throws(new TaskFatalError('queue', 'foobar'))
+      it('should catch WorkerStopError, not retry, and call done', () => {
+        taskHandler = sinon.stub().throws(new WorkerStopError('foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
             sinon.assert.calledOnce(taskHandler)
@@ -521,7 +496,7 @@ describe('Worker', () => {
 
       it('should retry if task throws TaskError', () => {
         taskHandler = sinon.stub()
-        taskHandler.onFirstCall().throws(new TaskError('foobar'))
+        taskHandler.onFirstCall().throws(new WorkerError('foobar'))
         return assert.isFulfilled(worker.run())
           .then(() => {
             assert.equal(taskHandler.callCount, 2)
@@ -583,8 +558,8 @@ describe('Worker', () => {
           })
       })
 
-      it('should log TaskFatalError', () => {
-        const fatalError = new TaskFatalError('queue', 'foobar')
+      it('should log WorkerStopError', () => {
+        const fatalError = new WorkerStopError('foobar')
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
           .then(() => {
@@ -596,8 +571,8 @@ describe('Worker', () => {
           })
       })
 
-      it('should report TaskFatalError', () => {
-        const fatalError = new TaskFatalError('queue', 'foobar')
+      it('should report WorkerStopError', () => {
+        const fatalError = new WorkerStopError('foobar')
         taskHandler = sinon.stub().throws(fatalError)
         return assert.isFulfilled(worker.run())
           .then(() => {
@@ -606,6 +581,61 @@ describe('Worker', () => {
               fatalError
             )
           })
+      })
+
+      describe('decorateError', () => {
+        it('should decorate errors with a data object', () => {
+          const normalError = new Error('robot')
+          taskHandler = sinon.stub()
+          taskHandler.onFirstCall().throws(normalError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.isObject(decoratedError.data)
+            })
+        })
+
+        it('should decorate errors with the queue name', () => {
+          const normalError = new Error('robot')
+          taskHandler = sinon.stub()
+          taskHandler.onFirstCall().throws(normalError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.equal(decoratedError.data.queue, 'do.something.command')
+            })
+        })
+
+        it('should decorate errors with the job', () => {
+          const normalError = new Error('robot')
+          taskHandler = sinon.stub()
+          taskHandler.onFirstCall().throws(normalError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.deepEqual(
+                decoratedError.data.job,
+                { message: 'hello world' }
+              )
+            })
+        })
+
+        it('should leave a WorkerStopError alone (already has data)', () => {
+          const stopError = new WorkerStopError(
+            'my message',
+            { dog: 'robot' },
+            'some.queue',
+            { foo: 'bar' }
+          )
+          taskHandler = sinon.stub().throws(stopError)
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              const decoratedError = worker._reportError.firstCall.args[0]
+              assert.deepEqual(decoratedError, stopError)
+              assert.deepEqual(decoratedError.data.queue, 'some.queue')
+              assert.deepEqual(decoratedError.data.job, { foo: 'bar' })
+            })
+        })
       })
 
       it('should log all other errors', () => {

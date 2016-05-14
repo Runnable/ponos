@@ -3,39 +3,48 @@
 const chai = require('chai')
 const Promise = require('bluebird')
 const sinon = require('sinon')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const assert = chai.assert
 
 // Ponos Tooling
-const ponos = require('../../')
-const TaskFatalError = ponos.TaskFatalError
+const ponos = require('../../src')
+const RabbitMQ = require('../../src/rabbitmq')
 const testWorker = require('./fixtures/worker')
 const testWorkerEmitter = testWorker.emitter
 
 // require the Worker class so we can verify the task is running
-const _Worker = require('../../lib/worker')
+const _Worker = require('../../src/worker')
 
 /*
  *  In this example, we are going to pass an invalid job to the worker that will
- *  throw a TaskFatalError, acknowledge the job, and not run it a second time.
+ *  throw a WorkerStopError, acknowledge the job, and not run it a second time.
  */
 describe('Basic Failing Task', () => {
   let server
+  let rabbitmq
 
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
     sinon.spy(_Worker.prototype, '_reportError')
+    rabbitmq = new RabbitMQ({})
     const tasks = {
       'ponos-test:one': testWorker
     }
-    server = new ponos.Server({ queues: Object.keys(tasks) })
-    return server.setAllTasks(tasks).start()
+    server = new ponos.Server({ tasks: tasks })
+    return server.start()
+      .then(() => {
+        return rabbitmq.connect()
+      })
   })
 
   after(() => {
     _Worker.prototype.run.restore()
     _Worker.prototype._reportError.restore()
     return server.stop()
+      .then(() => {
+        return rabbitmq.disconnect()
+      })
   })
 
   const job = {
@@ -47,7 +56,7 @@ describe('Basic Failing Task', () => {
   before(() => {
     return assert.isRejected(
       testWorker(job),
-      TaskFatalError,
+      WorkerStopError,
       /message.+required/
     )
   })
@@ -56,7 +65,7 @@ describe('Basic Failing Task', () => {
     testWorkerEmitter.on('will-never-emit', () => {
       throw new Error('failing worker should not have emitted')
     })
-    server.hermes.publish('ponos-test:one', job)
+    rabbitmq.publishToQueue('ponos-test:one', job)
 
     // wait until .run is called
     return Promise.resolve().then(function loop () {
@@ -68,7 +77,7 @@ describe('Basic Failing Task', () => {
         assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
         /*
          *  We can get the promise and assure that it was fulfilled!
-         *  This should be _fulfilled_ because it threw a TaskFatalError and
+         *  This should be _fulfilled_ because it threw a WorkerStopError and
          *  acknowledged that the task was completed (even though the task
          *  rejected with an error)
          */
@@ -79,7 +88,7 @@ describe('Basic Failing Task', () => {
           'worker._reportError called once'
         )
         const err = _Worker.prototype._reportError.firstCall.args[0]
-        assert.instanceOf(err, TaskFatalError)
+        assert.instanceOf(err, WorkerStopError)
         assert.match(err, /message.+required/)
       })
   })

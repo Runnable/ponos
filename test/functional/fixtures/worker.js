@@ -2,9 +2,7 @@
 
 const EventEmitter = require('events')
 const Promise = require('bluebird')
-
-const ponos = require('../../../')
-const TaskFatalError = ponos.TaskFatalError
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 /**
  * A simple worker that will publish a message to a queue.
@@ -15,8 +13,12 @@ const TaskFatalError = ponos.TaskFatalError
 module.exports = (job) => {
   return Promise.resolve()
     .then(() => {
-      if (!job.eventName) { throw new TaskFatalError('queue', 'eventName is required') }
-      if (!job.message) { throw new TaskFatalError('queue', 'message is required') }
+      if (!job.eventName) {
+        throw new WorkerStopError('eventName is required')
+      }
+      if (!job.message) {
+        throw new WorkerStopError('message is required')
+      }
     })
     .then(() => {
       module.exports.emitter.emit(job.eventName, { data: job.message })

@@ -1,7 +1,9 @@
+/* @flow */
+/* global ErrorCat WorkerError DDTimer */
 'use strict'
 
 const defaults = require('101/defaults')
-const ErrorCat = require('error-cat')
+const errorCat = require('error-cat')
 const exists = require('101/exists')
 const isNumber = require('101/is-number')
 const isObject = require('101/is-object')
@@ -9,36 +11,41 @@ const merge = require('101/put')
 const monitor = require('monitor-dog')
 const pick = require('101/pick')
 const Promise = require('bluebird')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
+
+const logger = require('./logger')
 
 const TimeoutError = Promise.TimeoutError
 
-const logger = require('./logger')
-const TaskFatalError = require('./errors/task-fatal-error')
-
 /**
- * Worker class: performs tasks for jobs on a given queue.
- * @class
+ * Performs tasks for jobs on a given queue.
+ *
  * @author Bryan Kendall
  * @author Ryan Sandor Richards
- * @module ponos:worker
- * @param {object} opts Options for the worker.
- * @param {string} opts.queue Name of the queue for the job the worker
- *   is processing.
- * @param {function} opts.task A function to handle the tasks.
- * @param {object} opts.job Data for the job to process.
- * @param {function} opts.done Callback to execute when the job has successfully
+ * @param {Object} opts Options for the worker.
+ * @param {Function} opts.done Callback to execute when the job has successfully
  *   been completed.
- * @param {boolean} [opts.runNow] Whether or not to run the job immediately,
- *   defaults to `true`.
- * @param {bunyan} [opts.log] The bunyan logger to use when logging messages
- *   from the worker.
+ * @param {Object} opts.job Data for the job to process.
+ * @param {String} opts.queue Name of the queue for the job the worker is
+ *   processing.
+ * @param {Function} opts.task A function to handle the tasks.
  * @param {ErrorCat} [opts.errorCat] An error-cat instance to use for the
  *   worker.
+ * @param {bunyan} [opts.log] The bunyan logger to use when logging messages
+ *   from the worker.
  * @param {number} [opts.msTimeout] A specific millisecond timeout for this
  *   worker.
+ * @param {boolean} [opts.runNow] Whether or not to run the job immediately,
+ *   defaults to `true`.
  */
 class Worker {
-  constructor (opts) {
+  errorCat: ErrorCat;
+  job: Object;
+  log: any;
+  msTimeout: any;
+  queue: String;
+
+  constructor (opts: Object) {
     // managed required fields
     const fields = [
       'done',
@@ -53,11 +60,11 @@ class Worker {
     })
 
     // manage field defaults
-    fields.push('errorCat', 'log', 'msTimeout', 'runNow')
+    fields.push('errorCat', 'log', 'msTimeout', 'runNow', 'server')
     opts = pick(opts, fields)
     defaults(opts, {
       // default non-required user options
-      errorCat: new ErrorCat(),
+      errorCat: errorCat,
       log: logger.child({ module: 'ponos:worker' }),
       runNow: true,
       // other options
@@ -86,95 +93,25 @@ class Worker {
   }
 
   /**
-   * Factory method for creating new workers. This method exists to make it easier
-   * to unit test other modules that need to instantiate new workers.
+   * Factory method for creating new workers. This method exists to make it
+   * easier to unit test other modules that need to instantiate new workers.
+   *
    * @see Worker
-   * @param {object} opts Worker options.
+   * @param {Object} opts Options for the Worker.
    * @returns {Worker} New Worker.
    */
-  static create (opts) {
+  static create (opts: Object): Worker {
     return new Worker(opts)
   }
 
   /**
-   * Helper function for reporting errors to rollbar via error-cat.
-   * @private
-   * @param {error} err Error to report.
-   */
-  _reportError (err) {
-    err.data = isObject(err.data) ? err.data : {}
-    err.data.queue = this.queue
-    err.data.job = this.job
-    this.errorCat.report(err)
-  }
-
-  /**
-   * Helper function for creating monitor-dog events tags
-   * `queue` is the only mandatory tag.
-   * Few tags would be created depending on the queue name
-   * If queueName use `.` as delimiter e.x. `10.0.0.20.api.github.push` then
-   * following tags would be created:
-   * - token0: 'push'
-   * - token1: 'github.push'
-   * - token2: 'api.github.push'
-   * - token3: '10.0.0.20.api.github.push'
-   * @private
-   * @returns {Object} tags as Object {queue: 'docker.event.publish'}
-   */
-  _eventTags () {
-    const tokens = this.queue.split('.').reverse()
-    let lastToken = ''
-    let tags = tokens.reduce(function (acc, currentValue, currentIndex) {
-      const key = 'token' + currentIndex
-      const newToken = currentIndex === 0
-        ? currentValue
-        : currentValue + '.' + lastToken
-      acc[key] = newToken
-      lastToken = newToken
-      return acc
-    }, {})
-    tags.queue = this.queue
-    return tags
-  }
-
-  /**
-   * Helper function calling `monitor.increment`.
-   * Monitor wouldn't be called if `process.env.WORKER_MONITOR_DISABLED` set.
-   * @param {string} eventName name to be reported into the datadog
-   * @param {object} [extraTags] extra tags to be send with the event
-   * @private
-   */
-  _incMonitor (eventName, extraTags) {
-    if (process.env.WORKER_MONITOR_DISABLED) {
-      return
-    }
-    let tags = this._eventTags()
-    if (extraTags) {
-      tags = merge(tags, extraTags)
-    }
-    monitor.increment(eventName, tags)
-  }
-
-  /**
-   * Helper function calling `monitor.timer`.
-   * Timer wouldn't be created if `process.env.WORKER_MONITOR_DISABLED` set
-   * @return {object} new timer
-   * @private
-   */
-  _createTimer () {
-    const tags = this._eventTags()
-    return !process.env.WORKER_MONITOR_DISABLED
-      ? monitor.timer('ponos.timer', true, tags)
-      : null
-  }
-
-  /**
    * Runs the worker. If the task for the job fails, then this method will retry
-   * the task (with an exponential backoff) a number of times defined by the
-   * environment of the process.
-   * @returns {promise} Promise resolved once the task succeeds or fails.
+   * the task (with an exponential backoff) as set by the environment.
+   *
+   * @returns {Promise} Promise that is resolved once the task succeeds or
+   *   fails.
    */
-  run () {
+  run (): Promise {
     const log = this.log.child({
       method: 'run',
       queue: this.queue,
@@ -192,7 +129,7 @@ class Worker {
         let taskPromise = Promise.resolve().bind(this)
           .then(() => {
             return Promise.resolve().bind(this)
-              .then(() => { return this.task(this.job) })
+              .then(() => { return this.task(this.job, this.server) })
           })
         if (this.msTimeout) {
           taskPromise = taskPromise.timeout(this.msTimeout)
@@ -211,8 +148,20 @@ class Worker {
         // by throwing this type of error, we will retry :)
         throw err
       })
-      // if it's a known type of error, we can't accomplish the task
-      .catch(TaskFatalError, function knownErrDone (err) {
+      .catch(function decorateError (err) {
+        if (!isObject(err.data)) {
+          err.data = {}
+        }
+        if (!err.data.queue) {
+          err.data.queue = this.queue
+        }
+        if (!err.data.job) {
+          err.data.job = this.job
+        }
+        throw err
+      })
+      // if it's a WorkerStopError, we can't accomplish the task
+      .catch(WorkerStopError, function knownErrDone (err) {
         log.error({ err: err }, 'Worker task fatally errored')
         this._incMonitor('ponos.finish', { result: 'fatal-error' })
         this._reportError(err)
@@ -245,6 +194,87 @@ class Worker {
         }
       })
   }
+
+  // Private Methods
+
+  /**
+   * Helper function for reporting errors to rollbar via error-cat.
+   *
+   * @private
+   * @param {Error} err Error to report.
+   */
+  _reportError (err: WorkerError): void {
+    this.errorCat.report(err)
+  }
+
+  /**
+   * Helper function for creating monitor-dog events tags. `queue` is the only
+   * mandatory tag. Few tags will be created depending on the queue name. If
+   * queueName use `.` as delimiter e.x. `10.0.0.20.api.github.push` then the
+   * following tags will be created:
+   * {
+   *   token0: 'push'
+   *   token1: 'github.push'
+   *   token2: 'api.github.push'
+   *   token3: '10.0.0.20.api.github.push'
+   * }
+   *
+   * @private
+   * @returns {Object} tags as Object { queue: 'docker.event.publish' }.
+   */
+  _eventTags (): Object {
+    const tokens = this.queue.split('.').reverse()
+    let lastToken = ''
+    let tags = tokens.reduce((acc, currentValue, currentIndex) => {
+      const key = 'token' + currentIndex
+      const newToken = currentIndex === 0
+        ? currentValue
+        : currentValue + '.' + lastToken
+      acc[key] = newToken
+      lastToken = newToken
+      return acc
+    }, {})
+    tags.queue = this.queue
+    return tags
+  }
+
+  /**
+   * Helper function calling `monitor.increment`. Monitor won't be called if
+   * `WORKER_MONITOR_DISABLED` is set.
+   *
+   * @private
+   * @param {String} eventName Name to be reported into the datadog.
+   * @param {Object} [extraTags] Extra tags to be send with the event.
+   */
+  _incMonitor (eventName: string, extraTags?: Object): void {
+    if (process.env.WORKER_MONITOR_DISABLED) {
+      return
+    }
+    let tags = this._eventTags()
+    if (extraTags) {
+      tags = merge(tags, extraTags)
+    }
+    monitor.increment(eventName, tags)
+  }
+
+  /**
+   * Helper function calling `monitor.timer`. Timer won't be created if
+   * `WORKER_MONITOR_DISABLED` is set.
+   *
+   * @return {Object} New timer.
+   * @private
+   */
+  _createTimer (): ?DDTimer {
+    const tags = this._eventTags()
+    return !process.env.WORKER_MONITOR_DISABLED
+      ? monitor.timer('ponos.timer', true, tags)
+      : null
+  }
 }
 
+/**
+ * Worker class.
+ * @module ponos/lib/worker
+ * @see Worker
+ */
 module.exports = Worker
