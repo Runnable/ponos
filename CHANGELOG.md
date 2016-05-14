@@ -1,5 +1,16 @@
 ## Change Log
 
+### v3.0.0 (2016/05/14 00:06 +00:00)
+- [#43](https://github.com/Runnable/ponos/pull/43) Ponos 3.0.0 (@bkendall)
+- [#42](https://github.com/Runnable/ponos/pull/42) Publish methods (@bkendall)
+- [#41](https://github.com/Runnable/ponos/pull/41) Name RabbitMQ Client & Queues (@bkendall)
+- [#40](https://github.com/Runnable/ponos/pull/40) clear channel and connection on disconnect (@bkendall)
+- [#35](https://github.com/Runnable/ponos/pull/35) New RabbitMQ Client; Flowtype (@bkendall)
+- [#33](https://github.com/Runnable/ponos/pull/33) Update ErrorCat (@bkendall)
+- [#36](https://github.com/Runnable/ponos/pull/36) Travis Badge: use master (@bkendall)
+- [#32](https://github.com/Runnable/ponos/pull/32) bump standard - Travis updates (@bkendall)
+- [#24](https://github.com/Runnable/ponos/pull/24) add code-climate badge (@bkendall, @podviaznikov)
+
 ### v2.0.0 (2016/03/03 22:16 +00:00)
 - [#30](https://github.com/Runnable/ponos/pull/30) package.json engine (@bkendall)
 - [#29](https://github.com/Runnable/ponos/pull/29) auto deploy to NPM (@bkendall)
