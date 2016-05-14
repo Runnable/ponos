@@ -8,6 +8,8 @@
 
 Documentation is available at [runnable.github.io/ponos][documentation]
 
+A migration guide for v3.0.0 [is available](docs/Guides-Migration-v3.0.0.md)!
+
 An opinionated queue based worker server for node.
 
 For ease of use we provide options to set the host, port, username, and password to the RabbitMQ server. If not present in options, the server will attempt to use the following environment variables and final defaults:
