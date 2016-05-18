@@ -141,7 +141,6 @@ class RabbitMQ {
       const bufferContent = new Buffer(stringContent)
       return Promise
         .resolve(this.publishChannel.sendToQueue(queue, bufferContent))
-        .then(() => (this.publishChannel.waitForConfirms()))
     })
   }
 
@@ -189,7 +188,6 @@ class RabbitMQ {
       return Promise.resolve(
         this.publishChannel.publish(exchange, routingKey, bufferContent)
       )
-        .then(() => (this.publishChannel.waitForConfirms()))
     })
   }
 
@@ -380,10 +378,9 @@ class RabbitMQ {
     if (!this._isPartlyConnected()) {
       return Promise.reject(new Error('not connected. cannot disconnect.'))
     }
-    return Promise.resolve(this.connection.close())
-      .then(() => {
-        this._setCleanState()
-      })
+    return Promise.resolve(this.publishChannel.waitForConfirms())
+      .then(() => (Promise.resolve(this.connection.close())))
+      .then(() => (this._setCleanState()))
   }
 
   // Private Methods
