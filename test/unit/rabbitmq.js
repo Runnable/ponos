@@ -267,7 +267,6 @@ describe('rabbitmq', () => {
     beforeEach(() => {
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
-      rabbitmq.publishChannel.waitForConfirms = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
     })
 
@@ -328,16 +327,6 @@ describe('rabbitmq', () => {
           assert.equal(content.toString(), JSON.stringify(mockJob))
         })
     })
-
-    it('should wait for the channel to confirm', () => {
-      return assert.isFulfilled(rabbitmq.publishToQueue(mockQueue, mockJob))
-        .then(() => {
-          sinon.assert.calledOnce(rabbitmq.publishChannel.waitForConfirms)
-          sinon.assert.calledWithExactly(
-            rabbitmq.publishChannel.waitForConfirms
-          )
-        })
-    })
   })
 
   describe('publishToExchange', () => {
@@ -348,7 +337,6 @@ describe('rabbitmq', () => {
     beforeEach(() => {
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
-      rabbitmq.publishChannel.waitForConfirms = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
       sinon.stub(Bunyan.prototype, 'info')
     })
@@ -441,18 +429,6 @@ describe('rabbitmq', () => {
           const content = rabbitmq.publishChannel.publish.firstCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
           assert.equal(content.toString(), JSON.stringify(mockJob))
-        })
-    })
-
-    it('should wait for channel to confirm', () => {
-      return assert.isFulfilled(
-        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob)
-      )
-        .then(() => {
-          sinon.assert.calledOnce(rabbitmq.publishChannel.waitForConfirms)
-          sinon.assert.calledWithExactly(
-            rabbitmq.publishChannel.waitForConfirms
-          )
         })
     })
   })
@@ -1252,6 +1228,8 @@ describe('rabbitmq', () => {
       sinon.stub(RabbitMQ.prototype, '_setCleanState').returns()
       rabbitmq.connection = connection
       rabbitmq.connection.close = sinon.stub().resolves()
+      rabbitmq.publishChannel = {}
+      rabbitmq.publishChannel.waitForConfirms = sinon.stub().resolves()
     })
 
     afterEach(() => {
@@ -1275,6 +1253,13 @@ describe('rabbitmq', () => {
         return assert.isFulfilled(rabbitmq.disconnect())
           .then(() => {
             sinon.assert.calledOnce(RabbitMQ.prototype._setCleanState)
+          })
+      })
+
+      it('should wait for confirmations from the publish queue', () => {
+        return assert.isFulfilled(rabbitmq.disconnect())
+          .then(() => {
+            sinon.assert.calledOnce(rabbitmq.publishChannel.waitForConfirms)
           })
       })
     })
