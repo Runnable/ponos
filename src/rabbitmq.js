@@ -1,5 +1,5 @@
 /* @flow */
-/* global RabbitMQChannel RabbitMQConnection SubscribeObject RabbitMQOptions */
+/* global RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions */
 'use strict'
 
 const amqplib = require('amqplib')
@@ -13,13 +13,7 @@ const Promise = require('bluebird')
 const logger = require('./logger')
 
 /**
- * RabbitMQ model. Takes authentication from the following environment
- * variables (or provided opts):
- *
- * - RABBITMQ_HOSTNAME (default: 'localhost')
- * - RABBITMQ_PORT (default: 5672)
- * - RABBITMQ_USERNAME (no default)
- * - RABBITMQ_PASSWORD (no default)
+ * RabbitMQ model. Can be used independently for publishing or other uses.
  *
  * @author Bryan Kendall
  * @param {Object} [opts] RabbitMQ connection options.
@@ -44,6 +38,7 @@ class RabbitMQ {
   name: string;
   password: string;
   port: number;
+  publishChannel: RabbitMQConfirmChannel;
   subscribed: Set<string>;
   subscriptions: Map<string, Function>;
   username: string;
@@ -108,6 +103,18 @@ class RabbitMQ {
         this.log.info('created channel')
         this.channel = channel
         this.channel.on('error', this._channelErrorHandler.bind(this))
+
+        this.log.info('creating publishing channel')
+        return Promise.resolve(this.connection.createConfirmChannel())
+          .catch((err) => {
+            this.log.fatal({ err: err }, 'errored creating confirm channel')
+            throw err
+          })
+      })
+      .then((channel) => {
+        this.log.info('created confirm channel')
+        this.publishChannel = channel
+        this.publishChannel.on('error', this._channelErrorHandler.bind(this))
       })
   }
 
@@ -132,7 +139,9 @@ class RabbitMQ {
       }
       const stringContent = JSON.stringify(content)
       const bufferContent = new Buffer(stringContent)
-      return Promise.resolve(this.channel.sendToQueue(queue, bufferContent))
+      return Promise
+        .resolve(this.publishChannel.sendToQueue(queue, bufferContent))
+        .then(() => (this.publishChannel.waitForConfirms()))
     })
   }
 
@@ -177,8 +186,10 @@ class RabbitMQ {
       }
       const stringContent = JSON.stringify(content)
       const bufferContent = new Buffer(stringContent)
-      return Promise
-        .resolve(this.channel.publish(exchange, routingKey, bufferContent))
+      return Promise.resolve(
+        this.publishChannel.publish(exchange, routingKey, bufferContent)
+      )
+        .then(() => (this.publishChannel.waitForConfirms()))
     })
   }
 
@@ -421,7 +432,7 @@ class RabbitMQ {
    * @return {Boolean} True if model is connected and channel is established.
    */
   _isConnected (): boolean {
-    return !!(this._isPartlyConnected() && this.channel)
+    return !!(this._isPartlyConnected() && this.channel && this.publishChannel)
   }
 
   /**

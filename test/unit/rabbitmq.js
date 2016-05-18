@@ -16,6 +16,7 @@ describe('rabbitmq', () => {
   let rabbitmq
   const mockConnection = {}
   const mockChannel = {}
+  const mockConfirmChannel = { confirm: true }
   const prevUsername = process.env.RABBITMQ_USERNAME
   const prevPassword = process.env.RABBITMQ_PASSWORD
 
@@ -25,7 +26,10 @@ describe('rabbitmq', () => {
     rabbitmq = new RabbitMQ({ name: 'test-client' })
     mockConnection.on = sinon.stub()
     mockConnection.createChannel = sinon.stub().resolves(mockChannel)
+    mockConnection.createConfirmChannel =
+      sinon.stub().resolves(mockConfirmChannel)
     mockChannel.on = sinon.stub()
+    mockConfirmChannel.on = sinon.stub()
   })
 
   afterEach(() => {
@@ -175,6 +179,14 @@ describe('rabbitmq', () => {
       )
     })
 
+    it('should reject with any channel publish creation error', () => {
+      mockConnection.createConfirmChannel.rejects(new Error('luna'))
+      return assert.isRejected(
+        rabbitmq.connect(),
+        'luna'
+      )
+    })
+
     it('should create an authentication string with hostname and port', () => {
       return assert.isFulfilled(rabbitmq.connect())
         .then(() => {
@@ -226,6 +238,26 @@ describe('rabbitmq', () => {
           )
         })
     })
+
+    it('should create and save a publish channel', () => {
+      return assert.isFulfilled(rabbitmq.connect())
+        .then(() => {
+          sinon.assert.calledOnce(mockConnection.createConfirmChannel)
+          assert.equal(rabbitmq.publishChannel, mockConfirmChannel)
+        })
+    })
+
+    it('appplies an error handler to the publish channel', () => {
+      return assert.isFulfilled(rabbitmq.connect())
+        .then(() => {
+          sinon.assert.calledOnce(mockConfirmChannel.on)
+          sinon.assert.calledWithExactly(
+            mockConfirmChannel.on,
+            'error',
+            sinon.match.func
+          )
+        })
+    })
   })
 
   describe('publishToQueue', () => {
@@ -233,8 +265,9 @@ describe('rabbitmq', () => {
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
-      rabbitmq.channel = {}
-      rabbitmq.channel.sendToQueue = sinon.stub().resolves()
+      rabbitmq.publishChannel = {}
+      rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
+      rabbitmq.publishChannel.waitForConfirms = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
     })
 
@@ -283,15 +316,26 @@ describe('rabbitmq', () => {
     it('should publish with a buffer of the content', () => {
       return assert.isFulfilled(rabbitmq.publishToQueue(mockQueue, mockJob))
         .then(() => {
-          sinon.assert.calledOnce(rabbitmq.channel.sendToQueue)
+          sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
           sinon.assert.calledWithExactly(
-            rabbitmq.channel.sendToQueue,
+            rabbitmq.publishChannel.sendToQueue,
             mockQueue,
             sinon.match.any
           )
-          const content = rabbitmq.channel.sendToQueue.firstCall.args.pop()
+          const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
+          const content = contentCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
           assert.equal(content.toString(), JSON.stringify(mockJob))
+        })
+    })
+
+    it('should wait for the channel to confirm', () => {
+      return assert.isFulfilled(rabbitmq.publishToQueue(mockQueue, mockJob))
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.publishChannel.waitForConfirms)
+          sinon.assert.calledWithExactly(
+            rabbitmq.publishChannel.waitForConfirms
+          )
         })
     })
   })
@@ -302,8 +346,9 @@ describe('rabbitmq', () => {
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
-      rabbitmq.channel = {}
-      rabbitmq.channel.publish = sinon.stub().resolves()
+      rabbitmq.publishChannel = {}
+      rabbitmq.publishChannel.publish = sinon.stub().resolves()
+      rabbitmq.publishChannel.waitForConfirms = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
       sinon.stub(Bunyan.prototype, 'info')
     })
@@ -361,7 +406,7 @@ describe('rabbitmq', () => {
         rabbitmq.publishToExchange(mockExchange, '', mockJob)
       )
         .then(() => {
-          sinon.assert.calledOnce(rabbitmq.channel.publish)
+          sinon.assert.calledOnce(rabbitmq.publishChannel.publish)
         })
     })
 
@@ -386,16 +431,28 @@ describe('rabbitmq', () => {
         rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob)
       )
         .then(() => {
-          sinon.assert.calledOnce(rabbitmq.channel.publish)
+          sinon.assert.calledOnce(rabbitmq.publishChannel.publish)
           sinon.assert.calledWithExactly(
-            rabbitmq.channel.publish,
+            rabbitmq.publishChannel.publish,
             mockExchange,
             mockRoutingKey,
             sinon.match.any
           )
-          const content = rabbitmq.channel.publish.firstCall.args.pop()
+          const content = rabbitmq.publishChannel.publish.firstCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
           assert.equal(content.toString(), JSON.stringify(mockJob))
+        })
+    })
+
+    it('should wait for channel to confirm', () => {
+      return assert.isFulfilled(
+        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob)
+      )
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.publishChannel.waitForConfirms)
+          sinon.assert.calledWithExactly(
+            rabbitmq.publishChannel.waitForConfirms
+          )
         })
     })
   })
@@ -463,21 +520,42 @@ describe('rabbitmq', () => {
   })
 
   describe('_isConnected', () => {
-    it('should return true if connection and channel exist', () => {
+    it('should return true if connection and channels exist', () => {
       rabbitmq._isPartlyConnected = sinon.stub().returns(true)
       rabbitmq.channel = true
+      rabbitmq.publishChannel = true
       assert.ok(rabbitmq._isConnected())
     })
 
     it('should return false if connection or channel are missing', () => {
       rabbitmq._isPartlyConnected = sinon.stub().returns(true)
       rabbitmq.channel = false
+      rabbitmq.publishChannel = true
       assert.notOk(rabbitmq._isConnected())
-      rabbitmq._isPartlyConnected = sinon.stub().returns(false)
+
+      rabbitmq._isPartlyConnected = sinon.stub().returns(true)
       rabbitmq.channel = true
+      rabbitmq.publishChannel = false
       assert.notOk(rabbitmq._isConnected())
+
+      rabbitmq._isPartlyConnected = sinon.stub().returns(true)
+      rabbitmq.channel = false
+      rabbitmq.publishChannel = false
+      assert.notOk(rabbitmq._isConnected())
+
       rabbitmq._isPartlyConnected = sinon.stub().returns(false)
       rabbitmq.channel = false
+      rabbitmq.publishChannel = true
+      assert.notOk(rabbitmq._isConnected())
+
+      rabbitmq._isPartlyConnected = sinon.stub().returns(false)
+      rabbitmq.channel = true
+      rabbitmq.publishChannel = false
+      assert.notOk(rabbitmq._isConnected())
+
+      rabbitmq._isPartlyConnected = sinon.stub().returns(false)
+      rabbitmq.channel = false
+      rabbitmq.publishChannel = false
       assert.notOk(rabbitmq._isConnected())
     })
   })
