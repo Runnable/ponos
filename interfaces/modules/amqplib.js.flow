@@ -4,6 +4,7 @@ declare class RabbitMQConnection {
   on(event: string, handler: Function): void;
   close(): Promise<void>;
   createChannel(): RabbitMQChannel;
+  createConfirmChannel(): RabbitMQConfirmChannel;
 }
 
 declare class RabbitMQChannel {
@@ -16,6 +17,10 @@ declare class RabbitMQChannel {
   on(event: string, handler: Function): void;
   publish(exchange: string, routingKey: string, content: Buffer): Promise<void>;
   sendToQueue(queue: string, content: Buffer): Promise<void>;
+}
+
+declare class RabbitMQConfirmChannel extends RabbitMQChannel {
+  waitForConfirms(): Promise<void>;
 }
 
 type QueueObject = {
