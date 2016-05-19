@@ -1,5 +1,9 @@
 ## Change Log
 
+### v3.0.2 (2016/05/19 19:23 +00:00)
+- [#46](https://github.com/Runnable/ponos/pull/46) Confirm Publish (@bkendall)
+- [#44](https://github.com/Runnable/ponos/pull/44) Update flow-bin to version 0.25.0 🚀 (@greenkeeperio-bot)
+
 ### v3.0.0 (2016/05/14 00:06 +00:00)
 - [#43](https://github.com/Runnable/ponos/pull/43) Ponos 3.0.0 (@bkendall)
 - [#42](https://github.com/Runnable/ponos/pull/42) Publish methods (@bkendall)
