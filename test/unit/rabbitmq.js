@@ -29,6 +29,7 @@ describe('rabbitmq', () => {
     mockConnection.createConfirmChannel =
       sinon.stub().resolves(mockConfirmChannel)
     mockChannel.on = sinon.stub()
+    mockChannel.prefetch = sinon.stub().resolves()
     mockConfirmChannel.on = sinon.stub()
   })
 
@@ -224,6 +225,25 @@ describe('rabbitmq', () => {
         .then(() => {
           sinon.assert.calledOnce(mockConnection.createChannel)
           assert.equal(rabbitmq.channel, mockChannel)
+        })
+    })
+
+    it('should not set prefetch by default', () => {
+      return assert.isFulfilled(rabbitmq.connect())
+        .then(() => {
+          sinon.assert.notCalled(mockChannel.prefetch)
+        })
+    })
+
+    it('should should set prefetch if it was defined', () => {
+      rabbitmq.channelOpts.prefetch = 1
+      return assert.isFulfilled(rabbitmq.connect())
+        .then(() => {
+          sinon.assert.calledOnce(mockChannel.prefetch)
+          sinon.assert.calledWithExactly(
+            mockChannel.prefetch,
+            1
+          )
         })
     })
 

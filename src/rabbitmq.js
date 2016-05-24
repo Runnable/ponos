@@ -17,6 +17,9 @@ const logger = require('./logger')
  *
  * @author Bryan Kendall
  * @param {Object} [opts] RabbitMQ connection options.
+ * @param {Object} [opts.channel] RabbitMQ channel options.
+ * @param {Object} [opts.channel.prefetch] Set prefetch for each consumer in a
+ *   channel.
  * @param {String} [opts.hostname=localhost] Hostname for RabbitMQ. Can be set
  *   with environment variable RABBITMQ_HOSTNAME.
  * @param {Number} [opts.port=5672] Port for RabbitMQ. Can be set with
@@ -31,6 +34,7 @@ class RabbitMQ {
   static AMQPLIB_EXCHANGE_DEFAULTS: Object;
 
   channel: RabbitMQChannel;
+  channelOpts: Object;
   connection: RabbitMQConnection;
   consuming: Map<string, string>;
   hostname: string;
@@ -57,6 +61,7 @@ class RabbitMQ {
       port: this.port,
       clientName: this.name
     })
+    this.channelOpts = opts.channel || {}
     if (!this.username || !this.password) {
       this.log.warn(
         'RabbitMQ username and password not found. See Ponos Server ' +
@@ -98,6 +103,14 @@ class RabbitMQ {
             this.log.fatal({ err: err }, 'an error occured creating channel')
             throw err
           })
+      })
+      .then((channel) => {
+        if (this.channelOpts.prefetch) {
+          this.log.info('setting prefetch on channel')
+          return Promise.resolve(channel.prefetch(this.channelOpts.prefetch))
+            .return((channel))
+        }
+        return channel
       })
       .then((channel) => {
         this.log.info('created channel')

@@ -35,6 +35,9 @@ const Worker = require('./worker')
  * @param {bunyan} [opts.log] A bunyan logger to use for the server.
  * @param {String} [opts.name=ponos] A name to namespace the created exchange queues.
  * @param {Object} [opts.rabbitmq] RabbitMQ connection options.
+ * @param {Object} [opts.rabbitmq.channel] RabbitMQ channel options.
+ * @param {Object} [opts.rabbitmq.channel.prefetch] Set prefetch for each
+ *   consumer in a channel.
  * @param {String} [opts.rabbitmq.hostname=localhost] Hostname for RabbitMQ. Can
  *   be set with environment variable RABBITMQ_HOSTNAME.
  * @param {Number} [opts.rabbitmq.port=5672] Port for RabbitMQ. Can be set with
