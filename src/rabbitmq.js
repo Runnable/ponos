@@ -132,13 +132,13 @@ class RabbitMQ {
   }
 
   /**
-   * Takes an object representing a message and sends it to a queue.
+   * Takes an object representing a message and sends it to a task queue.
    *
-   * @param {String} queue Queue to receive the message.
-   * @param {Object} content Content to send.
+   * @param {String} queue Task queue to receive the message.
+   * @param {Object} content Job to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishToQueue (queue: string, content: Object): Promise {
+  publishTask (queue: string, content: Object): Promise {
     return Promise.try(() => {
       if (!this._isConnected()) {
         throw new Error('you must call .connect() before publishing')
@@ -158,23 +158,14 @@ class RabbitMQ {
   }
 
   /**
-   * Takes an object representing a message and sends it to an exchange using
-   * a provided routing key.
-   *
-   * Note: Providing an empty string as the routing key is functionally the same
-   * as sending the message directly to a named queue. The function
-   * {@link RabbitMQ#publishToQueue} is preferred in this case.
+   * Sends an object representing a message to an exchange for the specified
+   * event.
    *
    * @param {String} queue Exchange to receive the message.
-   * @param {String} routingKey Routing Key for the exchange.
    * @param {Object} content Content to send.
    * @return {Promise} Promise resolved when message is sent to the exchange.
    */
-  publishToExchange (
-    exchange: string,
-    routingKey: string,
-    content: Object
-  ): Promise {
+  publishEvent (exchange: string, content: Object): Promise {
     return Promise.try(() => {
       if (!this._isConnected()) {
         throw new Error('you must call .connect() before publishing')
@@ -183,23 +174,14 @@ class RabbitMQ {
       if (!isString(exchange) || exchange === '') {
         throw new Error('exchange name must be a string')
       }
-      if (!isString(routingKey)) {
-        throw new Error('routingKey must be a string')
-      }
-      if (routingKey === '') {
-        this.log.info({
-          method: 'publishToExchange',
-          exchange: exchange
-        }, 'setting routingKey to empty string is the same as publishing to ' +
-          'a queue directly. use `publishToQueue` to ignore this message.')
-      }
       if (!isObject(content)) {
         throw new Error('content must be an object')
       }
       const stringContent = JSON.stringify(content)
       const bufferContent = new Buffer(stringContent)
+      // events do not need a routing key (so we send '')
       return Promise.resolve(
-        this.publishChannel.publish(exchange, routingKey, bufferContent)
+        this.publishChannel.publish(exchange, '', bufferContent)
       )
     })
   }
