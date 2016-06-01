@@ -1,5 +1,14 @@
 ## Change Log
 
+### v3.2.0 (2016/06/01 23:11 +00:00)
+- [#51](https://github.com/Runnable/ponos/pull/51) make publish methods more clear (@bkendall)
+- [#50](https://github.com/Runnable/ponos/pull/50) Update flow-bin to version 0.26.0 🚀 (@greenkeeperio-bot)
+- [#49](https://github.com/Runnable/ponos/pull/49) add codeclimate config (@bkendall)
+
+### v3.1.0 (2016/05/24 22:18 +00:00)
+- [#48](https://github.com/Runnable/ponos/pull/48) Prefetch (@bkendall)
+- [#47](https://github.com/Runnable/ponos/pull/47) mocha@2.5.1 update (@bkendall, @greenkeeperio-bot)
+
 ### v3.0.2 (2016/05/19 19:23 +00:00)
 - [#46](https://github.com/Runnable/ponos/pull/46) Confirm Publish (@bkendall)
 - [#44](https://github.com/Runnable/ponos/pull/44) Update flow-bin to version 0.25.0 🚀 (@greenkeeperio-bot)
