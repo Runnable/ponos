@@ -42,6 +42,6 @@ describe('Basic Example', () => {
       eventName: 'task',
       message: 'hello world'
     }
-    rabbitmq.publishToQueue('ponos-test:one', job)
+    rabbitmq.publishTask('ponos-test:one', job)
   })
 })

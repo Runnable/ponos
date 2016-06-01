@@ -280,7 +280,85 @@ describe('rabbitmq', () => {
     })
   })
 
-  describe('publishToQueue', () => {
+  describe('publishToQueue (deprecated)', () => {
+    beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, 'publishTask').resolves()
+      sinon.stub(Bunyan.prototype, 'warn')
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype.publishTask.restore()
+      Bunyan.prototype.warn.restore()
+    })
+
+    it('should call publishTask', () => {
+      const queue = 'mockQueue'
+      const content = {}
+      return assert
+        .isFulfilled(rabbitmq.publishToQueue(queue, content))
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype.publishTask)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype.publishTask,
+            queue,
+            content
+          )
+        })
+    })
+
+    it('should log that it is deprecated', () => {
+      return assert.isFulfilled(rabbitmq.publishToQueue('queue', {}))
+        .then(() => {
+          sinon.assert.calledOnce(Bunyan.prototype.warn)
+          sinon.assert.calledWithExactly(
+            Bunyan.prototype.warn,
+            sinon.match.has('method', 'publishToQueue'),
+            sinon.match(/.+publishToQueue.+deprecated.+/)
+          )
+        })
+    })
+  })
+
+  describe('publishToExchange (deprecated)', () => {
+    beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, 'publishEvent').resolves()
+      sinon.stub(Bunyan.prototype, 'warn')
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype.publishEvent.restore()
+      Bunyan.prototype.warn.restore()
+    })
+
+    it('should call publishEvent', () => {
+      const exchange = 'mockExchange'
+      const content = {}
+      return assert
+        .isFulfilled(rabbitmq.publishToExchange(exchange, '', content))
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype.publishEvent)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype.publishEvent,
+            exchange,
+            content
+          )
+        })
+    })
+
+    it('should log that it is deprecated', () => {
+      return assert.isFulfilled(rabbitmq.publishToExchange('exchange', '', {}))
+        .then(() => {
+          sinon.assert.calledOnce(Bunyan.prototype.warn)
+          sinon.assert.calledWithExactly(
+            Bunyan.prototype.warn,
+            sinon.match.has('method', 'publishToExchange'),
+            sinon.match(/.+publishToExchange.+deprecated.+/)
+          )
+        })
+    })
+  })
+
+  describe('publishTask', () => {
     const mockQueue = 'some-queue'
     const mockJob = { hello: 'world' }
 
@@ -297,28 +375,28 @@ describe('rabbitmq', () => {
     it('should reject if we are not connected', () => {
       RabbitMQ.prototype._isConnected.returns(false)
       return assert.isRejected(
-        rabbitmq.publishToQueue(mockQueue, mockJob),
+        rabbitmq.publishTask(mockQueue, mockJob),
         /call.+connect/
       )
     })
 
     it('should reject if queue is not a string', () => {
       return assert.isRejected(
-        rabbitmq.publishToQueue(1, mockJob),
+        rabbitmq.publishTask(1, mockJob),
         /queue.+string/
       )
     })
 
     it('should reject if queue is an empty string', () => {
       return assert.isRejected(
-        rabbitmq.publishToQueue('', mockJob),
+        rabbitmq.publishTask('', mockJob),
         /queue.+string/
       )
     })
 
     it('should reject if content is not an object', () => {
       return assert.isRejected(
-        rabbitmq.publishToQueue(mockQueue, 1),
+        rabbitmq.publishTask(mockQueue, 1),
         /content.+object/
       )
     })
@@ -326,14 +404,14 @@ describe('rabbitmq', () => {
     it('should reject if content fails to be stringified', () => {
       sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))
       return assert.isRejected(
-        rabbitmq.publishToQueue(mockQueue, mockJob),
+        rabbitmq.publishTask(mockQueue, mockJob),
         /custom json error/
       )
         .then(() => { JSON.stringify.restore() })
     })
 
     it('should publish with a buffer of the content', () => {
-      return assert.isFulfilled(rabbitmq.publishToQueue(mockQueue, mockJob))
+      return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob))
         .then(() => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
           sinon.assert.calledWithExactly(
@@ -349,9 +427,8 @@ describe('rabbitmq', () => {
     })
   })
 
-  describe('publishToExchange', () => {
+  describe('publishEvent', () => {
     const mockExchange = 'some-exchange'
-    const mockRoutingKey = 'some-key'
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
@@ -369,58 +446,28 @@ describe('rabbitmq', () => {
     it('should reject if we are not connected', () => {
       RabbitMQ.prototype._isConnected.returns(false)
       return assert.isRejected(
-        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob),
+        rabbitmq.publishEvent(mockExchange, mockJob),
         /call.+connect/
       )
     })
 
     it('should reject if exchange is not a string', () => {
       return assert.isRejected(
-        rabbitmq.publishToExchange(1, mockRoutingKey, mockJob),
+        rabbitmq.publishEvent(1, mockJob),
         /exchange.+string/
       )
     })
 
     it('should reject if exchange is an empty string', () => {
       return assert.isRejected(
-        rabbitmq.publishToExchange('', mockRoutingKey, mockJob),
+        rabbitmq.publishEvent('', mockJob),
         /exchange.+string/
       )
     })
 
-    it('should reject if routingKey is not a string', () => {
-      return assert.isRejected(
-        rabbitmq.publishToExchange(mockExchange, 1, mockJob),
-        /routingKey.+string/
-      )
-    })
-
-    it('should resolve if routingKey is empty, but log info', () => {
-      return assert.isFulfilled(
-        rabbitmq.publishToExchange(mockExchange, '', mockJob)
-      )
-        .then(() => {
-          sinon.assert.calledOnce(Bunyan.prototype.info)
-          sinon.assert.calledWithExactly(
-            Bunyan.prototype.info,
-            sinon.match.object,
-            sinon.match(/routingKey.+empty.+publishToQueue/)
-          )
-        })
-    })
-
-    it('should resolve if routingKey is empty, but still publish', () => {
-      return assert.isFulfilled(
-        rabbitmq.publishToExchange(mockExchange, '', mockJob)
-      )
-        .then(() => {
-          sinon.assert.calledOnce(rabbitmq.publishChannel.publish)
-        })
-    })
-
     it('should reject if content is not an object', () => {
       return assert.isRejected(
-        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, 1),
+        rabbitmq.publishEvent(mockExchange, 1),
         /content.+object/
       )
     })
@@ -428,7 +475,7 @@ describe('rabbitmq', () => {
     it('should reject if content fails to be stringified', () => {
       sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))
       return assert.isRejected(
-        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob),
+        rabbitmq.publishEvent(mockExchange, mockJob),
         /custom json error/
       )
         .then(() => { JSON.stringify.restore() })
@@ -436,14 +483,14 @@ describe('rabbitmq', () => {
 
     it('should publish with a buffer of the content', () => {
       return assert.isFulfilled(
-        rabbitmq.publishToExchange(mockExchange, mockRoutingKey, mockJob)
+        rabbitmq.publishEvent(mockExchange, mockJob)
       )
         .then(() => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.publish)
           sinon.assert.calledWithExactly(
             rabbitmq.publishChannel.publish,
             mockExchange,
-            mockRoutingKey,
+            '',
             sinon.match.any
           )
           const content = rabbitmq.publishChannel.publish.firstCall.args.pop()

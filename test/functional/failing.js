@@ -65,7 +65,7 @@ describe('Basic Failing Task', () => {
     testWorkerEmitter.on('will-never-emit', () => {
       throw new Error('failing worker should not have emitted')
     })
-    rabbitmq.publishToQueue('ponos-test:one', job)
+    rabbitmq.publishTask('ponos-test:one', job)
 
     // wait until .run is called
     return Promise.resolve().then(function loop () {

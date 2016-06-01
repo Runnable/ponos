@@ -103,7 +103,7 @@ describe('Basic Timeout Task', function () {
         })
       })
 
-      rabbitmq.publishToQueue('ponos-test:one', job)
+      rabbitmq.publishTask('ponos-test:one', job)
     })
   })
 })
