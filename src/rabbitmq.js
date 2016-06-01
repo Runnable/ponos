@@ -132,6 +132,52 @@ class RabbitMQ {
   }
 
   /**
+   * Takes an object representing a message and sends it to a queue.
+   *
+   * @deprecated
+   * @param {String} queue Queue to receive the message.
+   * @param {Object} content Content to send.
+   * @return {Promise} Promise resolved when message is sent to queue.
+   */
+  publishToQueue (queue: string, content: Object): Promise {
+    return Promise.try(() => {
+      this.log.warn({
+        method: 'publishToQueue',
+        queue
+      }, 'rabbitmq.publishToQueue is deprecated. use `publishTask`.')
+      return this.publishTask(queue, content)
+    })
+  }
+
+  /**
+   * Takes an object representing a message and sends it to an exchange using
+   * a provided routing key.
+   *
+   * Note: Providing an empty string as the routing key is functionally the same
+   * as sending the message directly to a named queue. The function
+   * {@link RabbitMQ#publishToQueue} is preferred in this case.
+   *
+   * @deprecated
+   * @param {String} queue Exchange to receive the message.
+   * @param {String} routingKey Routing Key for the exchange.
+   * @param {Object} content Content to send.
+   * @return {Promise} Promise resolved when message is sent to the exchange.
+   */
+  publishToExchange (
+    exchange: string,
+    routingKey: string,
+    content: Object
+  ): Promise {
+    return Promise.try(() => {
+      this.log.warn({
+        method: 'publishToExchange',
+        exchange
+      }, 'rabbitmq.publishToExchange is deprecated. use `publishEvent`.')
+      return this.publishEvent(exchange, content)
+    })
+  }
+
+  /**
    * Takes an object representing a message and sends it to a task queue.
    *
    * @param {String} queue Task queue to receive the message.

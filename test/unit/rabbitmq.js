@@ -280,6 +280,84 @@ describe('rabbitmq', () => {
     })
   })
 
+  describe('publishToQueue (deprecated)', () => {
+    beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, 'publishTask').resolves()
+      sinon.stub(Bunyan.prototype, 'warn')
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype.publishTask.restore()
+      Bunyan.prototype.warn.restore()
+    })
+
+    it('should call publishTask', () => {
+      const queue = 'mockQueue'
+      const content = {}
+      return assert
+        .isFulfilled(rabbitmq.publishToQueue(queue, content))
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype.publishTask)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype.publishTask,
+            queue,
+            content
+          )
+        })
+    })
+
+    it('should log that it is deprecated', () => {
+      return assert.isFulfilled(rabbitmq.publishToQueue('queue', {}))
+        .then(() => {
+          sinon.assert.calledOnce(Bunyan.prototype.warn)
+          sinon.assert.calledWithExactly(
+            Bunyan.prototype.warn,
+            sinon.match.has('method', 'publishToQueue'),
+            sinon.match(/.+publishToQueue.+deprecated.+/)
+          )
+        })
+    })
+  })
+
+  describe('publishToExchange (deprecated)', () => {
+    beforeEach(() => {
+      sinon.stub(RabbitMQ.prototype, 'publishEvent').resolves()
+      sinon.stub(Bunyan.prototype, 'warn')
+    })
+
+    afterEach(() => {
+      RabbitMQ.prototype.publishEvent.restore()
+      Bunyan.prototype.warn.restore()
+    })
+
+    it('should call publishEvent', () => {
+      const exchange = 'mockExchange'
+      const content = {}
+      return assert
+        .isFulfilled(rabbitmq.publishToExchange(exchange, '', content))
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype.publishEvent)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype.publishEvent,
+            exchange,
+            content
+          )
+        })
+    })
+
+    it('should log that it is deprecated', () => {
+      return assert.isFulfilled(rabbitmq.publishToExchange('exchange', '', {}))
+        .then(() => {
+          sinon.assert.calledOnce(Bunyan.prototype.warn)
+          sinon.assert.calledWithExactly(
+            Bunyan.prototype.warn,
+            sinon.match.has('method', 'publishToExchange'),
+            sinon.match(/.+publishToExchange.+deprecated.+/)
+          )
+        })
+    })
+  })
+
   describe('publishTask', () => {
     const mockQueue = 'some-queue'
     const mockJob = { hello: 'world' }
