@@ -62,7 +62,7 @@
     "amqplib": "^0.4.1",
     "bluebird": "^3.0.5",
     "bunyan": "^1.5.1",
-    "error-cat": "^2.0.4",
+    "error-cat": "^3.0.0",
     "immutable": "^3.8.1",
     "monitor-dog": "1.5.0",
     "uuid": "^2.0.2"
