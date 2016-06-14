@@ -57,6 +57,9 @@
       "afterEach"
     ]
   },
+  "peerDependencies": {
+    "error-cat": "^3.0.0"
+  },
   "dependencies": {
     "101": "^1.1.1",
     "amqplib": "^0.4.1",
