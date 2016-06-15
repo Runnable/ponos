@@ -23,7 +23,10 @@ ratings:
   - "**.rb"
 exclude_paths:
 - coverage/
+- examples/
+- interfaces/
 - lib/
 - node_modules/
 - out/
+- resources/
 - test/
