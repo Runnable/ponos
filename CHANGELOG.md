@@ -1,5 +1,9 @@
 ## Change Log
 
+### v4.0.0 (2016/06/15 18:30 +00:00)
+- [#54](https://github.com/Runnable/ponos/pull/54) Update ErrorCat@3.0.0 (@bkendall, @podviaznikov)
+- [#52](https://github.com/Runnable/ponos/pull/52) Update flow-bin to version 0.27.0 🚀 (@greenkeeperio-bot)
+
 ### v3.2.0 (2016/06/01 23:11 +00:00)
 - [#51](https://github.com/Runnable/ponos/pull/51) make publish methods more clear (@bkendall)
 - [#50](https://github.com/Runnable/ponos/pull/50) Update flow-bin to version 0.26.0 🚀 (@greenkeeperio-bot)
