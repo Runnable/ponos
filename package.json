@@ -10,6 +10,7 @@
     "build": "babel --out-dir lib src",
     "build:clean": "rm -rf lib",
     "changelog": "github-changes -o Runnable -r ponos -a --only-pulls --use-commit-body --order-semver",
+    "codeclimate": "npm install -g codeclimate-test-reporter && codeclimate-test-reporter < ./coverage/lcov.info",
     "coverage": "istanbul cover ./node_modules/.bin/_mocha -- $npm_package_options_mocha test/unit && npm run coverage-check",
     "coverage-check": "istanbul check-coverage && echo 'Coverage check successful!'",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
