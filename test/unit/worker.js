@@ -624,6 +624,7 @@ describe('Worker', () => {
           const stopError = new WorkerStopError(
             'my message',
             { dog: 'robot' },
+            { level: 'info' },
             'some.queue',
             { foo: 'bar' }
           )
@@ -632,6 +633,7 @@ describe('Worker', () => {
             .then(() => {
               const decoratedError = worker._reportError.firstCall.args[0]
               assert.deepEqual(decoratedError, stopError)
+              assert.deepEqual(decoratedError.reporting, { level: 'info' })
               assert.deepEqual(decoratedError.data.queue, 'some.queue')
               assert.deepEqual(decoratedError.data.job, { foo: 'bar' })
             })

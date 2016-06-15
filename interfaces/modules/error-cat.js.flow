@@ -7,7 +7,7 @@ declare module 'error-cat' {
 }
 
 declare class WorkerStopError extends Error {
-  static constructor(message: string, data?: Object, queue?: string, job: Object): WorkerStopError;
+  static constructor(message: string, data?: Object, reporting?: Object, queue?: string, job?: Object): WorkerStopError;
 }
 
 declare module 'error-cat/errors/worker-stop-error' {
