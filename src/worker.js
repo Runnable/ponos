@@ -2,6 +2,8 @@
 /* global ErrorCat WorkerError DDTimer */
 'use strict'
 
+const cls = require('continuation-local-storage').createNamespace('ponos')
+const clsBlueBird = require('cls-bluebird')
 const defaults = require('101/defaults')
 const errorCat = require('error-cat')
 const exists = require('101/exists')
@@ -11,11 +13,13 @@ const merge = require('101/put')
 const monitor = require('monitor-dog')
 const pick = require('101/pick')
 const Promise = require('bluebird')
+const uuid = require('uuid')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const logger = require('./logger')
 
 const TimeoutError = Promise.TimeoutError
+clsBlueBird(cls)
 
 /**
  * Performs tasks for jobs on a given queue.
@@ -59,18 +63,20 @@ class Worker {
       }
     })
 
+    const tid = opts.tid || uuid()
     // manage field defaults
     fields.push('errorCat', 'log', 'msTimeout', 'runNow', 'server')
     opts = pick(opts, fields)
     defaults(opts, {
       // default non-required user options
       errorCat: errorCat,
-      log: logger.child({ module: 'ponos:worker' }),
+      log: logger.child({ tid: tid, module: 'ponos:worker' }),
       runNow: true,
       // other options
       attempt: 0,
       msTimeout: process.env.WORKER_TIMEOUT || 0,
-      retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
+      retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1,
+      tid: tid
     })
 
     // put all opts on this
@@ -112,87 +118,91 @@ class Worker {
    *   fails.
    */
   run (): Promise {
+    this._incMonitor('ponos')
+    const timer = this._createTimer()
     const log = this.log.child({
       method: 'run',
       queue: this.queue,
       job: this.job
     })
-    this._incMonitor('ponos')
-    const timer = this._createTimer()
-    return Promise.resolve().bind(this)
-      .then(function runTheTask () {
-        const attemptData = {
-          attempt: this.attempt++,
-          timeout: this.msTimeout
-        }
-        log.info(attemptData, 'running task')
-        let taskPromise = Promise.resolve().bind(this)
-          .then(() => {
-            return Promise.resolve().bind(this)
-              .then(() => { return this.task(this.job, this.server) })
-          })
-        if (this.msTimeout) {
-          taskPromise = taskPromise.timeout(this.msTimeout)
-        }
-        return taskPromise
-      })
-      .then(function successDone (result) {
-        log.info({ result: result }, 'Task complete')
-        this._incMonitor('ponos.finish', { result: 'success' })
-        return this.done()
-      })
-      // if the type is TimeoutError, we will log and retry
-      .catch(TimeoutError, function timeoutErrRetry (err) {
-        log.warn({ err: err }, 'Task timed out')
-        this._incMonitor('ponos.finish', { result: 'timeout-error' })
-        // by throwing this type of error, we will retry :)
-        throw err
-      })
-      .catch(function decorateError (err) {
-        if (!isObject(err.data)) {
-          err.data = {}
-        }
-        if (!err.data.queue) {
-          err.data.queue = this.queue
-        }
-        if (!err.data.job) {
-          err.data.job = this.job
-        }
-        throw err
-      })
-      // if it's a WorkerStopError, we can't accomplish the task
-      .catch(WorkerStopError, function knownErrDone (err) {
-        log.error({ err: err }, 'Worker task fatally errored')
-        this._incMonitor('ponos.finish', { result: 'fatal-error' })
-        this._reportError(err)
-        // If we encounter a fatal error we should no longer try to schedule
-        // the job.
-        return this.done()
-      })
-      .catch(function unknownErrRetry (err) {
-        const attemptData = {
-          err: err,
-          nextAttemptDelay: this.retryDelay
-        }
-        log.warn(attemptData, 'Task failed, retrying')
-        this._incMonitor('ponos.finish', { result: 'task-error' })
-        this._reportError(err)
 
-        // Try again after a delay
-        return Promise.delay(this.retryDelay).bind(this)
-          .then(function retryRun () {
-            // Exponentially increase the retry delay
-            if (this.retryDelay < process.env.WORKER_MAX_RETRY_DELAY) {
-              this.retryDelay *= 2
-            }
-            return this.run()
-          })
+    return Promise.fromCallback((cb) => {
+      cls.run(() => {
+        cls.set('tid', this.tid)
+        Promise.try(() => {
+          const attemptData = {
+            attempt: this.attempt++,
+            timeout: this.msTimeout
+          }
+          log.info(attemptData, 'running task')
+          let taskPromise = Promise.try(() => {
+            return this.task(this.job, this.server)
+          }).asCallback(cb)
+
+          if (this.msTimeout) {
+            taskPromise = taskPromise.timeout(this.msTimeout)
+          }
+          return taskPromise
+        })
       })
-      .finally(function stopTimer () {
-        if (timer) {
-          timer.stop()
-        }
-      })
+    })
+    .then((result) => {
+      log.info({ result: result }, 'Task complete')
+      this._incMonitor('ponos.finish', { result: 'success' })
+      return this.done()
+    })
+    // if the type is TimeoutError, we will log and retry
+    .catch(TimeoutError, (err) => {
+      log.warn({ err: err }, 'Task timed out')
+      this._incMonitor('ponos.finish', { result: 'timeout-error' })
+      // by throwing this type of error, we will retry :)
+      throw err
+    })
+    .catch((err) => {
+      if (!isObject(err.data)) {
+        err.data = {}
+      }
+      if (!err.data.queue) {
+        err.data.queue = this.queue
+      }
+      if (!err.data.job) {
+        err.data.job = this.job
+      }
+      throw err
+    })
+    // if it's a WorkerStopError, we can't accomplish the task
+    .catch(WorkerStopError, (err) => {
+      log.error({ err: err }, 'Worker task fatally errored')
+      this._incMonitor('ponos.finish', { result: 'fatal-error' })
+      this._reportError(err)
+      // If we encounter a fatal error we should no longer try to schedule
+      // the job.
+      return this.done()
+    })
+    .catch((err) => {
+      const attemptData = {
+        err: err,
+        nextAttemptDelay: this.retryDelay
+      }
+      log.warn(attemptData, 'Task failed, retrying')
+      this._incMonitor('ponos.finish', { result: 'task-error' })
+      this._reportError(err)
+
+      // Try again after a delay
+      return Promise.delay(this.retryDelay)
+        .then(() => {
+          // Exponentially increase the retry delay
+          if (this.retryDelay < process.env.WORKER_MAX_RETRY_DELAY) {
+            this.retryDelay *= 2
+          }
+          return this.run()
+        })
+    })
+    .finally(() => {
+      if (timer) {
+        timer.stop()
+      }
+    })
   }
 
   // Private Methods
