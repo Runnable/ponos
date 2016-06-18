@@ -16,8 +16,6 @@ const Promise = require('bluebird')
 const uuid = require('uuid')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
-const logger = require('./logger')
-
 const TimeoutError = Promise.TimeoutError
 clsBlueBird(cls)
 
@@ -48,6 +46,11 @@ class Worker {
   log: any;
   msTimeout: any;
   queue: String;
+  tid: String;
+  attempt: number;
+  task: Function;
+  done: Function;
+  retryDelay: number;
 
   constructor (opts: Object) {
     // managed required fields
@@ -55,7 +58,8 @@ class Worker {
       'done',
       'job',
       'queue',
-      'task'
+      'task',
+      'log'
     ]
     fields.forEach(function (f) {
       if (!exists(opts[f])) {
@@ -63,23 +67,23 @@ class Worker {
       }
     })
 
-    const tid = opts.tid || uuid()
     // manage field defaults
-    fields.push('errorCat', 'log', 'msTimeout', 'runNow', 'server')
+    fields.push('errorCat', 'log', 'msTimeout', 'runNow')
     opts = pick(opts, fields)
     defaults(opts, {
       // default non-required user options
       errorCat: errorCat,
-      log: logger.child({ tid: tid, module: 'ponos:worker' }),
       runNow: true,
       // other options
       attempt: 0,
       msTimeout: process.env.WORKER_TIMEOUT || 0,
-      retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1,
-      tid: tid
+      retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
     })
 
+    const tid = opts.job.tid || uuid()
+    opts.log = opts.log.child({ tid: tid, module: 'ponos:worker' })
     // put all opts on this
+    console.log('log', opts, this.log)
     Object.assign(this, opts)
     this.log.info({ queue: this.queue, job: this.job }, 'Worker created')
 
@@ -136,14 +140,14 @@ class Worker {
           }
           log.info(attemptData, 'running task')
           let taskPromise = Promise.try(() => {
-            return this.task(this.job, this.server)
-          }).asCallback(cb)
+            return this.task(this.job)
+          })
 
           if (this.msTimeout) {
             taskPromise = taskPromise.timeout(this.msTimeout)
           }
           return taskPromise
-        })
+        }).asCallback(cb)
       })
     })
     .then((result) => {
@@ -159,6 +163,9 @@ class Worker {
       throw err
     })
     .catch((err) => {
+      if (err.cause) {
+        err = err.cause
+      }
       if (!isObject(err.data)) {
         err.data = {}
       }
@@ -192,7 +199,8 @@ class Worker {
       return Promise.delay(this.retryDelay)
         .then(() => {
           // Exponentially increase the retry delay
-          if (this.retryDelay < process.env.WORKER_MAX_RETRY_DELAY) {
+          const retryDelay = parseInt(process.env.WORKER_MAX_RETRY_DELAY) || 0
+          if (this.retryDelay < retryDelay) {
             this.retryDelay *= 2
           }
           return this.run()

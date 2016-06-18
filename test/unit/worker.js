@@ -11,22 +11,22 @@ const put = require('101/put')
 const sinon = require('sinon')
 const WorkerError = require('error-cat/errors/worker-error')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
-
 const assert = chai.assert
 const TimeoutError = Promise.TimeoutError
 
 const Worker = require('../../src/worker')
+const logger = require('../../src/logger')
 
 describe('Worker', () => {
   let opts
   let taskHandler
   let doneHandler
-
   beforeEach(() => {
     opts = {
       queue: 'do.something.command',
       task: (data) => { return Promise.resolve(data).then(taskHandler) },
       job: { message: 'hello world' },
+      log: logger.child({module: 'ponos:test'}),
       done: () => { return Promise.resolve().then(doneHandler) }
     }
   })
@@ -41,6 +41,34 @@ describe('Worker', () => {
       assert.throws(() => {
         Worker.create(testOpts)
       }, /job is required.+Worker/)
+    })
+
+    it('should enforce default opts', () => {
+      const testOpts = omit(opts, 'done')
+      assert.throws(() => {
+        Worker.create(testOpts)
+      }, /done is required.+Worker/)
+    })
+
+    it('should enforce default opts', () => {
+      const testOpts = omit(opts, 'queue')
+      assert.throws(() => {
+        Worker.create(testOpts)
+      }, /queue is required.+Worker/)
+    })
+
+    it('should enforce default opts', () => {
+      const testOpts = omit(opts, 'task')
+      assert.throws(() => {
+        Worker.create(testOpts)
+      }, /task is required.+Worker/)
+    })
+
+    it('should enforce default opts', () => {
+      const testOpts = omit(opts, 'log')
+      assert.throws(() => {
+        Worker.create(testOpts)
+      }, /log is required.+Worker/)
     })
 
     it('should run the job if runNow is true (default)', () => {
@@ -60,15 +88,15 @@ describe('Worker', () => {
     })
 
     it('should use the given logger', () => {
-      const log = { info: noop }
+      const testLogger = {
+        info: noop
+      }
+      const log = {
+        child: () => { return testLogger }
+      }
       opts.log = log
       const w = Worker.create(opts)
-      assert.equal(w.log, log)
-    })
-
-    it('should create a default logger', () => {
-      const w = Worker.create(opts)
-      assert.equal(w.log.fields.module, 'ponos:worker')
+      assert.equal(w.log, testLogger)
     })
 
     it('should use the given errorCat', () => {
