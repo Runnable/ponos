@@ -1,0 +1,17 @@
+declare class CLS {
+  run(fn: Function): void;
+  set(key: string, value: any): void;
+  get(key: string): any;
+}
+
+declare class CLSClass {
+  static createNamespace(name: string): CLS;
+}
+
+declare module 'continuation-local-storage' {
+  declare var exports: Class<CLSClass>
+}
+
+export {
+  CLS
+}
