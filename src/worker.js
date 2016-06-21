@@ -41,25 +41,25 @@ clsBlueBird(cls)
  *   defaults to `true`.
  */
 class Worker {
+  attempt: number;
+  done: Function;
   errorCat: ErrorCat;
   job: Object;
   log: any;
   msTimeout: any;
   queue: String;
-  tid: String;
-  attempt: number;
-  task: Function;
-  done: Function;
   retryDelay: number;
+  task: Function;
+  tid: String;
 
   constructor (opts: Object) {
     // managed required fields
     const fields = [
       'done',
       'job',
+      'log',
       'queue',
-      'task',
-      'log'
+      'task'
     ]
     fields.forEach(function (f) {
       if (!exists(opts[f])) {
