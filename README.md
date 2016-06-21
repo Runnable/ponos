@@ -148,6 +148,25 @@ server.setAllTasks({
 
 These options are also available for `setEvent` and `setAllEvents`.
 
+## Worker Namespaces
+Each worker is wrapped in a [continuation-local-storage](https://github.com/othiym23/node-continuation-local-storage) namespace called `ponos`
+
+Ponos adds a `tid` to the `ponos` namespace. This `tid` is unique per job.
+To access this `tid`:
+```
+const getNamespace = require('continuation-local-storage').getNamespace
+
+module.export.worker = Promise.try(() => {
+  const tid = getNamespace('ponos').get('tid')
+  console.log(`hello world: tid: ${tid}`)
+})
+
+```
+
+NOTES:
+* `Promise.resolve().then(() => {...})` breaks out of ponos namespace and tid will not be available
+* `getNamespace` must be called in the worker itself
+
 ## Full Example
 
 ```javascript
