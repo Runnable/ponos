@@ -26,7 +26,7 @@ describe('Worker', () => {
       queue: 'do.something.command',
       task: (data) => { return Promise.resolve(data).then(taskHandler) },
       job: { message: 'hello world' },
-      log: logger.child({module: 'ponos:test'}),
+      log: logger.child({ module: 'ponos:test' }),
       done: () => { return Promise.resolve().then(doneHandler) }
     }
   })
