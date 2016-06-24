@@ -4,7 +4,7 @@ const amqplib = require('amqplib')
 const Bunyan = require('bunyan')
 const chai = require('chai')
 const clone = require('101/clone')
-const cls = require('continuation-local-storage').createNamespace('ponos')
+const cls = require('continuation-local-storage')
 const Immutable = require('immutable')
 const omit = require('101/omit')
 const Promise = require('bluebird')
@@ -487,9 +487,22 @@ describe('rabbitmq', () => {
     })
 
     it('should add tid if missing', () => {
-      const out = rabbitmq._validatePublish(mockExchange, mockJob)
+      const out = rabbitmq._validatePublish(mockExchange, {})
       const outObject = JSON.parse(out)
       return assert.isString(outObject.tid)
+    })
+
+    it('should add tid if not in namespace', () => {
+      const ns = cls.createNamespace('other')
+
+      return Promise.fromCallback((cb) => {
+        ns.run(() => {
+          const out = rabbitmq._validatePublish(mockExchange, {})
+          const outObject = JSON.parse(out)
+          assert.isString(outObject.tid)
+          cb()
+        })
+      })
     })
 
     it('should use tid if passed', () => {
@@ -501,10 +514,11 @@ describe('rabbitmq', () => {
 
     it('should use tid if in namespace', () => {
       const testTid = '3-1-11-11-235'
+      const ns = cls.createNamespace('ponos')
 
       return Promise.fromCallback((cb) => {
-        cls.run(() => {
-          cls.set('tid', this.tid)
+        ns.run(() => {
+          ns.set('tid', this.tid)
           const out = rabbitmq._validatePublish(mockExchange, mockJob)
           const outObject = JSON.parse(out)
           assert.isString(outObject.tid, testTid)

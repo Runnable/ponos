@@ -235,7 +235,8 @@ class RabbitMQ {
     }
     // add tid to message if one does not exist
     if (!content.tid) {
-      const tid = getNamespace('ponos').get('tid')
+      const ns = getNamespace('ponos')
+      const tid = ns && ns.get('tid')
       content.tid = tid || uuid()
     }
     const stringContent = JSON.stringify(content)
