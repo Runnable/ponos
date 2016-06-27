@@ -16,7 +16,7 @@ function basicWorker (job) {
   return Promise.try(() => {
     const tid = getNamespace('ponos').get('tid')
     if (!job.message) {
-      throw new WorkerStopError('queue', 'message is required. tid:' + tid)
+      throw new WorkerStopError('message is required', { tid: tid })
     }
     console.log(`hello world: ${job.message}. tid: ${tid}`)
   })
