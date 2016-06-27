@@ -89,7 +89,7 @@ class Server {
    *
    * @return {Promise} Promise resolved when consuming has started.
    */
-  consume (): Promise {
+  consume (): Promise<void> {
     return this._rabbitmq.consume()
   }
 
@@ -99,7 +99,7 @@ class Server {
    *
    * @return {Promise} Promise that resolves once the server is listening.
    */
-  start (): Promise {
+  start (): Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
       .then(() => {
@@ -122,7 +122,7 @@ class Server {
    *
    * @return {Promise} A promise that resolves when the server is stopped.
    */
-  stop (): Promise {
+  stop (): Promise<void> {
     this.log.trace('stopping')
     return this._rabbitmq.unsubscribe()
       .then(() => {
@@ -204,7 +204,7 @@ class Server {
    * @param {Object} [opts] Options for the worker that performs the task.
    * @returns {Server} The server.
    */
-  setTask (queueName: string, task: Function, opts?: Object) {
+  setTask (queueName: string, task: Function, opts?: Object): Server {
     this.log.trace({
       queue: queueName,
       method: 'setTask'
@@ -227,7 +227,7 @@ class Server {
    * @param {Object} [opts] Options for the worker that performs the task.
    * @returns {Server} The server.
    */
-  setEvent (exchangeName: string, task: Function, opts?: Object) {
+  setEvent (exchangeName: string, task: Function, opts?: Object): Server {
     this.log.trace({
       exchange: exchangeName,
       method: 'setEvent'
@@ -250,7 +250,7 @@ class Server {
    * @private
    * @return {Promise} Promise that resolves when queues are all subscribed.
    */
-  _subscribeAll () {
+  _subscribeAll (): Promise<Array<Promise<void>>> {
     this.log.trace('_subscribeAll')
     const tasks = this._tasks
     const events = this._events
@@ -285,7 +285,7 @@ class Server {
     handler: Function,
     job: Object,
     done: Function
-  ) {
+  ): void {
     this.log.trace({
       queue: queueName,
       job: job,
