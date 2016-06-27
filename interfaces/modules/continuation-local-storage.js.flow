@@ -6,7 +6,7 @@ declare class CLS {
 
 declare class CLSClass {
   static createNamespace(name: string): CLS;
-  static getNamespace(name: string): CLS;
+  static getNamespace(name: string): ?CLS;
 }
 
 declare module 'continuation-local-storage' {
