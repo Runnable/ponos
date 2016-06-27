@@ -80,8 +80,8 @@ class Worker {
       retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
     })
 
-    const tid = opts.job.tid || uuid()
-    opts.log = opts.log.child({ tid: tid, module: 'ponos:worker' })
+    this.tid = opts.job.tid || uuid()
+    opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
     // put all opts on this
     Object.assign(this, opts)
     this.log.info({ queue: this.queue, job: this.job }, 'Worker created')
