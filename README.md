@@ -149,6 +149,7 @@ server.setAllTasks({
 These options are also available for `setEvent` and `setAllEvents`.
 
 ## Worker Namespaces
+
 Each worker is wrapped in a [continuation-local-storage](https://github.com/othiym23/node-continuation-local-storage) namespace called `ponos`.
 
 Ponos adds a `tid` to the `ponos` namespace. This `tid` is unique per job. To access this `tid`:
