@@ -214,36 +214,6 @@ class RabbitMQ {
   }
 
   /**
-   * Validate publish params. Also add tid to job if one does not exist
-   * @param  {Strong} name:    string        Name of queue or exchange
-   * @param  {Object} content: Object        content Content to send.
-   * @return {Buffer}          Content to send in job
-   * @throws {Error} If not connected
-   * @throws {Error} If name is not a string
-   * @throws {Error} If content is not an object
-   */
-  _validatePublish (name: string, content: Object) {
-    if (!this._isConnected()) {
-      throw new Error('you must call .connect() before publishing')
-    }
-    // flowtype does not prevent users from using this function incorrectly.
-    if (!isString(name) || name === '') {
-      throw new Error('name must be a string')
-    }
-    if (!isObject(content)) {
-      throw new Error('content must be an object')
-    }
-    // add tid to message if one does not exist
-    if (!content.tid) {
-      const ns = getNamespace('ponos')
-      const tid = ns && ns.get('tid')
-      content.tid = tid || uuid()
-    }
-    const stringContent = JSON.stringify(content)
-    return new Buffer(stringContent)
-  }
-
-  /**
    * Subscribe to a specific direct queue.
    *
    * @private
@@ -571,6 +541,36 @@ class RabbitMQ {
         this.subscriptions = this.subscriptions.set(queue, opts.handler)
         this.subscribed = this.subscribed.add(subscribedKey)
       })
+  }
+
+  /**
+   * Validate publish params. Also add tid to job if one does not exist
+   * @param  {Strong} name:    string        Name of queue or exchange
+   * @param  {Object} content: Object        content Content to send.
+   * @return {Buffer}          Content to send in job
+   * @throws {Error} If not connected
+   * @throws {Error} If name is not a string
+   * @throws {Error} If content is not an object
+   */
+  _validatePublish (name: string, content: Object): Buffer {
+    if (!this._isConnected()) {
+      throw new Error('you must call .connect() before publishing')
+    }
+    // flowtype does not prevent users from using this function incorrectly.
+    if (!isString(name) || name === '') {
+      throw new Error('name must be a string')
+    }
+    if (!isObject(content)) {
+      throw new Error('content must be an object')
+    }
+    // add tid to message if one does not exist
+    if (!content.tid) {
+      const ns = getNamespace('ponos')
+      const tid = ns && ns.get('tid')
+      content.tid = tid || uuid()
+    }
+    const stringContent = JSON.stringify(content)
+    return new Buffer(stringContent)
   }
 }
 
