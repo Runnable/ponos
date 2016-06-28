@@ -4,11 +4,13 @@
 
 const amqplib = require('amqplib')
 const defaults = require('101/defaults')
+const getNamespace = require('continuation-local-storage').getNamespace
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
 const isString = require('101/is-string')
 const Promise = require('bluebird')
+const uuid = require('uuid')
 
 const logger = require('./logger')
 
@@ -186,20 +188,10 @@ class RabbitMQ {
    */
   publishTask (queue: string, content: Object): Promise {
     return Promise.try(() => {
-      if (!this._isConnected()) {
-        throw new Error('you must call .connect() before publishing')
-      }
-      // flowtype does not prevent users from using this function incorrectly.
-      if (!isString(queue) || queue === '') {
-        throw new Error('queue name must be a non-empty string')
-      }
-      if (!isObject(content)) {
-        throw new Error('content must be an object')
-      }
-      const stringContent = JSON.stringify(content)
-      const bufferContent = new Buffer(stringContent)
-      return Promise
-        .resolve(this.publishChannel.sendToQueue(queue, bufferContent))
+      const bufferContent = this._validatePublish(queue, content)
+      return Promise.resolve(
+        this.publishChannel.sendToQueue(queue, bufferContent)
+      )
     })
   }
 
@@ -213,23 +205,42 @@ class RabbitMQ {
    */
   publishEvent (exchange: string, content: Object): Promise {
     return Promise.try(() => {
-      if (!this._isConnected()) {
-        throw new Error('you must call .connect() before publishing')
-      }
-      // flowtype does not prevent users from using this function incorrectly.
-      if (!isString(exchange) || exchange === '') {
-        throw new Error('exchange name must be a string')
-      }
-      if (!isObject(content)) {
-        throw new Error('content must be an object')
-      }
-      const stringContent = JSON.stringify(content)
-      const bufferContent = new Buffer(stringContent)
+      const bufferContent = this._validatePublish(exchange, content)
       // events do not need a routing key (so we send '')
       return Promise.resolve(
         this.publishChannel.publish(exchange, '', bufferContent)
       )
     })
+  }
+
+  /**
+   * Validate publish params. Also add tid to job if one does not exist
+   * @param  {Strong} name:    string        Name of queue or exchange
+   * @param  {Object} content: Object        content Content to send.
+   * @return {Buffer}          Content to send in job
+   * @throws {Error} If not connected
+   * @throws {Error} If name is not a string
+   * @throws {Error} If content is not an object
+   */
+  _validatePublish (name: string, content: Object) {
+    if (!this._isConnected()) {
+      throw new Error('you must call .connect() before publishing')
+    }
+    // flowtype does not prevent users from using this function incorrectly.
+    if (!isString(name) || name === '') {
+      throw new Error('name must be a string')
+    }
+    if (!isObject(content)) {
+      throw new Error('content must be an object')
+    }
+    // add tid to message if one does not exist
+    if (!content.tid) {
+      const ns = getNamespace('ponos')
+      const tid = ns && ns.get('tid')
+      content.tid = tid || uuid()
+    }
+    const stringContent = JSON.stringify(content)
+    return new Buffer(stringContent)
   }
 
   /**

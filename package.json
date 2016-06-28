@@ -1,6 +1,6 @@
 {
   "name": "ponos",
-  "version": "4.0.0",
+  "version": "4.2.0-3",
   "description": "An opinionated queue based worker server for node.",
   "main": "lib/index.js",
   "engines": {
@@ -66,6 +66,8 @@
     "amqplib": "^0.4.1",
     "bluebird": "^3.0.5",
     "bunyan": "^1.5.1",
+    "cls-bluebird": "^1.0.1",
+    "continuation-local-storage": "^3.1.7",
     "error-cat": "^3.0.0",
     "immutable": "^3.8.1",
     "monitor-dog": "1.5.0",

@@ -1,5 +1,6 @@
 'use strict'
 
+const getNamespace = require('continuation-local-storage').getNamespace
 const Promise = require('bluebird')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
@@ -12,13 +13,13 @@ const Ponos = require('../')
  * @returns {promise} Resolved when the message is put on the queue.
  */
 function basicWorker (job) {
-  return Promise.resolve()
-    .then(() => {
-      if (!job.message) {
-        throw new WorkerStopError('queue', 'message is required')
-      }
-      console.log(`hello world: ${job.message}`)
-    })
+  return Promise.try(() => {
+    const tid = getNamespace('ponos').get('tid')
+    if (!job.message) {
+      throw new WorkerStopError('message is required', { tid: tid })
+    }
+    console.log(`hello world: ${job.message}. tid: ${tid}`)
+  })
 }
 
 const server = new Ponos.Server({

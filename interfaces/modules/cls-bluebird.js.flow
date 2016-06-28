@@ -1,0 +1,5 @@
+declare module 'cls-bluebird' {
+  declare var exports: {
+    (cls: CLS): void;
+  }
+}
