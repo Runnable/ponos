@@ -546,6 +546,7 @@ class RabbitMQ {
   /**
    * Validate publish params. Adds a TID to the job it does not already have
    * one.
+   * @private
    * @param {String} name Name of queue or exchange.
    * @param {Object} content Content to send.
    * @throws {Error} Must be connected to RabbitMQ.
