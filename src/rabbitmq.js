@@ -424,7 +424,7 @@ class RabbitMQ {
    * Error handler for the RabbitMQ connection.
    *
    * @private
-   * @throws Error
+   * @throws {Error}
    * @param {object} err Error object from event.
    */
   _connectionErrorHandler (err: Error) {
@@ -436,7 +436,7 @@ class RabbitMQ {
    * Error handler for the RabbitMQ channel.
    *
    * @private
-   * @throws Error
+   * @throws {Error}
    * @param {object} err Error object from event.
    */
   _channelErrorHandler (err: Error) {
@@ -544,13 +544,14 @@ class RabbitMQ {
   }
 
   /**
-   * Validate publish params. Also add tid to job if one does not exist
-   * @param  {Strong} name:    string        Name of queue or exchange
-   * @param  {Object} content: Object        content Content to send.
-   * @return {Buffer}          Content to send in job
-   * @throws {Error} If not connected
-   * @throws {Error} If name is not a string
-   * @throws {Error} If content is not an object
+   * Validate publish params. Adds a TID to the job it does not already have
+   * one.
+   * @param {String} name Name of queue or exchange.
+   * @param {Object} content Content to send.
+   * @throws {Error} Must be connected to RabbitMQ.
+   * @throws {Error} Name must be a non-empty string.
+   * @throws {Error} Object must be an Object.
+   * @return {Buffer} Content to send as job.
    */
   _validatePublish (name: string, content: Object): Buffer {
     if (!this._isConnected()) {
