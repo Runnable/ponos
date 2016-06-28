@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Home</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>Ponos</h1><p><a href="https://travis-ci.org/Runnable/ponos"><img src="https://img.shields.io/travis/Runnable/ponos/master.svg?style=flat-square" alt="travis" title="Build Status"></a>
+<a href="https://coveralls.io/github/Runnable/ponos?branch=master"><img src="https://img.shields.io/coveralls/Runnable/ponos/master.svg?style=flat-square" alt="coveralls" title="Coverage Status"></a>
+<a href="https://david-dm.org/Runnable/ponos"><img src="https://img.shields.io/david/Runnable/ponos.svg?style=flat-square" alt="dependencies" title="Dependency Status"></a>
+<a href="https://david-dm.org/Runnable/ponos#info=devDependencies"><img src="https://img.shields.io/david/dev/Runnable/ponos.svg?style=flat-square" alt="devdependencies" title="Dev Dependency Status"></a>
+<a href="https://codeclimate.com/github/Runnable/ponos"><img src="https://img.shields.io/codeclimate/github/Runnable/ponos.svg?style=flat-square" alt="codeclimate" title="Code Climate"></a></p>
+<p>Documentation is available at <a href="https://runnable.github.io/ponos" title="Ponos Documentation">runnable.github.io/ponos</a></p>
+<p>A migration guide for v3.0.0 <a href="docs/Guides-Migration-v3.0.0.md">is available</a>!</p>
+<p>An opinionated queue based worker server for node.</p>
+<p>For ease of use we provide options to set the host, port, username, and password to the RabbitMQ server. If not present in options, the server will attempt to use the following environment variables and final defaults:</p>
+<table>
+<thead>
+<tr>
+<th>options</th>
+<th>environment</th>
+<th>default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>opts.rabbitmq.hostname</code></td>
+<td><code>RABBITMQ_HOSTNAME</code></td>
+<td><code>'localhost'</code></td>
+</tr>
+<tr>
+<td><code>opts.rabbitmq.port</code></td>
+<td><code>RABBITMQ_PORT</code></td>
+<td><code>'5672'</code></td>
+</tr>
+<tr>
+<td><code>opts.rabbitmq.username</code></td>
+<td><code>RABBITMQ_USERNAME</code></td>
+<td><em>none</em></td>
+</tr>
+<tr>
+<td><code>opts.rabbitmq.password</code></td>
+<td><code>RABBITMQ_PASSWORD</code></td>
+<td><em>none</em></td>
+</tr>
+<tr>
+<td><code>opts.log</code></td>
+<td><em>N/A</em></td>
+<td>Basic <a href="https://github.com/trentm/node-bunyan">bunyan</a> instance with <code>stdout</code> stream (for logging)</td>
+</tr>
+<tr>
+<td><code>opts.errorCat</code></td>
+<td><em>N/A</em></td>
+<td>Basic <a href="https://github.com/runnable/error-cat">error-cat</a> instance (for rollbar error reporting)</td>
+</tr>
+</tbody>
+</table>
+<p>Other options for Ponos are as follows:</p>
+<table>
+<thead>
+<tr>
+<th>environment variable</th>
+<th>default</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WORKER_MAX_RETRY_DELAY</code></td>
+<td><code>0</code></td>
+<td>The maximum time, in milliseconds, that the worker will wait before retrying a task. The timeout will exponentially increase from <code>MIN_RETRY_DELAY</code> to <code>MAX_RETRY_DELAY</code> if the latter is set higher than the former. If this value is not set, the worker will not exponentially back off.</td>
+</tr>
+<tr>
+<td><code>WORKER_MIN_RETRY_DELAY</code></td>
+<td><code>1</code></td>
+<td>Time, in milliseconds, the worker will wait at minimum will wait before retrying a task.</td>
+</tr>
+<tr>
+<td><code>WORKER_TIMEOUT</code></td>
+<td><code>0</code></td>
+<td>Timeout, in milliseconds, at which the worker task will be retried.</td>
+</tr>
+</tbody>
+</table>
+<h2>Usage</h2><p>From a high level, Ponos is used to create a worker server that responds to jobs provided from RabbitMQ. The user defines handlers for each queue's jobs that are invoked by Ponos.</p>
+<p>Ponos has built in support for retrying and catching specific errors, which are described below.</p>
+<h2>Workers</h2><p>Workers need to be defined as a function that takes a Object <code>job</code> an returns a promise. For example:</p>
+<pre class="prettyprint source lang-javascript"><code>function myWorker (job) {
+  return Promise.resolve()
+    .then(() => {
+      return doSomeWork(job)
+    })
+}</code></pre><p>This worker takes the <code>job</code>, does work with it, and returns the result. Since (in theory) this does not throw any errors, the worker will see this resolution and acknowledge the job.</p>
+<h2>Tasks vs. Events</h2><p>Ponos provides (currently) two paradigms for doing work. First is subscribing directly to queues in RabbitMQ using the <code>tasks</code> parameter in the constructor. The other is the ability to subscribe to a fanout exchange using the <code>events</code> parameter, which can provide for a much more useful utilization of RabbitMQ's structure.</p>
+<pre class="prettyprint source lang-javascript"><code>const ponos = require('ponos')
+const server = new ponos.Server({
+  tasks: {
+    'a-queue': (job) => { return Promise.resolve(job) }
+  },
+  events: {
+    'an-exchange': (job) => { return Promise.resolve(job) }
+  }
+})</code></pre><h3>Worker Errors</h3><p>Ponos's worker is designed to retry any error that is not specifically a fatal error. Ponos has been designed to work well with our error library <a href="https://github.com/Runnable/error-cat"><code>error-cat</code></a>.</p>
+<p>A fatal error is defined with the <code>WorkerStopError</code> class from <code>error-cat</code>. If a worker rejects with a <code>WorkerStopError</code>, the worker will automatically assume the job can <em>never</em> be completed and will acknowledge the job.</p>
+<p>As an example, a <code>WorkerStopError</code> can be used to fail a task given an invalid job:</p>
+<pre class="prettyprint source lang-javascript"><code>const WorkerStopError = require('error-cat/errors/worker-stop-error')
+function myWorker (job) {
+  return Promise.resolve()
+    .then(() => {
+      if (!job.host) {
+        throw new WorkerStopError('host is required', {}, 'my.queue', job)
+      }
+    })
+    .then(() => {
+      return doSomethingWithHost(job)
+    })
+}</code></pre><p>This worker will reject the promise with a <code>WorkerStopError</code>. Ponos will log the error itself, acknowledge the job to remove it from the queue, and continue with other jobs. You may catch and re-throw the error if you wish to do additional logging or reporting.</p>
+<p>Finally, as was mentioned before, Ponos will retry any other errors. <code>error-cat</code> provides a <code>WorkerError</code> class you may use, or you may throw normal <code>Error</code>s. If you do, the worker will catch these and retry according to the server's configuration (retry delay, back-off, max delay, etc.).</p>
+<pre class="prettyprint source lang-javascript"><code>const WorkerError = require('error-cat/errors/worker-error')
+const WorkerStopError = require('error-cat/errors/worker-stop-error')
+function myWorker (job) {
+  return Promise.resolve()
+    .then(() => {
+      return externalService.something(job)
+    })
+    // Note: w/o this catch, the error would simply propagate to the worker and
+    // be handled.
+    .catch((err) => {
+      logErrorToService(err)
+      // If the error is 'recoverable' (e.g., network fluke, temporary outage),
+      // we want to be able to retry.
+      if (err.isRecoverable) {
+        throw new Error('hit a momentary issue. try again.')
+      } else {
+        // maybe we know we can't recover from this
+        throw new WorkerStopError(
+          'cannot recover. acknowledge and remove job',
+          {},
+          'this.queue',
+          job
+        )
+      }
+    })
+}</code></pre><h2>Worker Options</h2><p>Currently workers can be defined with a <code>msTimeout</code> option. This value defaults to <code>process.env.WORKER_TIMEOUT || 0</code>. One can set a specific millisecond timeout for a worker like so:</p>
+<pre class="prettyprint source lang-js"><code>server.setTask('my-queue', workerFunction, { msTimeout: 1234 })</code></pre><p>Or one can set this option via <code>setAllTasks</code>:</p>
+<pre class="prettyprint source lang-js"><code>server.setAllTasks({
+  // This will use the default timeout...
+  'queue-1': queueOneTaskFn,
+  // This will use the specified timeout...
+  'queue-2': {
+    task: queueTwoTaskFn,
+    msTimeout: 1337
+  }
+})</code></pre><p>These options are also available for <code>setEvent</code> and <code>setAllEvents</code>.</p>
+<h2>Worker Namespaces</h2><p>Each worker is wrapped in a <a href="https://github.com/othiym23/node-continuation-local-storage">continuation-local-storage</a> namespace called <code>ponos</code>.</p>
+<p>Ponos adds a <code>tid</code> to the <code>ponos</code> namespace. This <code>tid</code> is unique per job. To access this <code>tid</code>:</p>
+<pre class="prettyprint source lang-js"><code>const getNamespace = require('continuation-local-storage').getNamespace
+
+module.export.worker = Promise.try(() => {
+  const tid = getNamespace('ponos').get('tid')
+  console.log(`hello world: tid: ${tid}`)
+})</code></pre><p><strong>NOTES:</strong></p>
+<ul>
+<li><code>Promise.resolve().then(() =&gt; {...})</code> breaks out of Ponos namespace and <code>tid</code> will not be available</li>
+<li><code>getNamespace</code> must be called in the worker itself</li>
+</ul>
+<h2>Full Example</h2><pre class="prettyprint source lang-javascript"><code>const ponos = require('ponos')
+
+const tasks = {
+  'queue-1': (job) => { return Promise.resolve(job) },
+  'queue-2': (job) => { return Promise.resolve(job) }
+}
+
+const events = {
+  'exchange-1': (job) => { return Promise.resolve(job) }
+}
+
+// Create the server
+var server = new ponos.Server({
+  events: events,
+  tasks: tasks
+})
+
+// If tasks were not provided in the constructor, set tasks for workers handling
+// jobs on each queue
+server.setAllTasks(tasks)
+// Similarly, you can set events.
+server.setAllEvents(events)
+
+// Start the server!
+server.start()
+  .then(() => { console.log('Server started!') })
+  .catch((err) => { console.error('Server failed', err) })</code></pre><h2>License</h2><p>MIT</p></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-ponos_lib_rabbitmq.html">ponos/lib/rabbitmq</a></li><li><a href="module-ponos_lib_server.html">ponos/lib/server</a></li><li><a href="module-ponos_lib_worker.html">ponos/lib/worker</a></li></ul><h3>Classes</h3><ul><li><a href="RabbitMQ.html">RabbitMQ</a></li><li><a href="Server.html">Server</a></li><li><a href="Worker.html">Worker</a></li></ul><h3>Global</h3><ul><li><a href="global.html#AMQPLIB_EXCHANGE_DEFAULTS">AMQPLIB_EXCHANGE_DEFAULTS</a></li><li><a href="global.html#AMQPLIB_QUEUE_DEFAULTS">AMQPLIB_QUEUE_DEFAULTS</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue Jun 28 2016 15:39:21 GMT-0700 (PDT)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
