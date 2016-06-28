@@ -1,5 +1,12 @@
 ## Change Log
 
+### v4.2.0 (2016/06/28 00:00 +00:00)
+- [#57](https://github.com/Runnable/ponos/pull/57) add cls and TID (@bkendall, @anandkumarpatel)
+
+### v4.1.0-0 (2016/06/21 22:26 +00:00)
+- [#56](https://github.com/Runnable/ponos/pull/56) codeclimate: report coverage (@bkendall)
+- [#55](https://github.com/Runnable/ponos/pull/55) codeclimate: ignore supporting folders (@bkendall)
+
 ### v4.0.0 (2016/06/15 18:30 +00:00)
 - [#54](https://github.com/Runnable/ponos/pull/54) Update ErrorCat@3.0.0 (@bkendall, @podviaznikov)
 - [#52](https://github.com/Runnable/ponos/pull/52) Update flow-bin to version 0.27.0 🚀 (@greenkeeperio-bot)
