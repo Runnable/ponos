@@ -1,5 +1,8 @@
 ## Change Log
 
+### v4.2.1 (2016/06/28 21:41 +00:00)
+- [#58](https://github.com/Runnable/ponos/pull/58) strengthening types (@bkendall)
+
 ### v4.2.0 (2016/06/28 00:00 +00:00)
 - [#57](https://github.com/Runnable/ponos/pull/57) add cls and TID (@bkendall, @anandkumarpatel)
 
