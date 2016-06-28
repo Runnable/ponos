@@ -78,7 +78,7 @@ class RabbitMQ {
    *
    * @return {Promise} Promise that resolves once connection is established.
    */
-  connect (): Promise {
+  connect (): Promise<void> {
     if (this._isPartlyConnected() || this._isConnected()) {
       return Promise.reject(new Error('cannot call connect twice'))
     }
@@ -141,7 +141,7 @@ class RabbitMQ {
    * @param {Object} content Content to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishToQueue (queue: string, content: Object): Promise {
+  publishToQueue (queue: string, content: Object): Promise<void> {
     return Promise.try(() => {
       this.log.warn({
         method: 'publishToQueue',
@@ -169,7 +169,7 @@ class RabbitMQ {
     exchange: string,
     routingKey: string,
     content: Object
-  ): Promise {
+  ): Promise<void> {
     return Promise.try(() => {
       this.log.warn({
         method: 'publishToExchange',
@@ -186,7 +186,7 @@ class RabbitMQ {
    * @param {Object} content Job to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishTask (queue: string, content: Object): Promise {
+  publishTask (queue: string, content: Object): Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(queue, content)
       return Promise.resolve(
@@ -203,7 +203,7 @@ class RabbitMQ {
    * @param {Object} content Content to send.
    * @return {Promise} Promise resolved when message is sent to the exchange.
    */
-  publishEvent (exchange: string, content: Object): Promise {
+  publishEvent (exchange: string, content: Object): Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content)
       // events do not need a routing key (so we send '')
@@ -211,36 +211,6 @@ class RabbitMQ {
         this.publishChannel.publish(exchange, '', bufferContent)
       )
     })
-  }
-
-  /**
-   * Validate publish params. Also add tid to job if one does not exist
-   * @param  {Strong} name:    string        Name of queue or exchange
-   * @param  {Object} content: Object        content Content to send.
-   * @return {Buffer}          Content to send in job
-   * @throws {Error} If not connected
-   * @throws {Error} If name is not a string
-   * @throws {Error} If content is not an object
-   */
-  _validatePublish (name: string, content: Object) {
-    if (!this._isConnected()) {
-      throw new Error('you must call .connect() before publishing')
-    }
-    // flowtype does not prevent users from using this function incorrectly.
-    if (!isString(name) || name === '') {
-      throw new Error('name must be a string')
-    }
-    if (!isObject(content)) {
-      throw new Error('content must be an object')
-    }
-    // add tid to message if one does not exist
-    if (!content.tid) {
-      const ns = getNamespace('ponos')
-      const tid = ns && ns.get('tid')
-      content.tid = tid || uuid()
-    }
-    const stringContent = JSON.stringify(content)
-    return new Buffer(stringContent)
   }
 
   /**
@@ -257,7 +227,7 @@ class RabbitMQ {
     queue: string,
     handler: Function,
     queueOptions?: Object
-  ): Promise {
+  ): Promise<void> {
     const log = this.log.child({
       method: 'subscribeToQueue',
       queue: queue
@@ -307,7 +277,7 @@ class RabbitMQ {
     exchange: string,
     handler: Function,
     rabbitMQOptions?: RabbitMQOptions
-  ): Promise {
+  ): Promise<void> {
     const opts = {
       exchange: exchange,
       type: 'fanout',
@@ -343,7 +313,7 @@ class RabbitMQ {
     routingKey: string,
     handler: Function,
     rabbitMQOptions?: RabbitMQOptions
-  ): Promise {
+  ): Promise<void> {
     const opts = {
       exchange: exchange,
       type: 'topic',
@@ -367,7 +337,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues consuming.
    */
-  consume (): Promise {
+  consume (): Promise<Array<Promise<void>>> {
     const log = this.log.child({ method: 'consume' })
     log.info('starting to consume')
     if (!this._isConnected()) {
@@ -382,7 +352,7 @@ class RabbitMQ {
       // XXX(bryan): is this valid? should I not be checking _this_.consuming?
       if (this.consuming.has(queue)) {
         log.warn({ queue: queue }, 'already consuming queue')
-        return true
+        return Promise.resolve()
       }
       function wrapper (msg) {
         let job
@@ -410,7 +380,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues canceled.
    */
-  unsubscribe (): Promise {
+  unsubscribe (): Promise<Array<Promise<void>>> {
     const consuming = this.consuming
     return Promise.map(consuming.keySeq(), (queue) => {
       const consumerTag = consuming.get(queue)
@@ -426,7 +396,7 @@ class RabbitMQ {
    *
    * @return {Promise} Promise resolved when disconnected from RabbitMQ.
    */
-  disconnect (): Promise {
+  disconnect (): Promise<void> {
     if (!this._isPartlyConnected()) {
       return Promise.reject(new Error('not connected. cannot disconnect.'))
     }
@@ -454,7 +424,7 @@ class RabbitMQ {
    * Error handler for the RabbitMQ connection.
    *
    * @private
-   * @throws Error
+   * @throws {Error}
    * @param {object} err Error object from event.
    */
   _connectionErrorHandler (err: Error) {
@@ -466,7 +436,7 @@ class RabbitMQ {
    * Error handler for the RabbitMQ channel.
    *
    * @private
-   * @throws Error
+   * @throws {Error}
    * @param {object} err Error object from event.
    */
   _channelErrorHandler (err: Error) {
@@ -512,7 +482,7 @@ class RabbitMQ {
    * @param {String} [opts.routingKey] Routing key for a topic exchange.
    * @return {Promise} Promise resolved when subcribed to exchange.
    */
-  _subscribeToExchange (opts: SubscribeObject): Promise {
+  _subscribeToExchange (opts: SubscribeObject): Promise<void> {
     const log = this.log.child({
       method: '_subscribeToExchange',
       opts: opts
@@ -571,6 +541,37 @@ class RabbitMQ {
         this.subscriptions = this.subscriptions.set(queue, opts.handler)
         this.subscribed = this.subscribed.add(subscribedKey)
       })
+  }
+
+  /**
+   * Validate publish params. Adds a TID to the job it does not already have
+   * one.
+   * @param {String} name Name of queue or exchange.
+   * @param {Object} content Content to send.
+   * @throws {Error} Must be connected to RabbitMQ.
+   * @throws {Error} Name must be a non-empty string.
+   * @throws {Error} Object must be an Object.
+   * @return {Buffer} Content to send as job.
+   */
+  _validatePublish (name: string, content: Object): Buffer {
+    if (!this._isConnected()) {
+      throw new Error('you must call .connect() before publishing')
+    }
+    // flowtype does not prevent users from using this function incorrectly.
+    if (!isString(name) || name === '') {
+      throw new Error('name must be a string')
+    }
+    if (!isObject(content)) {
+      throw new Error('content must be an object')
+    }
+    // add tid to message if one does not exist
+    if (!content.tid) {
+      const ns = getNamespace('ponos')
+      const tid = ns && ns.get('tid')
+      content.tid = tid || uuid()
+    }
+    const stringContent = JSON.stringify(content)
+    return new Buffer(stringContent)
   }
 }
 

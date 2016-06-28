@@ -120,7 +120,7 @@ class Worker {
    * @returns {Promise} Promise that is resolved once the task succeeds or
    *   fails.
    */
-  run (): Promise {
+  run (): Promise<void> {
     this._incMonitor('ponos')
     const timer = this._createTimer()
     const log = this.log.child({
