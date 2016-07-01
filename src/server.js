@@ -1,5 +1,5 @@
 /* @flow */
-/* global ErrorCat */
+/* global ErrorCat Logger */
 'use strict'
 
 const assign = require('101/assign')
