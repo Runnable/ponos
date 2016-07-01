@@ -1,3 +1,5 @@
+/* @flow */
+/* global Stream */
 'use strict'
 
 const bunyan = require('bunyan')
@@ -23,10 +25,12 @@ module.exports._getStreams = _getStreams
  * @private
  * @return {array} An array of streams for the bunyan logger
  */
-function _getStreams () {
+function _getStreams (): Array<Stream> {
+  const logLevel = process.env.LOG_LEVEL
+  const level = parseInt(logLevel, 10) || logLevel || 'info'
   return [
     {
-      level: process.env.LOG_LEVEL,
+      level,
       stream: process.stdout
     }
   ]

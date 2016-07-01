@@ -1,5 +1,5 @@
 /* @flow */
-/* global ErrorCat WorkerError DDTimer */
+/* global Logger ErrorCat WorkerError DDTimer */
 'use strict'
 
 const cls = require('continuation-local-storage').createNamespace('ponos')
@@ -45,8 +45,8 @@ class Worker {
   done: Function;
   errorCat: ErrorCat;
   job: Object;
-  log: any;
-  msTimeout: any;
+  log: Logger;
+  msTimeout: number;
   queue: String;
   retryDelay: number;
   task: Function;

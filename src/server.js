@@ -52,11 +52,11 @@ const Worker = require('./worker')
 class Server {
   _events: Map<string, Function>;
   _opts: Object;
-  _rabbitmq: any;
+  _rabbitmq: RabbitMQ;
   _tasks: Map<string, Function>;
   _workerOptions: Object;
   errorCat: ErrorCat;
-  log: Object;
+  log: Logger;
 
   constructor (opts: Object) {
     this._opts = assign({}, opts)
@@ -89,7 +89,7 @@ class Server {
    *
    * @return {Promise} Promise resolved when consuming has started.
    */
-  consume (): Promise<void> {
+  consume (): Promise<Array<Promise<void>>> {
     return this._rabbitmq.consume()
   }
 
