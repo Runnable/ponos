@@ -149,6 +149,7 @@ class RabbitMQ {
       }, 'rabbitmq.publishToQueue is deprecated. use `publishTask`.')
       return this.publishTask(queue, content)
     })
+      .return()
   }
 
   /**
@@ -177,6 +178,7 @@ class RabbitMQ {
       }, 'rabbitmq.publishToExchange is deprecated. use `publishEvent`.')
       return this.publishEvent(exchange, content)
     })
+      .return()
   }
 
   /**
@@ -337,7 +339,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues consuming.
    */
-  consume (): Bluebird$Promise {
+  consume (): Bluebird$Promise<void> {
     const log = this.log.child({ method: 'consume' })
     log.info('starting to consume')
     if (!this._isConnected()) {
@@ -372,6 +374,7 @@ class RabbitMQ {
           this.consuming = this.consuming.set(queue, consumeInfo.consumerTag)
         })
     })
+      .return()
   }
 
   /**
@@ -380,7 +383,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues canceled.
    */
-  unsubscribe (): Bluebird$Promise {
+  unsubscribe (): Bluebird$Promise<void> {
     const consuming = this.consuming
     return Promise.map(consuming.keySeq(), (queue) => {
       const consumerTag = consuming.get(queue)
@@ -389,6 +392,7 @@ class RabbitMQ {
           this.consuming = this.consuming.delete(queue)
         })
     })
+      .return()
   }
 
   /**
@@ -495,7 +499,7 @@ class RabbitMQ {
       return Promise.reject(new Error('routingKey required for topic exchange'))
     }
     let subscribedKey = `${opts.type}:::${opts.exchange}`
-    if (opts.type === 'topic') {
+    if (opts.type === 'topic' && opts.routingKey) {
       subscribedKey = `${subscribedKey}:::${opts.routingKey}`
     }
     if (this.subscribed.has(subscribedKey)) {

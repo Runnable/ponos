@@ -89,8 +89,8 @@ class Server {
    *
    * @return {Promise} Promise resolved when consuming has started.
    */
-  consume (): Bluebird$Promise {
-    return this._rabbitmq.consume()
+  consume (): Bluebird$Promise<void> {
+    return this._rabbitmq.consume().return()
   }
 
   /**
@@ -99,7 +99,7 @@ class Server {
    *
    * @return {Promise} Promise that resolves once the server is listening.
    */
-  start (): Bluebird$Promise {
+  start (): Bluebird$Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
       .then(() => {
@@ -122,7 +122,7 @@ class Server {
    *
    * @return {Promise} A promise that resolves when the server is stopped.
    */
-  stop (): Bluebird$Promise {
+  stop (): Bluebird$Promise<void> {
     this.log.trace('stopping')
     return this._rabbitmq.unsubscribe()
       .then(() => {
@@ -250,7 +250,7 @@ class Server {
    * @private
    * @return {Promise} Promise that resolves when queues are all subscribed.
    */
-  _subscribeAll (): Bluebird$Promise {
+  _subscribeAll (): Bluebird$Promise<void> {
     this.log.trace('_subscribeAll')
     const tasks = this._tasks
     const events = this._events
@@ -269,6 +269,7 @@ class Server {
           )
         })
       })
+      .return()
   }
 
   /**
