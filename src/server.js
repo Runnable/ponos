@@ -1,5 +1,5 @@
 /* @flow */
-/* global ErrorCat Logger */
+/* global Bluebird$Promise ErrorCat Logger */
 'use strict'
 
 const assign = require('101/assign')
@@ -89,7 +89,7 @@ class Server {
    *
    * @return {Promise} Promise resolved when consuming has started.
    */
-  consume (): Promise<Array<Promise<void>>> {
+  consume (): Bluebird$Promise {
     return this._rabbitmq.consume()
   }
 
@@ -99,7 +99,7 @@ class Server {
    *
    * @return {Promise} Promise that resolves once the server is listening.
    */
-  start (): Promise<void> {
+  start (): Bluebird$Promise {
     this.log.trace('starting')
     return this._rabbitmq.connect()
       .then(() => {
@@ -122,7 +122,7 @@ class Server {
    *
    * @return {Promise} A promise that resolves when the server is stopped.
    */
-  stop (): Promise<void> {
+  stop (): Bluebird$Promise {
     this.log.trace('stopping')
     return this._rabbitmq.unsubscribe()
       .then(() => {
@@ -250,7 +250,7 @@ class Server {
    * @private
    * @return {Promise} Promise that resolves when queues are all subscribed.
    */
-  _subscribeAll (): Promise<Array<Promise<void>>> {
+  _subscribeAll (): Bluebird$Promise {
     this.log.trace('_subscribeAll')
     const tasks = this._tasks
     const events = this._events

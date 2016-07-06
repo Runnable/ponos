@@ -141,7 +141,7 @@ class RabbitMQ {
    * @param {Object} content Content to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishToQueue (queue: string, content: Object): Bluebird$Promise<Promise<void>> {
+  publishToQueue (queue: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       this.log.warn({
         method: 'publishToQueue',
@@ -169,7 +169,7 @@ class RabbitMQ {
     exchange: string,
     routingKey: string,
     content: Object
-  ): Bluebird$Promise<Promise<void>> {
+  ): Bluebird$Promise<void> {
     return Promise.try(() => {
       this.log.warn({
         method: 'publishToExchange',
@@ -337,7 +337,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues consuming.
    */
-  consume (): Bluebird$Promise<Array<Promise<void>>> {
+  consume (): Bluebird$Promise {
     const log = this.log.child({ method: 'consume' })
     log.info('starting to consume')
     if (!this._isConnected()) {
@@ -352,7 +352,7 @@ class RabbitMQ {
       // XXX(bryan): is this valid? should I not be checking _this_.consuming?
       if (this.consuming.has(queue)) {
         log.warn({ queue: queue }, 'already consuming queue')
-        return Promise.resolve()
+        return
       }
       function wrapper (msg) {
         let job
@@ -380,7 +380,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues canceled.
    */
-  unsubscribe (): Bluebird$Promise<Array<Promise<void>>> {
+  unsubscribe (): Bluebird$Promise {
     const consuming = this.consuming
     return Promise.map(consuming.keySeq(), (queue) => {
       const consumerTag = consuming.get(queue)
