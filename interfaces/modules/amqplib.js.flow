@@ -2,26 +2,26 @@ type ExchangeType = 'direct' | 'fanout' | 'topic';
 
 declare class RabbitMQConnection {
   on(event: string, handler: Function): void;
-  close(): Promise<void>;
+  close(): Bluebird$Promise<void>;
   createChannel(): RabbitMQChannel;
   createConfirmChannel(): RabbitMQConfirmChannel;
 }
 
 declare class RabbitMQChannel {
   ack(message: Object): void;
-  assertExchange(exchange: string, type: string, opts: ?Object): Promise<void>;
-  assertQueue(queue: string, opts: ?Object): Promise<QueueObject>;
-  bindQueue(queue: string, exchange: string, routingKey: string): Promise<void>;
-  cancel(consumerTag: string): Promise<void>;
+  assertExchange(exchange: string, type: string, opts: ?Object): Bluebird$Promise<void>;
+  assertQueue(queue: string, opts: ?Object): Bluebird$Promise<QueueObject>;
+  bindQueue(queue: string, exchange: string, routingKey: string): Bluebird$Promise<void>;
+  cancel(consumerTag: string): Bluebird$Promise<void>;
   consume(queue: string, handler: Function): void;
   on(event: string, handler: Function): void;
-  prefetch(count: Number, global?: Boolean): Promise<void>;
-  publish(exchange: string, routingKey: string, content: Buffer): Promise<void>;
-  sendToQueue(queue: string, content: Buffer): Promise<void>;
+  prefetch(count: Number, global?: Boolean): Bluebird$Promise<void>;
+  publish(exchange: string, routingKey: string, content: Buffer): Bluebird$Promise<void>;
+  sendToQueue(queue: string, content: Buffer): Bluebird$Promise<void>;
 }
 
 declare class RabbitMQConfirmChannel extends RabbitMQChannel {
-  waitForConfirms(): Promise<void>;
+  waitForConfirms(): Bluebird$Promise<void>;
 }
 
 type QueueObject = {

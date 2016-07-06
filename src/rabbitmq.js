@@ -1,5 +1,5 @@
 /* @flow */
-/* global RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions */
+/* global Bluebird$Promise RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions */
 'use strict'
 
 const amqplib = require('amqplib')
@@ -78,7 +78,7 @@ class RabbitMQ {
    *
    * @return {Promise} Promise that resolves once connection is established.
    */
-  connect (): Promise<void> {
+  connect (): Bluebird$Promise<void> {
     if (this._isPartlyConnected() || this._isConnected()) {
       return Promise.reject(new Error('cannot call connect twice'))
     }
@@ -141,7 +141,7 @@ class RabbitMQ {
    * @param {Object} content Content to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishToQueue (queue: string, content: Object): Promise<void> {
+  publishToQueue (queue: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       this.log.warn({
         method: 'publishToQueue',
@@ -149,6 +149,7 @@ class RabbitMQ {
       }, 'rabbitmq.publishToQueue is deprecated. use `publishTask`.')
       return this.publishTask(queue, content)
     })
+      .return()
   }
 
   /**
@@ -169,7 +170,7 @@ class RabbitMQ {
     exchange: string,
     routingKey: string,
     content: Object
-  ): Promise<void> {
+  ): Bluebird$Promise<void> {
     return Promise.try(() => {
       this.log.warn({
         method: 'publishToExchange',
@@ -177,6 +178,7 @@ class RabbitMQ {
       }, 'rabbitmq.publishToExchange is deprecated. use `publishEvent`.')
       return this.publishEvent(exchange, content)
     })
+      .return()
   }
 
   /**
@@ -186,7 +188,7 @@ class RabbitMQ {
    * @param {Object} content Job to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishTask (queue: string, content: Object): Promise<void> {
+  publishTask (queue: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(queue, content)
       return Promise.resolve(
@@ -203,7 +205,7 @@ class RabbitMQ {
    * @param {Object} content Content to send.
    * @return {Promise} Promise resolved when message is sent to the exchange.
    */
-  publishEvent (exchange: string, content: Object): Promise<void> {
+  publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content)
       // events do not need a routing key (so we send '')
@@ -227,7 +229,7 @@ class RabbitMQ {
     queue: string,
     handler: Function,
     queueOptions?: Object
-  ): Promise<void> {
+  ): Bluebird$Promise<void> {
     const log = this.log.child({
       method: 'subscribeToQueue',
       queue: queue
@@ -277,7 +279,7 @@ class RabbitMQ {
     exchange: string,
     handler: Function,
     rabbitMQOptions?: RabbitMQOptions
-  ): Promise<void> {
+  ): Bluebird$Promise<void> {
     const opts = {
       exchange: exchange,
       type: 'fanout',
@@ -313,7 +315,7 @@ class RabbitMQ {
     routingKey: string,
     handler: Function,
     rabbitMQOptions?: RabbitMQOptions
-  ): Promise<void> {
+  ): Bluebird$Promise<void> {
     const opts = {
       exchange: exchange,
       type: 'topic',
@@ -337,7 +339,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues consuming.
    */
-  consume (): Promise<Array<Promise<void>>> {
+  consume (): Bluebird$Promise<void> {
     const log = this.log.child({ method: 'consume' })
     log.info('starting to consume')
     if (!this._isConnected()) {
@@ -352,7 +354,7 @@ class RabbitMQ {
       // XXX(bryan): is this valid? should I not be checking _this_.consuming?
       if (this.consuming.has(queue)) {
         log.warn({ queue: queue }, 'already consuming queue')
-        return Promise.resolve()
+        return
       }
       function wrapper (msg) {
         let job
@@ -372,6 +374,7 @@ class RabbitMQ {
           this.consuming = this.consuming.set(queue, consumeInfo.consumerTag)
         })
     })
+      .return()
   }
 
   /**
@@ -380,7 +383,7 @@ class RabbitMQ {
    * @private
    * @return {Promise} Promise resolved when all queues canceled.
    */
-  unsubscribe (): Promise<Array<Promise<void>>> {
+  unsubscribe (): Bluebird$Promise<void> {
     const consuming = this.consuming
     return Promise.map(consuming.keySeq(), (queue) => {
       const consumerTag = consuming.get(queue)
@@ -389,6 +392,7 @@ class RabbitMQ {
           this.consuming = this.consuming.delete(queue)
         })
     })
+      .return()
   }
 
   /**
@@ -396,7 +400,7 @@ class RabbitMQ {
    *
    * @return {Promise} Promise resolved when disconnected from RabbitMQ.
    */
-  disconnect (): Promise<void> {
+  disconnect (): Bluebird$Promise<void> {
     if (!this._isPartlyConnected()) {
       return Promise.reject(new Error('not connected. cannot disconnect.'))
     }
@@ -482,7 +486,7 @@ class RabbitMQ {
    * @param {String} [opts.routingKey] Routing key for a topic exchange.
    * @return {Promise} Promise resolved when subcribed to exchange.
    */
-  _subscribeToExchange (opts: SubscribeObject): Promise<void> {
+  _subscribeToExchange (opts: SubscribeObject): Bluebird$Promise<void> {
     const log = this.log.child({
       method: '_subscribeToExchange',
       opts: opts
@@ -495,7 +499,7 @@ class RabbitMQ {
       return Promise.reject(new Error('routingKey required for topic exchange'))
     }
     let subscribedKey = `${opts.type}:::${opts.exchange}`
-    if (opts.type === 'topic') {
+    if (opts.type === 'topic' && opts.routingKey) {
       subscribedKey = `${subscribedKey}:::${opts.routingKey}`
     }
     if (this.subscribed.has(subscribedKey)) {
@@ -513,7 +517,7 @@ class RabbitMQ {
       .then(() => {
         log.info('exchange asserted')
         let queueName = `${this.name}.${opts.exchange}`
-        if (opts.type === 'topic') {
+        if (opts.type === 'topic' && opts.routingKey) {
           queueName = `${queueName}.${opts.routingKey}`
         }
         return Promise.resolve(

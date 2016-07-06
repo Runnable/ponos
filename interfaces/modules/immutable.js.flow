@@ -633,8 +633,8 @@ declare function is(first: any, second: any): boolean;
 
 declare module 'immutable' {
   declare var exports: {
-    Map: Class<Map>,
-    Set: Class<Set>
+    Map: Class<Map<*, *>>,
+    Set: Class<Set<*>>
   }
 }
 
