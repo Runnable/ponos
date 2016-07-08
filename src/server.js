@@ -1,11 +1,11 @@
 /* @flow */
-/* global Bluebird$Promise ErrorCat Logger */
+/* global Bluebird$Promise Logger */
 'use strict'
 
 const assign = require('101/assign')
 const clone = require('101/clone')
 const defaults = require('101/defaults')
-const errorCat = require('error-cat')
+const ErrorCat = require('error-cat')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
@@ -72,7 +72,7 @@ class Server {
       this.setAllEvents(this._opts.events)
     }
 
-    this.errorCat = this._opts.errorCat || errorCat
+    this.errorCat = this._opts.errorCat || ErrorCat
 
     // add the name to RabbitMQ options
     const rabbitmqOpts = defaults(

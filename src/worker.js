@@ -1,11 +1,11 @@
 /* @flow */
-/* global Logger ErrorCat WorkerError DDTimer */
+/* global Logger WorkerError DDTimer */
 'use strict'
 
 const cls = require('continuation-local-storage').createNamespace('ponos')
 const clsBlueBird = require('cls-bluebird')
 const defaults = require('101/defaults')
-const errorCat = require('error-cat')
+const ErrorCat = require('error-cat')
 const exists = require('101/exists')
 const isNumber = require('101/is-number')
 const isObject = require('101/is-object')
@@ -72,7 +72,7 @@ class Worker {
     opts = pick(opts, fields)
     defaults(opts, {
       // default non-required user options
-      errorCat: errorCat,
+      errorCat: ErrorCat,
       runNow: true,
       // other options
       attempt: 0,
