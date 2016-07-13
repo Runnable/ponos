@@ -1,1 +1,6 @@
 **/*{.,-}min.js
+coverage
+docs
+interfaces
+lib
+node_modules
