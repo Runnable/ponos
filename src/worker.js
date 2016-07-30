@@ -241,7 +241,7 @@ class Worker {
    * @private
    * @param {Error} err Error to report.
    */
-  _reportError (err: WorkerError): void {
+  _reportError (err: WorkerError|WorkerStopError): void {
     this.errorCat.report(err)
   }
 
