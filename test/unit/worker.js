@@ -40,35 +40,35 @@ describe('Worker', () => {
       const testOpts = omit(opts, 'job')
       assert.throws(() => {
         Worker.create(testOpts)
-      }, /job is required.+Worker/)
+      }, /"job" is required/)
     })
 
     it('should enforce default opts', () => {
       const testOpts = omit(opts, 'done')
       assert.throws(() => {
         Worker.create(testOpts)
-      }, /done is required.+Worker/)
+      }, /"done" is required/)
     })
 
     it('should enforce default opts', () => {
       const testOpts = omit(opts, 'queue')
       assert.throws(() => {
         Worker.create(testOpts)
-      }, /queue is required.+Worker/)
+      }, /"queue" is required/)
     })
 
     it('should enforce default opts', () => {
       const testOpts = omit(opts, 'task')
       assert.throws(() => {
         Worker.create(testOpts)
-      }, /task is required.+Worker/)
+      }, /"task" is required/)
     })
 
     it('should enforce default opts', () => {
       const testOpts = omit(opts, 'log')
       assert.throws(() => {
         Worker.create(testOpts)
-      }, /log is required.+Worker/)
+      }, /"log" is required/)
     })
 
     it('should run the job if runNow is true (default)', () => {
@@ -100,9 +100,9 @@ describe('Worker', () => {
     })
 
     it('should use the given errorCat', () => {
-      opts.errorCat = 'mew'
+      opts.errorCat = { mew: 2 }
       const w = Worker.create(opts)
-      assert.equal(w.errorCat, 'mew')
+      assert.deepEqual(w.errorCat, { mew: 2 })
     })
 
     describe('with worker timeout', () => {
@@ -124,14 +124,14 @@ describe('Worker', () => {
         opts.msTimeout = 'foobar'
         assert.throws(() => {
           Worker.create(opts)
-        }, /not an integer/)
+        }, /"msTimeout" must be a number/)
       })
 
       it('should throw when given a negative timeout', () => {
         opts.msTimeout = -230
         assert.throws(() => {
           Worker.create(opts)
-        }, /is negative/)
+        }, /must be larger than or equal to 0/)
       })
     })
   })
@@ -457,6 +457,54 @@ describe('Worker', () => {
         bunyan.prototype.error.restore()
         bunyan.prototype.warn.restore()
         worker._reportError.restore()
+      })
+
+      describe('with max worker timeout', () => {
+        it('should run final retry function, after given attempts', () => {
+          worker.maxNumRetries = 5
+          taskHandler = sinon.stub()
+          taskHandler.throws(new Error('foobar'))
+          sinon.spy(worker, 'finalRetryFn')
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              sinon.assert.callCount(taskHandler, 5)
+              sinon.assert.calledOnce(worker.finalRetryFn)
+              sinon.assert.calledWith(worker.finalRetryFn, worker.job)
+              sinon.assert.callCount(monitor.increment, 10)
+              sinon.assert.calledWith(monitor.increment.lastCall, 'ponos.finish', {
+                result: 'retry-error',
+                token0: 'command',
+                token1: 'something.command',
+                token2: 'do.something.command',
+                queue: 'do.something.command'
+              })
+              sinon.assert.callCount(worker._reportError, 5)
+              sinon.assert.calledWith(worker._reportError.lastCall, sinon.match.instanceOf(WorkerStopError))
+            })
+        })
+
+        it('should ignore final retry function errors', () => {
+          worker.maxNumRetries = 1
+          taskHandler = sinon.stub()
+          taskHandler.throws(new Error('foobar'))
+          sinon.stub(worker, 'finalRetryFn').rejects(new Error('sadness'))
+          return assert.isFulfilled(worker.run())
+            .then(() => {
+              sinon.assert.calledOnce(taskHandler)
+              sinon.assert.calledOnce(worker.finalRetryFn)
+              sinon.assert.calledWith(worker.finalRetryFn, worker.job)
+              sinon.assert.calledTwice(monitor.increment)
+              sinon.assert.calledWith(monitor.increment.secondCall, 'ponos.finish', {
+                result: 'retry-error',
+                token0: 'command',
+                token1: 'something.command',
+                token2: 'do.something.command',
+                queue: 'do.something.command'
+              })
+              sinon.assert.calledOnce(worker._reportError)
+              sinon.assert.calledWith(worker._reportError, sinon.match.instanceOf(WorkerStopError))
+            })
+        })
       })
 
       it('should catch WorkerStopError, not retry, and call done', () => {

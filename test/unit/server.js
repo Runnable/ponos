@@ -340,13 +340,6 @@ describe('Server', () => {
       server.setEvent(testQueue99, worker, opts)
       assert.deepEqual(server._workerOptions[testQueue99], opts)
     })
-
-    it('should pick only provided options that are valid', () => {
-      const opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
-      const expectedOpts = { msTimeout: 2000 }
-      server.setEvent(testQueue99, worker, opts)
-      assert.deepEqual(server._workerOptions[testQueue99], expectedOpts)
-    })
   })
 
   describe('setTask', () => {
@@ -372,13 +365,6 @@ describe('Server', () => {
       const opts = { msTimeout: 2000 }
       server.setTask(testQueue99, worker, opts)
       assert.deepEqual(server._workerOptions[testQueue99], opts)
-    })
-
-    it('should pick only provided options that are valid', () => {
-      const opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
-      const expectedOpts = { msTimeout: 2000 }
-      server.setTask(testQueue99, worker, opts)
-      assert.deepEqual(server._workerOptions[testQueue99], expectedOpts)
     })
   })
 

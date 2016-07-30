@@ -18,17 +18,19 @@ const TimeoutError = Promise.TimeoutError
 clsBlueBird(cls)
 
 const optsSchema = joi.object({
+  attempt: joi.number().required(),
   done: joi.func().required(),
-  job: joi.object().required(),
-  log: joi.object().required(),
-  queue: joi.string().required(),
-  task: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
+  job: joi.object().required(),
+  log: joi.object().required(),
   maxNumRetries: joi.number(),
-  msTimeout: joi.number().positive(),
-  runNow: joi.bool()
-})
+  msTimeout: joi.number().min(0),
+  queue: joi.string().required(),
+  retryDelay: joi.number().required(),
+  runNow: joi.bool(),
+  task: joi.func().required()
+}).required()
 
 /**
  * Performs tasks for jobs on a given queue.
@@ -66,21 +68,21 @@ class Worker {
   tid: String;
 
   constructor (opts: Object) {
-    // managed required fields
-    joi.assert(opts, optsSchema)
-    opts = joi.validate(opts, optsSchema, { stripUnknown: true }).value
-
     defaults(opts, {
       // default non-required user options
       errorCat: ErrorCat,
       runNow: true,
       // other options
       attempt: 0,
-      finalRetryFn: Promise.resolve(),
+      finalRetryFn: () => { return Promise.resolve() },
       maxNumRetries: process.env.WORKER_MAX_NUM_RETRIES || 0,
       msTimeout: process.env.WORKER_TIMEOUT || 0,
       retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
     })
+
+    // managed required fields
+    joi.assert(opts, optsSchema)
+    opts = joi.validate(opts, optsSchema, { stripUnknown: true }).value
 
     this.tid = opts.job.tid || uuid()
     opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
@@ -177,25 +179,32 @@ class Worker {
       // the job.
       return this.done()
     })
-    .catch(() => {
+    .catch((err) => {
       // if maxNumRetries is set, call finalRetryFn and stop
-      if (this.maxNumRetries && this.attempt >= this.maxNumRetries) {
-        log.error({ attempt: this.attempt }, 'retry limit reached, trying handler')
-        return this.finalRetryFn()
-          .catch((finalErr) => {
-            log.warn({ err: finalErr }, 'final function errored')
-          })
-          .finally(() => {
-            const err = new WorkerError('final retry handler finished', {
-              queue: this.queue,
-              job: this.job,
-              attempt: this.attempt
-            })
-            log.error('final retry handler finished')
-            this._incMonitor('ponos.finish', { result: 'retry-error' })
-            this._reportError(err)
-          })
+      if (!this.maxNumRetries || this.attempt < this.maxNumRetries) {
+        throw err
       }
+
+      log.error({
+        attempt: this.attempt
+      }, 'retry limit reached, trying handler')
+
+      return this.finalRetryFn(this.job)
+        .catch((finalErr) => {
+          log.warn({ err: finalErr }, 'final function errored')
+        })
+        .finally(() => {
+          const err = new WorkerStopError('final retry handler finished', {
+            queue: this.queue,
+            job: this.job,
+            attempt: this.attempt
+          })
+          log.error('final retry handler finished')
+          this._incMonitor('ponos.finish', { result: 'retry-error' })
+          this._reportError(err)
+          // If we reach attempt limit we should no longer try to schedule the job.
+          return this.done()
+        })
     })
     .catch((err) => {
       const attemptData = {
