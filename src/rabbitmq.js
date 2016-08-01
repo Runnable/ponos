@@ -348,7 +348,7 @@ class RabbitMQ {
     const subscriptions = this.subscriptions
     this.subscriptions = new Immutable.Map()
     const channel = this.channel
-    return Promise.map(subscriptions.keySeq(), (queue) => {
+    return Promise.map(subscriptions.keySeq().toArray(), (queue) => {
       const handler = subscriptions.get(queue)
       log.info({ queue: queue }, 'consuming on queue')
       // XXX(bryan): is this valid? should I not be checking _this_.consuming?
@@ -385,7 +385,7 @@ class RabbitMQ {
    */
   unsubscribe (): Bluebird$Promise<void> {
     const consuming = this.consuming
-    return Promise.map(consuming.keySeq(), (queue) => {
+    return Promise.map(consuming.keySeq().toArray(), (queue) => {
       const consumerTag = consuming.get(queue)
       return Promise.resolve(this.channel.cancel(consumerTag))
         .then(() => {

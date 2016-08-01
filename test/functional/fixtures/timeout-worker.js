@@ -1,6 +1,6 @@
 'use strict'
 
-const EventEmitter = require('events')
+const EventEmitter = require('events').EventEmitter
 const Promise = require('bluebird')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 

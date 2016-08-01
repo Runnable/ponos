@@ -1,10 +1,10 @@
 'use strict'
 
-const getNamespace = require('continuation-local-storage').getNamespace
-const Promise = require('bluebird')
-const WorkerStopError = require('error-cat/errors/worker-stop-error')
+var getNamespace = require('continuation-local-storage').getNamespace
+var Promise = require('bluebird')
+var WorkerStopError = require('error-cat/errors/worker-stop-error')
 
-const Ponos = require('../')
+var Ponos = require('../')
 
 /**
  * A simple worker that will publish a message to a queue.
@@ -13,16 +13,15 @@ const Ponos = require('../')
  * @returns {promise} Resolved when the message is put on the queue.
  */
 function basicWorker (job) {
-  return Promise.try(() => {
-    const tid = getNamespace('ponos').get('tid')
+  return Promise.try(function () {
+    var tid = getNamespace('ponos').get('tid')
     if (!job.message) {
       throw new WorkerStopError('message is required', { tid: tid })
     }
-    console.log(`hello world: ${job.message}. tid: ${tid}`)
   })
 }
 
-const server = new Ponos.Server({
+var server = new Ponos.Server({
   tasks: {
     'basic-queue-worker': basicWorker
   },
@@ -32,11 +31,11 @@ const server = new Ponos.Server({
 })
 
 server.start()
-  .then(() => { console.log('server started') })
-  .catch((err) => { console.error('server error:', err.stack || err.message || err) })
+  .then(function () { console.log('server started') })
+  .catch(function (err) { console.error('server error:', err.stack || err.message || err) })
 
-process.on('SIGINT', () => {
+process.on('SIGINT', function () {
   server.stop()
-    .then(() => { console.log('server stopped') })
-    .catch((err) => { console.error('server error:', err.stack || err.message || err) })
+    .then(function () { console.log('server stopped') })
+    .catch(function (err) { console.error('server error:', err.stack || err.message || err) })
 })
