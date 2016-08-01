@@ -53,7 +53,7 @@ describe('Basic Timeout Task', function () {
   }
 
   describe('with maxNumRetries', function () {
-    it('should fail twice and pass the third time', (done) => {
+    it('should fail 4 times and pass the fifth time', (done) => {
       testRecover = function (testJob) {
         try {
           assert.equal(job.message, testJob.message)

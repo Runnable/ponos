@@ -18,16 +18,16 @@ const TimeoutError = Promise.TimeoutError
 clsBlueBird(cls)
 
 const optsSchema = joi.object({
-  attempt: joi.number().required(),
+  attempt: joi.number().integer().min(0).required(),
   done: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
   job: joi.object().required(),
   log: joi.object().required(),
-  maxNumRetries: joi.number(),
-  msTimeout: joi.number().min(0),
+  maxNumRetries: joi.number().integer().min(0),
+  msTimeout: joi.number().integer().min(0),
   queue: joi.string().required(),
-  retryDelay: joi.number().required(),
+  retryDelay: joi.number().integer().min(0).required(),
   runNow: joi.bool(),
   task: joi.func().required()
 }).required()
