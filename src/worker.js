@@ -6,18 +6,31 @@ const cls = require('continuation-local-storage').createNamespace('ponos')
 const clsBlueBird = require('cls-bluebird')
 const defaults = require('101/defaults')
 const ErrorCat = require('error-cat')
-const exists = require('101/exists')
-const isNumber = require('101/is-number')
 const isObject = require('101/is-object')
+const joi = require('joi')
 const merge = require('101/put')
 const monitor = require('monitor-dog')
-const pick = require('101/pick')
 const Promise = require('bluebird')
 const uuid = require('uuid')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
 const TimeoutError = Promise.TimeoutError
 clsBlueBird(cls)
+
+const optsSchema = joi.object({
+  attempt: joi.number().integer().min(0).required(),
+  done: joi.func().required(),
+  errorCat: joi.object(),
+  finalRetryFn: joi.func(),
+  job: joi.object().required(),
+  log: joi.object().required(),
+  maxNumRetries: joi.number().integer().min(0),
+  msTimeout: joi.number().integer().min(0),
+  queue: joi.string().required(),
+  retryDelay: joi.number().integer().min(0).required(),
+  runNow: joi.bool(),
+  task: joi.func().required()
+}).required()
 
 /**
  * Performs tasks for jobs on a given queue.
@@ -44,8 +57,10 @@ class Worker {
   attempt: number;
   done: Function;
   errorCat: ErrorCat;
+  finalRetryFn: Function;
   job: Object;
   log: Logger;
+  maxNumRetries: number;
   msTimeout: number;
   queue: String;
   retryDelay: number;
@@ -53,48 +68,27 @@ class Worker {
   tid: String;
 
   constructor (opts: Object) {
-    // managed required fields
-    const fields = [
-      'done',
-      'job',
-      'log',
-      'queue',
-      'task'
-    ]
-    fields.forEach(function (f) {
-      if (!exists(opts[f])) {
-        throw new Error(f + ' is required for a Worker')
-      }
-    })
-
-    // manage field defaults
-    fields.push('errorCat', 'log', 'msTimeout', 'runNow')
-    opts = pick(opts, fields)
     defaults(opts, {
       // default non-required user options
       errorCat: ErrorCat,
       runNow: true,
       // other options
       attempt: 0,
+      finalRetryFn: () => { return Promise.resolve() },
+      maxNumRetries: process.env.WORKER_MAX_NUM_RETRIES || 0,
       msTimeout: process.env.WORKER_TIMEOUT || 0,
       retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
     })
+
+    // managed required fields
+    joi.assert(opts, optsSchema)
+    opts = joi.validate(opts, optsSchema, { stripUnknown: true }).value
 
     this.tid = opts.job.tid || uuid()
     opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
     // put all opts on this
     Object.assign(this, opts)
     this.log.info({ queue: this.queue, job: this.job }, 'Worker created')
-
-    // Ensure that the `msTimeout` option is valid
-    this.msTimeout = parseInt(this.msTimeout, 10)
-    if (!isNumber(this.msTimeout)) {
-      throw new Error('Provided `msTimeout` is not an integer')
-    }
-
-    if (this.msTimeout < 0) {
-      throw new Error('Provided `msTimeout` is negative')
-    }
 
     if (this.runNow) {
       this.run()
@@ -186,6 +180,33 @@ class Worker {
       return this.done()
     })
     .catch((err) => {
+      // if maxNumRetries is set, call finalRetryFn and stop
+      if (!this.maxNumRetries || this.attempt < this.maxNumRetries) {
+        throw err
+      }
+
+      log.error({
+        attempt: this.attempt
+      }, 'retry limit reached, trying handler')
+
+      return this.finalRetryFn(this.job)
+        .catch((finalErr) => {
+          log.warn({ err: finalErr }, 'final function errored')
+        })
+        .finally(() => {
+          const err = new WorkerStopError('final retry handler finished', {
+            queue: this.queue,
+            job: this.job,
+            attempt: this.attempt
+          })
+          log.error('final retry handler finished')
+          this._incMonitor('ponos.finish', { result: 'retry-error' })
+          this._reportError(err)
+          // If we reach attempt limit we should no longer try to schedule the job.
+          return this.done()
+        })
+    })
+    .catch((err) => {
       const attemptData = {
         err: err,
         nextAttemptDelay: this.retryDelay
@@ -220,7 +241,7 @@ class Worker {
    * @private
    * @param {Error} err Error to report.
    */
-  _reportError (err: WorkerError): void {
+  _reportError (err: WorkerError|WorkerStopError): void {
     this.errorCat.report(err)
   }
 

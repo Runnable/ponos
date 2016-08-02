@@ -1,0 +1,18 @@
+declare class Joi<T> {
+  static func(): T;
+  static object(): T;
+  static string(): T;
+  static required(): T;
+  static number(): T;
+  static bool(): T;
+  static assert(opts: Object, schema: T): T;
+  static validate(opts: Object, schema: T, opts: Object): JoiValidate;
+}
+
+declare class JoiValidate {
+  value: Object
+}
+
+declare module 'joi' {
+  declare var exports: typeof Joi;
+}

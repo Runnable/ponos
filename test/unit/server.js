@@ -330,6 +330,12 @@ describe('Server', () => {
       }, /must be a function/)
     })
 
+    it('should throw if the provided opts is not an object', () => {
+      assert.throws(() => {
+        server.setEvent(testQueue99, worker, 'not-an-object')
+      }, /must be a object/)
+    })
+
     it('should set default worker options', () => {
       server.setEvent(testQueue99, worker)
       assert.deepEqual(server._workerOptions[testQueue99], {})
@@ -339,13 +345,6 @@ describe('Server', () => {
       const opts = { msTimeout: 2000 }
       server.setEvent(testQueue99, worker, opts)
       assert.deepEqual(server._workerOptions[testQueue99], opts)
-    })
-
-    it('should pick only provided options that are valid', () => {
-      const opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
-      const expectedOpts = { msTimeout: 2000 }
-      server.setEvent(testQueue99, worker, opts)
-      assert.deepEqual(server._workerOptions[testQueue99], expectedOpts)
     })
   })
 
@@ -363,6 +362,12 @@ describe('Server', () => {
       }, /must be a function/)
     })
 
+    it('should throw if the provided opts is not an object', () => {
+      assert.throws(() => {
+        server.setTask(testQueue99, worker, 'not-an-object')
+      }, /must be a object/)
+    })
+
     it('should set default worker options', () => {
       server.setTask(testQueue99, worker)
       assert.deepEqual(server._workerOptions[testQueue99], {})
@@ -372,13 +377,6 @@ describe('Server', () => {
       const opts = { msTimeout: 2000 }
       server.setTask(testQueue99, worker, opts)
       assert.deepEqual(server._workerOptions[testQueue99], opts)
-    })
-
-    it('should pick only provided options that are valid', () => {
-      const opts = { msTimeout: 2000, foo: 'bar', not: 'athing' }
-      const expectedOpts = { msTimeout: 2000 }
-      server.setTask(testQueue99, worker, opts)
-      assert.deepEqual(server._workerOptions[testQueue99], expectedOpts)
     })
   })
 

@@ -9,7 +9,6 @@ const ErrorCat = require('error-cat')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
-const pick = require('101/pick')
 const Promise = require('bluebird')
 
 const logger = require('./logger')
@@ -212,10 +211,12 @@ class Server {
     if (!isFunction(task)) {
       throw new Error('ponos.server: setTask task handler must be a function')
     }
+    if (opts && !isObject(opts)) {
+      throw new Error('ponos.server: setTask opts must be a object')
+    }
+
     this._tasks = this._tasks.set(queueName, task)
-    this._workerOptions[queueName] = opts && isObject(opts)
-      ? pick(opts, 'msTimeout')
-      : {}
+    this._workerOptions[queueName] = opts || {}
     return this
   }
 
@@ -235,10 +236,12 @@ class Server {
     if (!isFunction(task)) {
       throw new Error('ponos.server: setEvent task handler must be a function')
     }
+    if (opts && !isObject(opts)) {
+      throw new Error('ponos.server: setEvent opts must be a object')
+    }
+
     this._events = this._events.set(exchangeName, task)
-    this._workerOptions[exchangeName] = opts && isObject(opts)
-      ? pick(opts, 'msTimeout')
-      : {}
+    this._workerOptions[exchangeName] = opts || {}
     return this
   }
 
