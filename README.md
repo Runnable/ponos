@@ -30,6 +30,7 @@ environment variable     | default | description
 `WORKER_MAX_RETRY_DELAY` | `0`     | The maximum time, in milliseconds, that the worker will wait before retrying a task. The timeout will exponentially increase from `MIN_RETRY_DELAY` to `MAX_RETRY_DELAY` if the latter is set higher than the former. If this value is not set, the worker will not exponentially back off.
 `WORKER_MIN_RETRY_DELAY` | `1`     | Time, in milliseconds, the worker will wait at minimum will wait before retrying a task.
 `WORKER_TIMEOUT`         | `0`     | Timeout, in milliseconds, at which the worker task will be retried.
+`WORKER_MAX_NUM_RETRIES` | `0`     | The maximum number of times a job will retry due to failures. 0 means infinity
 
 ## Usage
 
@@ -136,12 +137,14 @@ Or one can set this option via `setAllTasks`:
 
 ```js
 server.setAllTasks({
-  // This will use the default timeout...
+  // This will use the default timeout, maxNumRetries, ...
   'queue-1': queueOneTaskFn,
-  // This will use the specified timeout...
+  // This will use the specified timeout, maxNumRetries, ...
   'queue-2': {
     task: queueTwoTaskFn,
-    msTimeout: 1337
+    msTimeout: 1337,
+    maxNumRetries: 7,
+    finalRetryFn: () => { return Promise.try(...)}
   }
 })
 ```
