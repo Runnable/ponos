@@ -143,7 +143,11 @@ class Worker {
                   joi.assert(this.job, this.jobSchema)
                 })
                 .catch(function (err) {
-                  throw new WorkerStopError('Invalid job', { err: err })
+                  throw new WorkerStopError('Invalid job', {
+                    queue: this.queue,
+                    job: this.job,
+                    validationErr: err
+                  })
                 })
                 .then(function () {
                   return this.task(this.job)
