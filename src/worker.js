@@ -83,11 +83,8 @@ class Worker {
       msTimeout: process.env.WORKER_TIMEOUT || 0,
       retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
     })
-
     // managed required fields
     joi.assert(opts, optsSchema)
-    opts = joi.validate(opts, optsSchema, { stripUnknown: true }).value
-
     this.tid = opts.job.tid || uuid()
     opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
     // put all opts on this
@@ -139,17 +136,17 @@ class Worker {
           let taskPromise = Promise.try(() => {
             if (this.jobSchema) {
               return Promise
-                .try(function validateArguments () {
+                .try(() => {
                   joi.assert(this.job, this.jobSchema)
                 })
-                .catch(function (err) {
+                .catch((err) => {
                   throw new WorkerStopError('Invalid job', {
                     queue: this.queue,
                     job: this.job,
                     validationErr: err
                   })
                 })
-                .then(function () {
+                .then(() => {
                   return this.task(this.job)
                 })
             } else {

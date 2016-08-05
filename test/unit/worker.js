@@ -3,6 +3,7 @@
 const assign = require('101/assign')
 const bunyan = require('bunyan')
 const chai = require('chai')
+const joi = require('joi')
 const monitor = require('monitor-dog')
 const noop = require('101/noop')
 const omit = require('101/omit')
@@ -25,6 +26,9 @@ describe('Worker', () => {
     opts = {
       queue: 'do.something.command',
       task: (data) => { return Promise.resolve(data).then(taskHandler) },
+      jobSchema: joi.object({
+        message: joi.string()
+      }),
       job: { message: 'hello world' },
       log: logger.child({ module: 'ponos:test' }),
       done: () => { return Promise.resolve().then(doneHandler) }
