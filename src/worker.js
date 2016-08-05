@@ -133,26 +133,22 @@ class Worker {
             timeout: this.msTimeout
           }
           log.info(attemptData, 'running task')
-          let taskPromise = Promise.try(() => {
-            if (this.jobSchema) {
-              return Promise
-                .try(() => {
-                  joi.assert(this.job, this.jobSchema)
-                })
-                .catch((err) => {
-                  throw new WorkerStopError('Invalid job', {
-                    queue: this.queue,
-                    job: this.job,
-                    validationErr: err
-                  })
-                })
-                .then(() => {
-                  return this.task(this.job)
-                })
-            } else {
+          let taskPromise = Promise
+            .try(() => {
+              if (this.jobSchema) {
+                joi.assert(this.job, this.jobSchema)
+              }
+            })
+            .catch((err) => {
+              throw new WorkerStopError('Invalid job', {
+                queue: this.queue,
+                job: this.job,
+                validationErr: err
+              })
+            })
+            .then(() => {
               return this.task(this.job)
-            }
-          })
+            })
 
           if (this.msTimeout) {
             taskPromise = taskPromise.timeout(this.msTimeout)
