@@ -527,6 +527,40 @@ describe('Worker', () => {
         })
       })
 
+      it('should throw WorkerStopError if validation failed', () => {
+        // taskHandler = sinon.stub().throws(new WorkerStopError('foobar'))
+        worker.jobSchema = joi.object({
+          message: joi.bool()
+        })
+        return assert.isFulfilled(worker.run())
+          .then(() => {
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
+            sinon.assert.calledTwice(monitor.increment)
+            sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledWith(monitor.increment.secondCall, 'ponos.finish', {
+              result: 'fatal-error',
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(monitor.timer)
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(timer.stop)
+          })
+      })
+
       it('should catch WorkerStopError, not retry, and call done', () => {
         taskHandler = sinon.stub().throws(new WorkerStopError('foobar'))
         return assert.isFulfilled(worker.run())
