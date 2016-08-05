@@ -367,6 +367,39 @@ describe('Worker', () => {
           })
       })
 
+      it('should run the task and call done if jobSchema is null', () => {
+        taskHandler = sinon.stub()
+        doneHandler = sinon.stub()
+        worker.jobSchema = null
+        return assert.isFulfilled(worker.run())
+          .then(() => {
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
+            sinon.assert.calledTwice(monitor.increment)
+            sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledWith(monitor.increment.secondCall, 'ponos.finish', {
+              result: 'success',
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(monitor.timer)
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(timer.stop)
+          })
+      })
+
       describe('with disabled monitoring', () => {
         beforeEach(() => {
           process.env.WORKER_MONITOR_DISABLED = 'true'
@@ -528,13 +561,11 @@ describe('Worker', () => {
       })
 
       it('should throw WorkerStopError if validation failed', () => {
-        // taskHandler = sinon.stub().throws(new WorkerStopError('foobar'))
         worker.jobSchema = joi.object({
           message: joi.bool()
         })
         return assert.isFulfilled(worker.run())
           .then(() => {
-            sinon.assert.calledOnce(taskHandler)
             sinon.assert.calledOnce(doneHandler)
             sinon.assert.calledTwice(monitor.increment)
             sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
