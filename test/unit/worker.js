@@ -71,6 +71,22 @@ describe('Worker', () => {
       }, /"log" is required/)
     })
 
+    it('should throw when jobSchema is not object', () => {
+      opts.jobSchema = 'no schema'
+      assert.throws(() => {
+        Worker.create(opts)
+      }, /"jobSchema" must be an object/)
+    })
+
+    it('should throw when jobSchema is not joi schema', () => {
+      opts.jobSchema = {
+        isJoi: false
+      }
+      assert.throws(() => {
+        Worker.create(opts)
+      }, /"isJoi" must be one of \[true\]/)
+    })
+
     it('should run the job if runNow is true (default)', () => {
       Worker.create(opts)
       sinon.assert.calledOnce(Worker.prototype.run)
