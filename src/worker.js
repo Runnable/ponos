@@ -22,6 +22,9 @@ const optsSchema = joi.object({
   done: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
+  jobSchema: joi.object({
+    isJoi: joi.bool().valid(true)
+  }).unknown(),
   job: joi.object().required(),
   log: joi.object().required(),
   maxNumRetries: joi.number().integer().min(0),
@@ -58,6 +61,7 @@ class Worker {
   done: Function;
   errorCat: ErrorCat;
   finalRetryFn: Function;
+  jobSchema: Object;
   job: Object;
   log: Logger;
   maxNumRetries: number;
@@ -133,7 +137,20 @@ class Worker {
           }
           log.info(attemptData, 'running task')
           let taskPromise = Promise.try(() => {
-            return this.task(this.job)
+            if (this.jobSchema) {
+              return Promise
+                .try(function validateArguments () {
+                  joi.assert(this.job, this.jobSchema)
+                })
+                .catch(function (err) {
+                  throw new WorkerStopError('Invalid job', { err: err })
+                })
+                .then(function () {
+                  return this.task(this.job)
+                })
+            } else {
+              return this.task(this.job)
+            }
           })
 
           if (this.msTimeout) {
