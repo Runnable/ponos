@@ -22,6 +22,9 @@ const optsSchema = joi.object({
   done: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
+  jobSchema: joi.object({
+    isJoi: joi.bool().valid(true)
+  }).unknown(),
   job: joi.object().required(),
   log: joi.object().required(),
   maxNumRetries: joi.number().integer().min(0),
@@ -58,6 +61,7 @@ class Worker {
   done: Function;
   errorCat: ErrorCat;
   finalRetryFn: Function;
+  jobSchema: Object;
   job: Object;
   log: Logger;
   maxNumRetries: number;
@@ -79,11 +83,8 @@ class Worker {
       msTimeout: process.env.WORKER_TIMEOUT || 0,
       retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
     })
-
     // managed required fields
     joi.assert(opts, optsSchema)
-    opts = joi.validate(opts, optsSchema, { stripUnknown: true }).value
-
     this.tid = opts.job.tid || uuid()
     opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
     // put all opts on this
@@ -132,9 +133,22 @@ class Worker {
             timeout: this.msTimeout
           }
           log.info(attemptData, 'running task')
-          let taskPromise = Promise.try(() => {
-            return this.task(this.job)
-          })
+          let taskPromise = Promise
+            .try(() => {
+              if (this.jobSchema) {
+                joi.assert(this.job, this.jobSchema)
+              }
+            })
+            .catch((err) => {
+              throw new WorkerStopError('Invalid job', {
+                queue: this.queue,
+                job: this.job,
+                validationErr: err
+              })
+            })
+            .then(() => {
+              return this.task(this.job)
+            })
 
           if (this.msTimeout) {
             taskPromise = taskPromise.timeout(this.msTimeout)

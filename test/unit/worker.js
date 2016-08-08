@@ -3,6 +3,7 @@
 const assign = require('101/assign')
 const bunyan = require('bunyan')
 const chai = require('chai')
+const joi = require('joi')
 const monitor = require('monitor-dog')
 const noop = require('101/noop')
 const omit = require('101/omit')
@@ -25,6 +26,9 @@ describe('Worker', () => {
     opts = {
       queue: 'do.something.command',
       task: (data) => { return Promise.resolve(data).then(taskHandler) },
+      jobSchema: joi.object({
+        message: joi.string()
+      }),
       job: { message: 'hello world' },
       log: logger.child({ module: 'ponos:test' }),
       done: () => { return Promise.resolve().then(doneHandler) }
@@ -69,6 +73,22 @@ describe('Worker', () => {
       assert.throws(() => {
         Worker.create(testOpts)
       }, /"log" is required/)
+    })
+
+    it('should throw when jobSchema is not object', () => {
+      opts.jobSchema = 'no schema'
+      assert.throws(() => {
+        Worker.create(opts)
+      }, /"jobSchema" must be an object/)
+    })
+
+    it('should throw when jobSchema is not joi schema', () => {
+      opts.jobSchema = {
+        isJoi: false
+      }
+      assert.throws(() => {
+        Worker.create(opts)
+      }, /"isJoi" must be one of \[true\]/)
     })
 
     it('should run the job if runNow is true (default)', () => {
@@ -347,6 +367,39 @@ describe('Worker', () => {
           })
       })
 
+      it('should run the task and call done if jobSchema is null', () => {
+        taskHandler = sinon.stub()
+        doneHandler = sinon.stub()
+        worker.jobSchema = null
+        return assert.isFulfilled(worker.run())
+          .then(() => {
+            sinon.assert.calledOnce(taskHandler)
+            sinon.assert.calledOnce(doneHandler)
+            sinon.assert.calledTwice(monitor.increment)
+            sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledWith(monitor.increment.secondCall, 'ponos.finish', {
+              result: 'success',
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(monitor.timer)
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(timer.stop)
+          })
+      })
+
       describe('with disabled monitoring', () => {
         beforeEach(() => {
           process.env.WORKER_MONITOR_DISABLED = 'true'
@@ -505,6 +558,38 @@ describe('Worker', () => {
               sinon.assert.calledWith(worker._reportError, sinon.match.instanceOf(WorkerStopError))
             })
         })
+      })
+
+      it('should throw WorkerStopError if validation failed', () => {
+        worker.jobSchema = joi.object({
+          message: joi.bool()
+        })
+        return assert.isFulfilled(worker.run())
+          .then(() => {
+            sinon.assert.calledOnce(doneHandler)
+            sinon.assert.calledTwice(monitor.increment)
+            sinon.assert.calledWith(monitor.increment.firstCall, 'ponos', {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledWith(monitor.increment.secondCall, 'ponos.finish', {
+              result: 'fatal-error',
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(monitor.timer)
+            sinon.assert.calledWith(monitor.timer, 'ponos.timer', true, {
+              token0: 'command',
+              token1: 'something.command',
+              token2: 'do.something.command',
+              queue: 'do.something.command'
+            })
+            sinon.assert.calledOnce(timer.stop)
+          })
       })
 
       it('should catch WorkerStopError, not retry, and call done', () => {
