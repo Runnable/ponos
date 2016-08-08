@@ -257,13 +257,13 @@ class Server {
     this.log.trace('_subscribeAll')
     const tasks = this._tasks
     const events = this._events
-    return Promise.map(tasks.keySeq(), (queue) => {
+    return Promise.map(tasks.keySeq().toArray(), (queue) => {
       return this._rabbitmq.subscribeToQueue(queue, (job, done) => {
         this._runWorker(queue, tasks.get(queue), job, done)
       })
     })
       .then(() => {
-        return Promise.map(events.keySeq(), (exchange) => {
+        return Promise.map(events.keySeq().toArray(), (exchange) => {
           return this._rabbitmq.subscribeToFanoutExchange(
             exchange,
             (job, done) => {

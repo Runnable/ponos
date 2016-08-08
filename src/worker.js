@@ -7,6 +7,7 @@ const clsBlueBird = require('cls-bluebird')
 const defaults = require('101/defaults')
 const ErrorCat = require('error-cat')
 const isObject = require('101/is-object')
+const assign = require('101/assign')
 const joi = require('joi')
 const merge = require('101/put')
 const monitor = require('monitor-dog')
@@ -88,7 +89,7 @@ class Worker {
     this.tid = opts.job.tid || uuid()
     opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
     // put all opts on this
-    Object.assign(this, opts)
+    assign(this, opts)
     this.log.info({ queue: this.queue, job: this.job }, 'Worker created')
 
     if (this.runNow) {
