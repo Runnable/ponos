@@ -142,6 +142,7 @@ server.setAllTasks({
   // This will use the specified timeout, maxNumRetries, ...
   'queue-2': {
     task: queueTwoTaskFn,
+    jobSchema: Joi.object({ tid: Joi.string() }),
     msTimeout: 1337,
     maxNumRetries: 7,
     finalRetryFn: () => { return Promise.try(...)}
