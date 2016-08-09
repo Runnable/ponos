@@ -7,9 +7,6 @@ const testWorkerEmitter = testWorker.emitter
 const ponos = require('../../src')
 const RabbitMQ = require('../../src/rabbitmq')
 
-const Promise = require('bluebird')
-
-
 describe('Basic Example', () => {
   let server
   let rabbitmq
