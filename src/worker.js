@@ -3,7 +3,7 @@
 'use strict'
 
 const cls = require('continuation-local-storage').createNamespace('ponos')
-const clsBlueBird = require('cls-bluebird')
+const clsBlueBird = require('@runnable/cls-bluebird')
 const defaults = require('101/defaults')
 const ErrorCat = require('error-cat')
 const isObject = require('101/is-object')
