@@ -1,22 +1,14 @@
 'use strict'
 
-const chai = require('chai')
-
-const assert = chai.assert
+const testWorker = require('./fixtures/worker-tid')
+const testWorkerEmitter = testWorker.emitter
 
 // Ponos Tooling
 const ponos = require('../../src')
 const RabbitMQ = require('../../src/rabbitmq')
-const testWorker = require('./fixtures/worker')
-const testWorkerEmitter = (job) => {
-  return Promise
-    .try(() => {
 
-    })
-    .then(() => {
-      console.log('hi', job)
-    })
-}
+const Promise = require('bluebird')
+
 
 describe('Basic Example', () => {
   let server
@@ -46,6 +38,12 @@ describe('Basic Example', () => {
       eventName: 'task',
       message: 'hello world'
     }
+    testWorkerEmitter.on('failed', function (err) {
+      done(new Error(err.message))
+    })
+    testWorkerEmitter.on('passed', function () {
+      done()
+    })
     rabbitmq.publishTask('ponos-test:one', job)
   })
 })
