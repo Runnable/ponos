@@ -1,4 +1,4 @@
-declare module 'cls-bluebird' {
+declare module '@runnable/cls-bluebird' {
   declare var exports: {
     (cls: CLS): void;
   }
