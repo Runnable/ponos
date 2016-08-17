@@ -1,5 +1,5 @@
 /* @flow */
-/* global Bluebird$Promise RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions */
+/* global Bluebird$Promise RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions QueueObject*/
 'use strict'
 
 const amqplib = require('amqplib')
@@ -9,10 +9,38 @@ const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
 const isString = require('101/is-string')
+const joi = require('joi')
 const Promise = require('bluebird')
 const uuid = require('uuid')
 
 const logger = require('./logger')
+
+const tasksSchema = joi.alternatives().try(joi.string(), joi.object({
+  name: joi.func().required(),
+  exclusive: joi.bool(),
+  durable: joi.bool(),
+  autoDelete: joi.bool()
+}))
+
+const eventsSchema = joi.alternatives().try(joi.string(), joi.object({
+  name: joi.func().required(),
+  internal: joi.bool(),
+  durable: joi.bool(),
+  autoDelete: joi.bool(),
+  alternateExchange: joi.bool()
+}))
+
+const optsSchema = joi.object({
+  name: joi.string(),
+  hostname: joi.string(),
+  port: joi.number(),
+  username: joi.string(),
+  password: joi.string(),
+  log: joi.object().type(logger.constructor, 'Bunyan Logger'),
+  channelOpts: joi.object(),
+  tasks: joi.array().items(tasksSchema),
+  events: joi.array().items(eventsSchema)
+}).or('tasks', 'events').required()
 
 /**
  * RabbitMQ model. Can be used independently for publishing or other uses.
@@ -39,6 +67,7 @@ class RabbitMQ {
   channelOpts: Object;
   connection: RabbitMQConnection;
   consuming: Map<string, string>;
+  events: Array<string|Object>;
   hostname: string;
   log: Object;
   name: string;
@@ -47,13 +76,12 @@ class RabbitMQ {
   publishChannel: RabbitMQConfirmChannel;
   subscribed: Set<string>;
   subscriptions: Map<string, Function>;
+  tasks: Array<string|Object>;
   username: string;
 
   constructor (opts: Object) {
     this.name = opts.name || 'ponos'
-    this.hostname = opts.hostname ||
-      process.env.RABBITMQ_HOSTNAME ||
-      'localhost'
+    this.hostname = opts.hostname || process.env.RABBITMQ_HOSTNAME || 'localhost'
     this.port = opts.port || parseInt(process.env.RABBITMQ_PORT, 10) || 5672
     this.username = opts.username || process.env.RABBITMQ_USERNAME
     this.password = opts.password || process.env.RABBITMQ_PASSWORD
@@ -65,7 +93,10 @@ class RabbitMQ {
         'constructor documentation.'
       )
     }
+    this.tasks = opts.tasks || []
+    this.events = opts.events || []
     this.log.trace({ opts: opts }, 'RabbitMQ constructor')
+    joi.assert(this, optsSchema)
     this._setCleanState()
   }
 
@@ -126,6 +157,24 @@ class RabbitMQ {
         this.log.info('created confirm channel')
         this.publishChannel = channel
         this.publishChannel.on('error', this._channelErrorHandler.bind(this))
+      })
+      .then(() => {
+        return Promise.each(this.events, (event) => {
+          if (typeof event === 'string') {
+            return this._assertExchange(event, 'fanout')
+          }
+
+          return this._assertExchange(event.name, 'fanout', event)
+        })
+      })
+      .then(() => {
+        return Promise.each(this.tasks, (task) => {
+          if (typeof task === 'string') {
+            return this._assertQueue(`${this.name}.${task}`)
+          }
+
+          return this._assertQueue(`${this.name}.${task.name}`, task)
+        })
       })
   }
 
@@ -212,6 +261,42 @@ class RabbitMQ {
   }
 
   /**
+   * Asserts exchanges on the channel.
+   *
+   * @param {String} name Exchange Name
+   * @param {String} type Type of exchange [topic|fanout]
+   * @param {Object} opts extra options for exchange
+   * @return {Promise} Promise resolved when exchange is created.
+   * @resolves {QueueObject} asserted exchange
+   */
+  _assertExchange (name: string, type: string, opts?: Object): Bluebird$Promise<void> {
+    return Promise.resolve(
+      this.channel.assertExchange(
+        name,
+        type,
+        defaults(opts, RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
+      )
+    )
+  }
+
+  /**
+   * Asserts queue on the channel.
+   *
+   * @param {String} name Queue Name
+   * @param {Object} opts extra options for queue
+   * @return {Promise} Promise resolved when queue is created.
+   * @resolves {QueueObject} asserted queue
+   */
+  _assertQueue (name: string, opts?: Object): Bluebird$Promise<QueueObject> {
+    return Promise.resolve(
+      this.channel.assertQueue(
+        name,
+        defaults(opts, RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
+      )
+    )
+  }
+
+  /**
    * Subscribe to a specific direct queue.
    *
    * @private
@@ -240,22 +325,12 @@ class RabbitMQ {
         new Error(`handler for ${queue} must be a function`)
       )
     }
-    if (this.subscribed.has(`queue:::${queue}`)) {
-      log.warn('already subscribed to queue')
-      return Promise.resolve()
-    }
-    return Promise
-      .resolve(
-        this.channel.assertQueue(
-          queue,
-          defaults(queueOptions, RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
-        )
-      )
-      .then(() => {
-        log.info('queue asserted, binding queue')
-        this.subscriptions = this.subscriptions.set(queue, handler)
-        this.subscribed = this.subscribed.add(`queue:::${queue}`)
-      })
+    const queueName = `${this.name}.${queue}`
+    return Promise.try(() => {
+      log.trace('binding to queue')
+      this.subscriptions = this.subscriptions.set(queueName, handler)
+      this.subscribed = this.subscribed.add(`queue:::${queueName}`)
+    })
   }
 
   /**
@@ -502,45 +577,32 @@ class RabbitMQ {
       log.warn(`already subscribed to ${opts.type} exchange`)
       return Promise.resolve()
     }
-    return Promise
-      .resolve(
-        this.channel.assertExchange(
-          opts.exchange,
-          opts.type,
-          defaults(opts.exchangeOptions, RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
+    return Promise.try(() => {
+      log.trace('asserting queue for exchange')
+      let queueName = `${this.name}.${opts.exchange}`
+      if (opts.type === 'topic' && opts.routingKey) {
+        queueName = `${queueName}.${opts.routingKey}`
+      }
+      return this._assertQueue(queueName, opts.queueOptions)
+    })
+    .then((queueInfo) => {
+      const queue = queueInfo.queue
+      log.info({ queue: queue }, 'queue asserted')
+      log.info('binding queue')
+      if (!opts.routingKey) {
+        opts.routingKey = ''
+      }
+      return Promise
+        .resolve(
+          this.channel.bindQueue(queue, opts.exchange, opts.routingKey)
         )
-      )
-      .then(() => {
-        log.info('exchange asserted')
-        let queueName = `${this.name}.${opts.exchange}`
-        if (opts.type === 'topic' && opts.routingKey) {
-          queueName = `${queueName}.${opts.routingKey}`
-        }
-        return Promise.resolve(
-          this.channel.assertQueue(
-            queueName,
-            defaults(opts.queueOptions, RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
-          )
-        )
-      })
-      .then((queueInfo) => {
-        const queue = queueInfo.queue
-        log.info({ queue: queue }, 'queue asserted')
-        log.info('binding queue')
-        if (!opts.routingKey) {
-          opts.routingKey = ''
-        }
-        return Promise
-          .resolve(
-            this.channel.bindQueue(queue, opts.exchange, opts.routingKey)
-          )
-          .return(queue)
-      })
-      .then((queue) => {
-        log.info('bound queue')
-        this.subscriptions = this.subscriptions.set(queue, opts.handler)
-        this.subscribed = this.subscribed.add(subscribedKey)
-      })
+        .return(queue)
+    })
+    .then((queue) => {
+      log.info('bound queue')
+      this.subscriptions = this.subscriptions.set(queue, opts.handler)
+      this.subscribed = this.subscribed.add(subscribedKey)
+    })
   }
 
   /**

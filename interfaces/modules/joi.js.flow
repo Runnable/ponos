@@ -1,11 +1,13 @@
 declare class Joi<T> {
-  static func(): T;
-  static object(): T;
-  static string(): T;
-  static required(): T;
-  static number(): T;
-  static bool(): T;
+  static alternatives(): T;
+  static array(): T;
   static assert(opts: Object, schema: T): T;
+  static bool(): T;
+  static func(): T;
+  static number(): T;
+  static object(): T;
+  static required(): T;
+  static string(): T;
   static validate(opts: Object, schema: T, opts: Object): JoiValidate;
 }
 
