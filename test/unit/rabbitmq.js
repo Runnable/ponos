@@ -562,7 +562,7 @@ describe('rabbitmq', () => {
     it('should reject if not defined', () => {
       return assert.isRejected(
         rabbitmq.publishTask('not-real', mockJob),
-        /Trying to publish task not defined in constructor/
+        /task: "not-real" not defined in constructor/
       )
     })
 
@@ -602,8 +602,8 @@ describe('rabbitmq', () => {
 
     it('should reject if not defined', () => {
       return assert.isRejected(
-        rabbitmq.publishEvent('not-real', mockJob),
-        /Trying to publish event not defined in constructor/
+        rabbitmq.publishEvent('unreal', mockJob),
+        /event "unreal" not defined in constructor/
       )
     })
 

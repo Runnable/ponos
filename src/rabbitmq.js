@@ -247,7 +247,7 @@ class RabbitMQ {
       const bufferContent = this._validatePublish(queue, content)
       this.log.trace({ queue: queueName, job: content }, 'Publishing job')
       if (!~this.tasks.indexOf(queue)) {
-        throw new Error('Trying to publish task not defined in constructor')
+        throw new Error(`task: "${queue}" not defined in constructor`)
       }
       return Promise.resolve(
         this.publishChannel.sendToQueue(queueName, bufferContent)
@@ -267,7 +267,7 @@ class RabbitMQ {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content)
       if (!~this.events.indexOf(exchange)) {
-        throw new Error('Trying to publish event not defined in constructor')
+        throw new Error(`event "${exchange}" not defined in constructor`)
       }
       // events do not need a routing key (so we send '')
       return Promise.resolve(
