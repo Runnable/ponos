@@ -83,10 +83,12 @@ describe('Worker', () => {
     })
 
     it('should throw when jobSchema is not joi schema', () => {
-      opts.jobSchema = {}
+      opts.jobSchema = {
+        isJoi: false
+      }
       assert.throws(() => {
         Worker.create(opts)
-      }, /"jobSchema" must be a Joi instance/)
+      }, /"isJoi" must be one of \[true\]/)
     })
 
     it('should run the job if runNow is true (default)', () => {
