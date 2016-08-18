@@ -22,7 +22,9 @@ const optsSchema = joi.object({
   done: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
-  jobSchema: joi.object().schema(),
+  jobSchema: joi.object({
+    isJoi: joi.bool().valid(true)
+  }).unknown(),
   job: joi.object().required(),
   log: joi.object().required(),
   maxNumRetries: joi.number().integer().min(0),
