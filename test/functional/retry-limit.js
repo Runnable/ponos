@@ -22,7 +22,6 @@ describe('Basic Timeout Task', function () {
   let testRecover
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
-    rabbitmq = new RabbitMQ({})
     const tasks = {
       'ponos-test:one': {
         task: () => {
@@ -34,6 +33,9 @@ describe('Basic Timeout Task', function () {
         maxNumRetries: 5
       }
     }
+    rabbitmq = new RabbitMQ({
+      tasks: Object.keys(tasks)
+    })
     server = new ponos.Server({ tasks: tasks })
     return server.start()
       .then(() => {

@@ -19,13 +19,13 @@ describe('rabbitmq', () => {
   const mockConnection = {}
   const mockChannel = {}
   const mockConfirmChannel = { confirm: true }
-  const prevUsername = process.env.RABBITMQ_USERNAME
-  const prevPassword = process.env.RABBITMQ_PASSWORD
+  const testName = 'test-client'
 
   beforeEach(() => {
     process.env.RABBITMQ_USERNAME = 'guest'
     process.env.RABBITMQ_PASSWORD = 'guest'
-    rabbitmq = new RabbitMQ({ name: 'test-client' })
+
+    rabbitmq = new RabbitMQ({ name: testName })
     mockConnection.on = sinon.stub()
     mockConnection.createChannel = sinon.stub().resolves(mockChannel)
     mockConnection.createConfirmChannel =
@@ -33,11 +33,6 @@ describe('rabbitmq', () => {
     mockChannel.on = sinon.stub()
     mockChannel.prefetch = sinon.stub().resolves()
     mockConfirmChannel.on = sinon.stub()
-  })
-
-  afterEach(() => {
-    process.env.RABBITMQ_USERNAME = prevUsername
-    process.env.RABBITMQ_PASSWORD = prevPassword
   })
 
   describe('constructor', () => {
@@ -101,12 +96,14 @@ describe('rabbitmq', () => {
     beforeEach(() => {
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(false)
       sinon.stub(RabbitMQ.prototype, '_isPartlyConnected').returns(false)
+      sinon.stub(RabbitMQ.prototype, '_assertQueuesAndExchanges').resolves()
       sinon.stub(amqplib, 'connect').resolves(mockConnection)
     })
 
     afterEach(() => {
       RabbitMQ.prototype._isConnected.restore()
       RabbitMQ.prototype._isPartlyConnected.restore()
+      RabbitMQ.prototype._assertQueuesAndExchanges.restore()
       amqplib.connect.restore()
     })
 
@@ -115,6 +112,13 @@ describe('rabbitmq', () => {
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype._isConnected)
           sinon.assert.calledOnce(RabbitMQ.prototype._isPartlyConnected)
+        })
+    })
+
+    it('should _assertQueuesAndExchanges', () => {
+      return assert.isFulfilled(rabbitmq.connect())
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._assertQueuesAndExchanges)
         })
     })
 
@@ -360,11 +364,183 @@ describe('rabbitmq', () => {
     })
   })
 
+  describe('_assertQueuesAndExchanges', () => {
+    const testTasks = ['laundry']
+    const testEvents = ['outside.lands']
+
+    beforeEach(() => {
+      rabbitmq.tasks = testTasks
+      rabbitmq.events = testEvents
+      sinon.stub(rabbitmq, '_assertExchange')
+      sinon.stub(rabbitmq, '_assertQueue')
+    })
+
+    afterEach(() => {
+      rabbitmq._assertExchange.restore()
+      rabbitmq._assertQueue.restore()
+    })
+
+    it('should assert string exchange', function () {
+      return assert.isFulfilled(rabbitmq._assertQueuesAndExchanges())
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq._assertExchange)
+          sinon.assert.calledWithExactly(
+            rabbitmq._assertExchange,
+            testEvents[0],
+            'fanout'
+          )
+        })
+    })
+
+    it('should assert string queue', function () {
+      return assert.isFulfilled(rabbitmq._assertQueuesAndExchanges())
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq._assertQueue)
+          sinon.assert.calledWithExactly(
+            rabbitmq._assertQueue,
+            `${testName}.${testTasks[0]}`
+          )
+        })
+    })
+
+    it('should assert complex queue', function () {
+      const testTask = { name: 'homework', opt: 1 }
+      rabbitmq.tasks = [testTask]
+      return assert.isFulfilled(rabbitmq._assertQueuesAndExchanges())
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq._assertQueue)
+          sinon.assert.calledWithExactly(
+            rabbitmq._assertQueue,
+            `${testName}.${testTask.name}`,
+            testTask
+          )
+        })
+    })
+
+    it('should assert complex event', function () {
+      const testEvent = { name: 'tomorrowsworld', opt: 2 }
+      rabbitmq.events = [testEvent]
+      return assert.isFulfilled(rabbitmq._assertQueuesAndExchanges())
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq._assertExchange)
+          sinon.assert.calledWithExactly(
+            rabbitmq._assertExchange,
+            testEvent.name,
+            'fanout',
+            testEvent
+          )
+        })
+    })
+
+    it('should assert nothing', function () {
+      rabbitmq.events = []
+      rabbitmq.tasks = []
+      return assert.isFulfilled(rabbitmq._assertQueuesAndExchanges())
+        .then(() => {
+          sinon.assert.notCalled(rabbitmq._assertExchange)
+          sinon.assert.notCalled(rabbitmq._assertQueue)
+        })
+    })
+  }) // end _assertQueuesAndExchanges
+
+  describe('_assertExchange', function () {
+    beforeEach(() => {
+      rabbitmq.channel = {
+        assertExchange: sinon.stub().resolves()
+      }
+    })
+
+    afterEach(() => {
+      delete rabbitmq.channel
+    })
+
+    it('should assertExchange with defaults', function () {
+      const testName = 'Nigel'
+      const testType = 'Positive'
+      return assert.isFulfilled(rabbitmq._assertExchange(testName, testType))
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.assertExchange,
+            testName,
+            testType,
+            RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
+          )
+        })
+    })
+
+    it('should assertExchange with custom opts', function () {
+      const testName = 'Cadogan'
+      const testType = 'Negative'
+      const testOpts = {
+        durable: false,
+        internal: true,
+        autoDelete: true,
+        truly: false
+      }
+      return assert.isFulfilled(rabbitmq._assertExchange(testName, testType, testOpts))
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.assertExchange,
+            testName,
+            testType,
+            testOpts
+          )
+        })
+    })
+  }) // end _assertExchange
+
+  describe('_assertQueue', function () {
+    beforeEach(() => {
+      rabbitmq.channel = {
+        assertQueue: sinon.stub().resolves()
+      }
+    })
+
+    afterEach(() => {
+      delete rabbitmq.channel
+    })
+
+    it('should assertQueue with defaults', function () {
+      const testName = 'Pansy'
+      return assert.isFulfilled(rabbitmq._assertQueue(testName))
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.assertQueue,
+            testName,
+            RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
+          )
+        })
+    })
+
+    it('should assertQueue with custom opts', function () {
+      const testName = 'Parkinson'
+      const testOpts = {
+        exclusive: true,
+        durable: false,
+        autoDelete: true,
+        madly: false
+      }
+      return assert.isFulfilled(rabbitmq._assertQueue(testName, testOpts))
+        .then(() => {
+          sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+          sinon.assert.calledWithExactly(
+            rabbitmq.channel.assertQueue,
+            testName,
+            testOpts
+          )
+        })
+    })
+  }) // end _assertQueue
+
   describe('publishTask', () => {
     const mockQueue = 'some-queue'
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
+      rabbitmq.tasks = [mockQueue]
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish')
@@ -383,6 +559,13 @@ describe('rabbitmq', () => {
       )
     })
 
+    it('should reject if not defined', () => {
+      return assert.isRejected(
+        rabbitmq.publishTask('not-real', mockJob),
+        /Trying to publish task not defined in constructor/
+      )
+    })
+
     it('should publish with a buffer of the content', () => {
       const testContent = new Buffer(JSON.stringify(mockJob))
       RabbitMQ.prototype._validatePublish.returns(testContent)
@@ -391,7 +574,7 @@ describe('rabbitmq', () => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
           sinon.assert.calledWithExactly(
             rabbitmq.publishChannel.sendToQueue,
-            mockQueue,
+            `test-client.${mockQueue}`,
             testContent
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
@@ -407,6 +590,7 @@ describe('rabbitmq', () => {
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
+      rabbitmq.events = [mockExchange]
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish').returns(true)
@@ -414,6 +598,13 @@ describe('rabbitmq', () => {
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
+    })
+
+    it('should reject if not defined', () => {
+      return assert.isRejected(
+        rabbitmq.publishEvent('not-real', mockJob),
+        /Trying to publish event not defined in constructor/
+      )
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -674,7 +865,6 @@ describe('rabbitmq', () => {
       beforeEach(() => {
         sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
         rabbitmq.channel = {}
-        rabbitmq.channel.assertQueue = sinon.stub().resolves()
       })
 
       afterEach(() => {
@@ -688,59 +878,6 @@ describe('rabbitmq', () => {
         )
       })
 
-      it('should resolve and not create a queue if already subscribed', () => {
-        return assert.isFulfilled(
-          rabbitmq.subscribeToQueue(mockQueue, mockHandler)
-        )
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
-            return assert.isFulfilled(
-              rabbitmq.subscribeToQueue(mockQueue, mockHandler)
-            )
-          })
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
-          })
-      })
-
-      it('should assert a queue', () => {
-        return assert.isFulfilled(
-          rabbitmq.subscribeToQueue(mockQueue, mockHandler)
-        )
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertQueue,
-              mockQueue,
-              RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
-            )
-          })
-      })
-
-      it('should assert a queue with provided options', () => {
-        return assert.isFulfilled(
-          rabbitmq.subscribeToQueue(
-            mockQueue,
-            mockHandler,
-            {
-              someNewOption: true,
-              durable: false // override
-            }
-          )
-        )
-          .then(() => {
-            const opts = clone(RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
-            opts.durable = false
-            opts.someNewOption = true
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertQueue,
-              mockQueue,
-              opts
-            )
-          })
-      })
-
       it('should add the handler to subscriptions', () => {
         assert.equal(rabbitmq.subscriptions.size, 0)
         return assert.isFulfilled(
@@ -748,8 +885,8 @@ describe('rabbitmq', () => {
         )
           .then(() => {
             assert.equal(rabbitmq.subscriptions.size, 1)
-            assert.ok(rabbitmq.subscriptions.has(mockQueue))
-            assert.equal(rabbitmq.subscriptions.get(mockQueue), mockHandler)
+            assert.ok(rabbitmq.subscriptions.has(`${testName}.${mockQueue}`))
+            assert.equal(rabbitmq.subscriptions.get(`${testName}.${mockQueue}`), mockHandler)
           })
       })
 
@@ -760,7 +897,7 @@ describe('rabbitmq', () => {
         )
           .then(() => {
             assert.equal(rabbitmq.subscribed.size, 1)
-            assert.ok(rabbitmq.subscribed.has(`queue:::${mockQueue}`))
+            assert.ok(rabbitmq.subscribed.has(`queue:::${testName}.${mockQueue}`))
           })
       })
     })
@@ -919,8 +1056,7 @@ describe('rabbitmq', () => {
     beforeEach(() => {
       sinon.stub(rabbitmq, '_isConnected').returns(true)
       rabbitmq.channel = {}
-      rabbitmq.channel.assertExchange = sinon.stub().resolves()
-      rabbitmq.channel.assertQueue = sinon.stub().resolves({ queue: 'new-q' })
+      sinon.stub(rabbitmq, '_assertQueue').resolves({ queue: 'new-q' })
       rabbitmq.channel.bindQueue = sinon.stub().resolves()
     })
 
@@ -938,57 +1074,8 @@ describe('rabbitmq', () => {
         return assert
         .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
         .then(() => {
-          sinon.assert.notCalled(rabbitmq.channel.assertExchange)
+          sinon.assert.notCalled(rabbitmq._assertQueue)
         })
-      })
-
-      it('should assert the exchange', () => {
-        return assert
-          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertExchange,
-              'fanout-exchange',
-              'fanout',
-              RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
-            )
-          })
-      })
-
-      it('should assert an exchange with provided options', () => {
-        const newOpts = clone(mockFanoutSubscribe)
-        newOpts.exchangeOptions = {
-          someNewOption: true,
-          durable: false // override
-        }
-        return assert
-          .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
-          .then(() => {
-            const opts = clone(RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
-            opts.durable = false
-            opts.someNewOption = true
-            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertExchange,
-              'fanout-exchange',
-              'fanout',
-              opts
-            )
-          })
-      })
-
-      it('should create a queue for the exchange', () => {
-        return assert
-          .isFulfilled(rabbitmq._subscribeToExchange(mockFanoutSubscribe))
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertQueue,
-              'test-client.fanout-exchange',
-              RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
-            )
-          })
       })
 
       it('should assert a queue with provided options', () => {
@@ -1000,14 +1087,11 @@ describe('rabbitmq', () => {
         return assert
           .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
           .then(() => {
-            const opts = clone(RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
-            opts.durable = false
-            opts.someNewOption = true
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledOnce(rabbitmq._assertQueue)
             sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertQueue,
+              rabbitmq._assertQueue,
               'test-client.fanout-exchange',
-              opts
+              newOpts.queueOptions
             )
           })
       })
@@ -1056,72 +1140,14 @@ describe('rabbitmq', () => {
         )
       })
 
-      it('should not subscribe if already subscribed to topic exchange', () => {
-        rabbitmq.subscribed = rabbitmq.subscribed
-          .add('topic:::topic-exchange:::route-key')
-        return assert
-          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
-          .then(() => {
-            sinon.assert.notCalled(rabbitmq.channel.assertExchange)
-          })
-      })
-
-      it('should subscribe if a different topic routing key', () => {
-        const opts = omit(mockTopicSubscribe, [ 'routingKey' ])
-        opts.routingKey = 'route-key-dos'
-        rabbitmq.subscribed = rabbitmq.subscribed
-          .add('topic:::topic-exchange:::route-key')
-        return assert.isFulfilled(rabbitmq._subscribeToExchange(opts))
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
-          })
-      })
-
-      it('should assert the exchange', () => {
-        return assert
-          .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
-          .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertExchange,
-              'topic-exchange',
-              'topic',
-              RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS
-            )
-          })
-      })
-
-      it('should assert an exchange with provided options', () => {
-        const newOpts = clone(mockTopicSubscribe)
-        newOpts.exchangeOptions = {
-          someNewOption: true,
-          durable: false // override
-        }
-        return assert
-          .isFulfilled(rabbitmq._subscribeToExchange(newOpts))
-          .then(() => {
-            const opts = clone(RabbitMQ.AMQPLIB_EXCHANGE_DEFAULTS)
-            opts.durable = false
-            opts.someNewOption = true
-            sinon.assert.calledOnce(rabbitmq.channel.assertExchange)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertExchange,
-              'topic-exchange',
-              'topic',
-              opts
-            )
-          })
-      })
-
       it('should create a queue for the exchange', () => {
         return assert
           .isFulfilled(rabbitmq._subscribeToExchange(mockTopicSubscribe))
           .then(() => {
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
-            sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertQueue,
-              'test-client.topic-exchange.route-key',
-              RabbitMQ.AMQPLIB_QUEUE_DEFAULTS
+            sinon.assert.calledOnce(rabbitmq._assertQueue)
+            sinon.assert.calledWith(
+              rabbitmq._assertQueue,
+              'test-client.topic-exchange.route-key'
             )
           })
       })
@@ -1138,11 +1164,11 @@ describe('rabbitmq', () => {
             const opts = clone(RabbitMQ.AMQPLIB_QUEUE_DEFAULTS)
             opts.durable = false
             opts.someNewOption = true
-            sinon.assert.calledOnce(rabbitmq.channel.assertQueue)
+            sinon.assert.calledOnce(rabbitmq._assertQueue)
             sinon.assert.calledWithExactly(
-              rabbitmq.channel.assertQueue,
+              rabbitmq._assertQueue,
               'test-client.topic-exchange.route-key',
-              opts
+              newOpts.queueOptions
             )
           })
       })

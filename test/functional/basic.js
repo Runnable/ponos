@@ -13,16 +13,17 @@ const testWorkerEmitter = testWorker.emitter
 describe('Basic Example', () => {
   let server
   let rabbitmq
-
+  const testQueue = 'ponos-test:one'
   before(() => {
-    rabbitmq = new RabbitMQ({})
-    const tasks = {
-      'ponos-test:one': testWorker
-    }
+    const tasks = {}
+    tasks[testQueue] = testWorker
+    rabbitmq = new RabbitMQ({
+      tasks: Object.keys(tasks)
+    })
     server = new ponos.Server({ tasks: tasks })
-    return server.start()
+    return rabbitmq.connect()
       .then(() => {
-        return rabbitmq.connect()
+        return server.start()
       })
   })
 
@@ -42,6 +43,6 @@ describe('Basic Example', () => {
       eventName: 'task',
       message: 'hello world'
     }
-    rabbitmq.publishTask('ponos-test:one', job)
+    rabbitmq.publishTask(testQueue, job)
   })
 })
