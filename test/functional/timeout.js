@@ -28,10 +28,12 @@ describe('Basic Timeout Task', function () {
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
     sinon.spy(_Bunyan.prototype, 'warn')
-    rabbitmq = new RabbitMQ({})
     const tasks = {
       'ponos-test:one': testWorker
     }
+    rabbitmq = new RabbitMQ({
+      tasks: Object.keys(tasks)
+    })
     server = new ponos.Server({ tasks: tasks })
     return server.start()
       .then(() => {

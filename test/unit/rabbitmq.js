@@ -360,6 +360,7 @@ describe('rabbitmq', () => {
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
+      rabbitmq.tasks = [mockQueue]
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish')
@@ -378,6 +379,13 @@ describe('rabbitmq', () => {
       )
     })
 
+    it('should reject if not defined', () => {
+      return assert.isRejected(
+        rabbitmq.publishTask('not-real', mockJob),
+        /Trying to publish task not defined in constructor/
+      )
+    })
+
     it('should publish with a buffer of the content', () => {
       const testContent = new Buffer(JSON.stringify(mockJob))
       RabbitMQ.prototype._validatePublish.returns(testContent)
@@ -386,7 +394,7 @@ describe('rabbitmq', () => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
           sinon.assert.calledWithExactly(
             rabbitmq.publishChannel.sendToQueue,
-            mockQueue,
+            `test-client.${mockQueue}`,
             testContent
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
@@ -402,6 +410,7 @@ describe('rabbitmq', () => {
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
+      rabbitmq.events = [mockExchange]
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish').returns(true)
@@ -409,6 +418,13 @@ describe('rabbitmq', () => {
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
+    })
+
+    it('should reject if not defined', () => {
+      return assert.isRejected(
+        rabbitmq.publishEvent('not-real', mockJob),
+        /Trying to publish event not defined in constructor/
+      )
     })
 
     it('should reject if _validatePublish throws', () => {

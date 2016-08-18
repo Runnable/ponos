@@ -176,6 +176,7 @@ class RabbitMQ {
           return this._assertQueue(`${this.name}.${task.name}`, task)
         })
       })
+      .return()
   }
 
   /**
@@ -228,16 +229,21 @@ class RabbitMQ {
 
   /**
    * Takes an object representing a message and sends it to a task queue.
-   *
+   * appends passed in name to tasks
    * @param {String} queue Task queue to receive the message.
    * @param {Object} content Job to send.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
   publishTask (queue: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
+      const queueName = `${this.name}.${queue}`
       const bufferContent = this._validatePublish(queue, content)
+      this.log.trace({ queue: queueName, job: content }, 'Publishing job')
+      if (!~this.tasks.indexOf(queue)) {
+        throw new Error('Trying to publish task not defined in constructor')
+      }
       return Promise.resolve(
-        this.publishChannel.sendToQueue(queue, bufferContent)
+        this.publishChannel.sendToQueue(queueName, bufferContent)
       )
     })
   }
@@ -253,6 +259,9 @@ class RabbitMQ {
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content)
+      if (!~this.events.indexOf(exchange)) {
+        throw new Error('Trying to publish event not defined in constructor')
+      }
       // events do not need a routing key (so we send '')
       return Promise.resolve(
         this.publishChannel.publish(exchange, '', bufferContent)
@@ -311,9 +320,10 @@ class RabbitMQ {
     handler: Function,
     queueOptions?: Object
   ): Bluebird$Promise<void> {
+    const queueName = `${this.name}.${queue}`
     const log = this.log.child({
       method: 'subscribeToQueue',
-      queue: queue
+      queue: queueName
     })
     log.info('subscribing to queue')
     if (!this._isConnected()) {
@@ -322,10 +332,9 @@ class RabbitMQ {
     if (!isFunction(handler)) {
       log.error('handler must be a function')
       return Promise.reject(
-        new Error(`handler for ${queue} must be a function`)
+        new Error(`handler for ${queueName} must be a function`)
       )
     }
-    const queueName = `${this.name}.${queue}`
     return Promise.try(() => {
       log.trace('binding to queue')
       this.subscriptions = this.subscriptions.set(queueName, handler)
@@ -577,32 +586,32 @@ class RabbitMQ {
       log.warn(`already subscribed to ${opts.type} exchange`)
       return Promise.resolve()
     }
-    return Promise.try(() => {
-      log.trace('asserting queue for exchange')
-      let queueName = `${this.name}.${opts.exchange}`
-      if (opts.type === 'topic' && opts.routingKey) {
-        queueName = `${queueName}.${opts.routingKey}`
-      }
-      return this._assertQueue(queueName, opts.queueOptions)
-    })
-    .then((queueInfo) => {
-      const queue = queueInfo.queue
-      log.info({ queue: queue }, 'queue asserted')
-      log.info('binding queue')
-      if (!opts.routingKey) {
-        opts.routingKey = ''
-      }
-      return Promise
-        .resolve(
-          this.channel.bindQueue(queue, opts.exchange, opts.routingKey)
-        )
-        .return(queue)
-    })
-    .then((queue) => {
-      log.info('bound queue')
-      this.subscriptions = this.subscriptions.set(queue, opts.handler)
-      this.subscribed = this.subscribed.add(subscribedKey)
-    })
+
+    log.trace('asserting queue for exchange')
+    let queueName = `${this.name}.${opts.exchange}`
+    if (opts.type === 'topic' && opts.routingKey) {
+      queueName = `${queueName}.${opts.routingKey}`
+    }
+
+    return this._assertQueue(queueName, opts.queueOptions)
+      .then((queueInfo) => {
+        const queue = queueInfo.queue
+        log.info({ queue: queue }, 'queue asserted')
+        log.info('binding queue')
+        if (!opts.routingKey) {
+          opts.routingKey = ''
+        }
+        return Promise
+          .resolve(
+            this.channel.bindQueue(queue, opts.exchange, opts.routingKey)
+          )
+          .return(queue)
+      })
+      .then((queue) => {
+        log.info('bound queue')
+        this.subscriptions = this.subscriptions.set(queue, opts.handler)
+        this.subscribed = this.subscribed.add(subscribedKey)
+      })
   }
 
   /**

@@ -27,10 +27,12 @@ describe('Basic Failing Task', () => {
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
     sinon.spy(_Worker.prototype, '_reportError')
-    rabbitmq = new RabbitMQ({})
     const tasks = {
       'ponos-test:one': testWorker
     }
+    rabbitmq = new RabbitMQ({
+      tasks: Object.keys(tasks)
+    })
     server = new ponos.Server({ tasks: tasks })
     return server.start()
       .then(() => {
