@@ -159,26 +159,33 @@ class RabbitMQ {
         this.publishChannel.on('error', this._channelErrorHandler.bind(this))
       })
       .then(() => {
-        return Promise.each(this.events, (event) => {
-          if (typeof event === 'string') {
-            return this._assertExchange(event, 'fanout')
-          }
-
-          return this._assertExchange(event.name, 'fanout', event)
-        })
+        return this._assertQueuesAndExchanges()
       })
-      .then(() => {
-        return Promise.each(this.tasks, (task) => {
-          if (typeof task === 'string') {
-            return this._assertQueue(`${this.name}.${task}`)
-          }
-
-          return this._assertQueue(`${this.name}.${task.name}`, task)
-        })
-      })
-      .return()
   }
 
+  /**
+   * Asserts all passed queues and exchanges on channel
+   * @return {Promise} Promise resolved when everything is asserted
+   */
+  _assertQueuesAndExchanges (): Bluebird$Promise<void> {
+    return Promise.each(this.events, (event) => {
+      if (typeof event === 'string') {
+        return this._assertExchange(event, 'fanout')
+      }
+
+      return this._assertExchange(event.name, 'fanout', event)
+    })
+    .then(() => {
+      return Promise.each(this.tasks, (task) => {
+        if (typeof task === 'string') {
+          return this._assertQueue(`${this.name}.${task}`)
+        }
+
+        return this._assertQueue(`${this.name}.${task.name}`, task)
+      })
+    })
+    .return()
+  }
   /**
    * Takes an object representing a message and sends it to a queue.
    *
