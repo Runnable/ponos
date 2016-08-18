@@ -57,12 +57,7 @@ class RabbitMQ {
     this.port = opts.port || parseInt(process.env.RABBITMQ_PORT, 10) || 5672
     this.username = opts.username || process.env.RABBITMQ_USERNAME
     this.password = opts.password || process.env.RABBITMQ_PASSWORD
-    this.log = logger.child({
-      module: 'ponos:rabbitmq',
-      hostname: this.hostname,
-      port: this.port,
-      clientName: this.name
-    })
+    this.log = opts.log || logger.child({ module: 'ponos:rabbitmq' })
     this.channelOpts = opts.channel || {}
     if (!this.username || !this.password) {
       this.log.warn(
@@ -70,6 +65,7 @@ class RabbitMQ {
         'constructor documentation.'
       )
     }
+    this.log.trace({ opts: opts }, 'RabbitMQ constructor')
     this._setCleanState()
   }
 

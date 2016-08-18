@@ -88,7 +88,7 @@ describe('Worker', () => {
       }
       assert.throws(() => {
         Worker.create(opts)
-      }, /"isJoi" must be one of \[true\]/)
+      }, /"jobSchema" must be a Joi instance/)
     })
 
     it('should run the job if runNow is true (default)', () => {
