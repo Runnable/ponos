@@ -110,7 +110,7 @@ class RabbitMQ {
   }
 
   /**
-   * formates events and tasks to consistent format.
+   * formats events and tasks to consistent format.
    * add TID validation if not already there
    * @param  {Object|String} item task/job item from map
    * @return {Object}      formated job type
