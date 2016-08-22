@@ -6,6 +6,7 @@ const chai = require('chai')
 const clone = require('101/clone')
 const cls = require('continuation-local-storage')
 const Immutable = require('immutable')
+const joi = require('joi')
 const omit = require('101/omit')
 const Promise = require('bluebird')
 const sinon = require('sinon')
@@ -559,13 +560,6 @@ describe('rabbitmq', () => {
       )
     })
 
-    it('should reject if not defined', () => {
-      return assert.isRejected(
-        rabbitmq.publishTask('not-real', mockJob),
-        /task: "not-real" not defined in constructor/
-      )
-    })
-
     it('should publish with a buffer of the content', () => {
       const testContent = new Buffer(JSON.stringify(mockJob))
       RabbitMQ.prototype._validatePublish.returns(testContent)
@@ -600,13 +594,6 @@ describe('rabbitmq', () => {
       RabbitMQ.prototype._validatePublish.restore()
     })
 
-    it('should reject if not defined', () => {
-      return assert.isRejected(
-        rabbitmq.publishEvent('unreal', mockJob),
-        /event "unreal" not defined in constructor/
-      )
-    })
-
     it('should reject if _validatePublish throws', () => {
       const testErr = 'something bad'
       RabbitMQ.prototype._validatePublish.throws(new Error(testErr))
@@ -637,11 +624,34 @@ describe('rabbitmq', () => {
     })
   })
 
+  describe('_formatJobs', function () {
+    it('should turn string to array', function () {
+      const testName = 'hi'
+      const out = RabbitMQ._formatJobs(testName)
+      assert.deepEqual(out, {
+        name: testName
+      })
+    })
+
+    it('should not modify object', function () {
+      const testObj = { a: 1, b: 'two' }
+      const out = RabbitMQ._formatJobs(testObj)
+      assert.deepEqual(out, testObj)
+    })
+
+    it('should add tid to jobSchema', function () {
+      const testObj = { a: 1, jobSchema: joi.object({b: 1}) }
+      const out = RabbitMQ._formatJobs(testObj)
+      assert.equal(out.jobSchema._inner.children[1].key, 'tid')
+    })
+  }) // end _formatJobs
+
   describe('_validatePublish', function () {
-    const mockExchange = 'some-exchange'
+    const mockExchangeName = 'some-exchange'
     const mockJob = { hello: 'world' }
 
     beforeEach(() => {
+      rabbitmq.events = [{ name: mockExchangeName }]
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_isConnected').returns(true)
@@ -654,7 +664,7 @@ describe('rabbitmq', () => {
     it('should throw if we are not connected', () => {
       RabbitMQ.prototype._isConnected.returns(false)
       return assert.throws(() => {
-        rabbitmq._validatePublish(mockExchange, mockJob)
+        rabbitmq._validatePublish(mockExchangeName, mockJob)
       }, Error, /call.+connect/
       )
     })
@@ -673,12 +683,54 @@ describe('rabbitmq', () => {
 
     it('should throw if content is not an object', () => {
       return assert.throws(() => {
-        rabbitmq._validatePublish(mockExchange, 1)
+        rabbitmq._validatePublish(mockExchangeName, 1)
       }, Error, /content.+object/)
     })
 
+    it('should throw if task not defined', function () {
+      rabbitmq.tasks = [{ name: 'test' }]
+      return assert.throws(() => {
+        rabbitmq._validatePublish('not-real', { b: 1 }, 'tasks')
+      }, Error, /tasks: "not-real" not defined in constructor/)
+    })
+
+    it('should throw if task not defined', function () {
+      rabbitmq.events = [{ name: 'test' }]
+      return assert.throws(() => {
+        rabbitmq._validatePublish('not-real', { b: 1 }, 'events')
+      }, Error, /events: "not-real" not defined in constructor/)
+    })
+
+    it('should throw if tasks job invalid', function () {
+      const mockJob = {
+        name: 'test',
+        jobSchema: joi.object({
+          a: joi.string().required(),
+          b: joi.number()
+        })
+      }
+      rabbitmq.tasks = [mockJob]
+      return assert.throws(() => {
+        rabbitmq._validatePublish('test', { b: 1 }, 'tasks')
+      }, Error, /"a" is required/)
+    })
+
+    it('should throw if events job invalid', function () {
+      const mockJob = {
+        name: 'test',
+        jobSchema: joi.object({
+          a: joi.string().required(),
+          b: joi.number()
+        })
+      }
+      rabbitmq.events = [mockJob]
+      return assert.throws(() => {
+        rabbitmq._validatePublish('test', { b: 1 }, 'events')
+      }, Error, /"a" is required/)
+    })
+
     it('should add tid if missing', () => {
-      const out = rabbitmq._validatePublish(mockExchange, {})
+      const out = rabbitmq._validatePublish(mockExchangeName, {}, 'events')
       const outObject = JSON.parse(out)
       return assert.isString(outObject.tid)
     })
@@ -688,7 +740,7 @@ describe('rabbitmq', () => {
 
       return Promise.fromCallback((cb) => {
         ns.run(() => {
-          const out = rabbitmq._validatePublish(mockExchange, {})
+          const out = rabbitmq._validatePublish(mockExchangeName, {}, 'events')
           const outObject = JSON.parse(out)
           assert.isString(outObject.tid)
           cb()
@@ -698,7 +750,7 @@ describe('rabbitmq', () => {
 
     it('should use tid if passed', () => {
       const testTid = '123-2134-234-234-235'
-      const out = rabbitmq._validatePublish(mockExchange, { tid: testTid })
+      const out = rabbitmq._validatePublish(mockExchangeName, { tid: testTid }, 'events')
       const outObject = JSON.parse(out)
       return assert.isString(outObject.tid, testTid)
     })
@@ -710,7 +762,7 @@ describe('rabbitmq', () => {
       return Promise.fromCallback((cb) => {
         ns.run(() => {
           ns.set('tid', this.tid)
-          const out = rabbitmq._validatePublish(mockExchange, mockJob)
+          const out = rabbitmq._validatePublish(mockExchangeName, mockJob, 'events')
           const outObject = JSON.parse(out)
           assert.isString(outObject.tid, testTid)
           cb()
@@ -729,7 +781,7 @@ describe('rabbitmq', () => {
 
       it('should throw if content fails to be stringified', () => {
         return assert.throws(() => {
-          rabbitmq._validatePublish(mockExchange, mockJob)
+          rabbitmq._validatePublish(mockExchangeName, mockJob, 'events')
         }, Error, /custom json error/)
       })
     }) // end stringify error

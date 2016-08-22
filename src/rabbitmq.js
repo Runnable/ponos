@@ -5,6 +5,7 @@
 const amqplib = require('amqplib')
 const defaults = require('101/defaults')
 const getNamespace = require('continuation-local-storage').getNamespace
+const hasKeypaths = require('101/has-keypaths')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
@@ -15,20 +16,26 @@ const uuid = require('uuid')
 
 const logger = require('./logger')
 
-const tasksSchema = joi.alternatives().try(joi.string(), joi.object({
-  name: joi.func().required(),
+const tasksSchema = joi.object({
+  name: joi.string().required(),
   exclusive: joi.bool(),
   durable: joi.bool(),
-  autoDelete: joi.bool()
-}))
+  autoDelete: joi.bool(),
+  jobSchema: joi.object({
+    isJoi: joi.bool().valid(true)
+  }).unknown()
+})
 
-const eventsSchema = joi.alternatives().try(joi.string(), joi.object({
-  name: joi.func().required(),
+const eventsSchema = joi.object({
+  name: joi.string().required(),
   internal: joi.bool(),
   durable: joi.bool(),
   autoDelete: joi.bool(),
-  alternateExchange: joi.bool()
-}))
+  alternateExchange: joi.bool(),
+  jobSchema: joi.object({
+    isJoi: joi.bool().valid(true)
+  }).unknown()
+})
 
 const optsSchema = joi.object({
   name: joi.string(),
@@ -94,10 +101,28 @@ class RabbitMQ {
       )
     }
     this.tasks = opts.tasks || []
+    this.tasks = this.tasks.map(RabbitMQ._formatJobs)
     this.events = opts.events || []
+    this.events = this.events.map(RabbitMQ._formatJobs)
     this.log.trace({ opts: opts }, 'RabbitMQ constructor')
     joi.assert(this, optsSchema)
     this._setCleanState()
+  }
+
+  /**
+   * formats events and tasks to consistent format.
+   * add TID validation if not already there
+   * @param  {Object|String} item task/job item from map
+   * @return {Object}      formated job type
+   */
+  static _formatJobs (item: string|Object): Object {
+    if (typeof item === 'string') {
+      return { name: item }
+    }
+    if (item.jobSchema) {
+      item.jobSchema = item.jobSchema.concat(joi.object({ tid: joi.string() }))
+    }
+    return item
   }
 
   /**
@@ -244,11 +269,8 @@ class RabbitMQ {
   publishTask (queue: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
-      const bufferContent = this._validatePublish(queue, content)
-      this.log.trace({ queue: queueName, job: content }, 'Publishing job')
-      if (!~this.tasks.indexOf(queue)) {
-        throw new Error(`task: "${queue}" not defined in constructor`)
-      }
+      const bufferContent = this._validatePublish(queue, content, 'tasks')
+      this.log.trace({ queue: queueName, job: content }, 'Publishing task')
       return Promise.resolve(
         this.publishChannel.sendToQueue(queueName, bufferContent)
       )
@@ -265,10 +287,8 @@ class RabbitMQ {
    */
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
-      const bufferContent = this._validatePublish(exchange, content)
-      if (!~this.events.indexOf(exchange)) {
-        throw new Error(`event "${exchange}" not defined in constructor`)
-      }
+      const bufferContent = this._validatePublish(exchange, content, 'events')
+      this.log.trace({ event: exchange, job: content }, 'Publishing event')
       // events do not need a routing key (so we send '')
       return Promise.resolve(
         this.publishChannel.publish(exchange, '', bufferContent)
@@ -627,12 +647,13 @@ class RabbitMQ {
    * @private
    * @param {String} name Name of queue or exchange.
    * @param {Object} content Content to send.
+   * @param {String} type    type of job to validate (tasks|events).
    * @throws {Error} Must be connected to RabbitMQ.
    * @throws {Error} Name must be a non-empty string.
    * @throws {Error} Object must be an Object.
    * @return {Buffer} Content to send as job.
    */
-  _validatePublish (name: string, content: Object): Buffer {
+  _validatePublish (name: string, content: Object, type: string): Buffer {
     if (!this._isConnected()) {
       throw new Error('you must call .connect() before publishing')
     }
@@ -642,6 +663,15 @@ class RabbitMQ {
     }
     if (!isObject(content)) {
       throw new Error('content must be an object')
+    }
+    // $FlowIgnore: flow does not understand dynamic keys
+    const job = this[type].find(hasKeypaths({ name: name }))
+    if (!job) {
+      throw new Error(`${type}: "${name}" not defined in constructor`)
+    }
+
+    if (job.jobSchema) {
+      joi.assert(content, job.jobSchema)
     }
     // add tid to message if one does not exist
     if (!content.tid) {
