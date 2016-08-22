@@ -270,7 +270,7 @@ class RabbitMQ {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
       const bufferContent = this._validatePublish(queue, content, 'tasks')
-      this.log.trace({ queue: queueName, job: content }, 'Publishing job')
+      this.log.trace({ queue: queueName, job: content }, 'Publishing task')
       return Promise.resolve(
         this.publishChannel.sendToQueue(queueName, bufferContent)
       )
@@ -288,9 +288,7 @@ class RabbitMQ {
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content, 'events')
-      if (!~this.events.indexOf(exchange)) {
-        throw new Error(`event "${exchange}" not defined in constructor`)
-      }
+      this.log.trace({ event: exchange, job: content }, 'Publishing event')
       // events do not need a routing key (so we send '')
       return Promise.resolve(
         this.publishChannel.publish(exchange, '', bufferContent)

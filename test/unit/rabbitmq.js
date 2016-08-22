@@ -624,6 +624,28 @@ describe('rabbitmq', () => {
     })
   })
 
+  describe('_formatJobs', function () {
+    it('should turn string to array', function () {
+      const testName = 'hi'
+      const out = RabbitMQ._formatJobs(testName)
+      assert.deepEqual(out, {
+        name: testName
+      })
+    })
+
+    it('should not modify object', function () {
+      const testObj = { a: 1, b: 'two' }
+      const out = RabbitMQ._formatJobs(testObj)
+      assert.deepEqual(out, testObj)
+    })
+
+    it('should add tid to jobSchema', function () {
+      const testObj = { a: 1, jobSchema: joi.object({b: 1}) }
+      const out = RabbitMQ._formatJobs(testObj)
+      assert.equal(out.jobSchema._inner.children[1].key, 'tid')
+    })
+  }) // end _formatJobs
+
   describe('_validatePublish', function () {
     const mockExchangeName = 'some-exchange'
     const mockJob = { hello: 'world' }
