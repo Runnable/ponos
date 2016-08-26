@@ -33,7 +33,7 @@ const optsSchema = joi.object({
   retryDelay: joi.number().integer().min(0).required(),
   runNow: joi.bool(),
   task: joi.func().required()
-}).required()
+}).unknown()
 
 /**
  * Performs tasks for jobs on a given queue.
