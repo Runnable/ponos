@@ -678,6 +678,14 @@ describe('Worker', () => {
           })
       })
 
+      it('should not stop null timer', () => {
+        worker._createTimer.returns(null)
+        return assert.isFulfilled(worker.run())
+          .then(() => {
+            sinon.assert.calledOnce(worker._createTimer)
+          })
+      })
+
       it('should call correct timeout handlers', () => {
         const timeoutError = new TimeoutError('Nazgûl')
         worker._wrapTask.rejects(timeoutError)
