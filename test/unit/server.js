@@ -23,9 +23,12 @@ function worker (job, done) {} // eslint-disable-line no-unused-vars
 
 describe('Server', () => {
   let server
-
+  let runStub
   beforeEach(() => {
-    sinon.stub(Worker, 'create')
+    runStub = sinon.stub().resolves()
+    sinon.stub(Worker, 'create').returns({
+      run: runStub
+    })
     server = new ponos.Server({ tasks: tasks })
   })
 
@@ -253,66 +256,87 @@ describe('Server', () => {
     })
 
     it('should provide the correct queue name', () => {
-      server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop)
-      sinon.assert.calledOnce(Worker.create)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('queue', 'test-queue-01')
-      )
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(Worker.create)
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('queue', 'test-queue-01')
+          )
+        })
     })
 
     it('should provide the given job', () => {
       const job = { bar: 'baz' }
-      server._runWorker('test-queue-01', taskHandler, job, noop)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('job', job)
-      )
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, job, noop))
+        .then(() => {
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('job', job)
+          )
+        })
     })
 
     it('should provide the given done function', () => {
-      server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop)
-      sinon.assert.calledOnce(Worker.create)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('done', noop)
-      )
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(Worker.create)
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('done', noop)
+          )
+        })
     })
 
     it('should provide the correct task handler', () => {
-      server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop)
-      sinon.assert.calledOnce(Worker.create)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('task', taskHandler)
-      )
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(Worker.create)
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('task', taskHandler)
+          )
+        })
     })
 
     it('should provide the correct logger', () => {
-      server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop)
-      sinon.assert.calledOnce(Worker.create)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('log', server.log)
-      )
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(Worker.create)
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('log', server.log)
+          )
+        })
     })
 
     it('should provide the correct errorCat', () => {
-      server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop)
-      sinon.assert.calledOnce(Worker.create)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('errorCat', server.errorCat)
-      )
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(Worker.create)
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('errorCat', server.errorCat)
+          )
+        })
     })
 
     it('should correctly provide custom worker options', () => {
-      server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, noop)
-      sinon.assert.calledOnce(Worker.create)
-      sinon.assert.calledWithExactly(
-        Worker.create,
-        sinon.match.has('msTimeout', 4242)
-      )
+      assert.isFulfilled(server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(Worker.create)
+          sinon.assert.calledWithExactly(
+            Worker.create,
+            sinon.match.has('msTimeout', 4242)
+          )
+        })
+    })
+
+    it('should call run on new worker', () => {
+      assert.isFulfilled(server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, noop))
+        .then(() => {
+          sinon.assert.calledOnce(runStub)
+        })
     })
   })
 

@@ -16,7 +16,7 @@ const _Worker = require('../../src/worker')
  *  In this example, we are going to have a job handler that times out at
  *  decreasing intervals, throwing TimeoutErrors, until it passes.
  */
-describe('Basic Timeout Task', function () {
+describe('Retry limit task', function () {
   let server
   let rabbitmq
   let testRecover

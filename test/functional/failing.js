@@ -4,7 +4,7 @@ const chai = require('chai')
 const Promise = require('bluebird')
 const sinon = require('sinon')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
-
+const ErrorCat = require('error-cat')
 const assert = chai.assert
 
 // Ponos Tooling
@@ -26,14 +26,16 @@ describe('Basic Failing Task', () => {
 
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
-    sinon.spy(_Worker.prototype, '_reportError')
+    sinon.spy(ErrorCat, 'report')
     const tasks = {
       'ponos-test:one': testWorker
     }
     rabbitmq = new RabbitMQ({
       tasks: Object.keys(tasks)
     })
-    server = new ponos.Server({ tasks: tasks })
+    server = new ponos.Server({
+      tasks: tasks
+    })
     return server.start()
       .then(() => {
         return rabbitmq.connect()
@@ -42,7 +44,7 @@ describe('Basic Failing Task', () => {
 
   after(() => {
     _Worker.prototype.run.restore()
-    _Worker.prototype._reportError.restore()
+    ErrorCat.report.restore()
     return server.stop()
       .then(() => {
         return rabbitmq.disconnect()
@@ -86,10 +88,10 @@ describe('Basic Failing Task', () => {
         const workerRunPromise = _Worker.prototype.run.firstCall.returnValue
         assert.isFulfilled(workerRunPromise)
         assert.ok(
-          _Worker.prototype._reportError.calledOnce,
-          'worker._reportError called once'
+          ErrorCat.report.calledOnce,
+          'worker.report called once'
         )
-        const err = _Worker.prototype._reportError.firstCall.args[0]
+        const err = ErrorCat.report.firstCall.args[0]
         assert.instanceOf(err, WorkerStopError)
         assert.match(err, /message.+required/)
       })
