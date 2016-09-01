@@ -19,7 +19,6 @@ clsBlueBird(cls)
 
 const optsSchema = joi.object({
   attempt: joi.number().integer().min(0).required(),
-  done: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
   jobSchema: joi.object({
@@ -41,8 +40,6 @@ const optsSchema = joi.object({
  * @author Bryan Kendall
  * @author Ryan Sandor Richards
  * @param {Object} opts Options for the worker.
- * @param {Function} opts.done Callback to execute when the job has successfully
- *   been completed.
  * @param {Object} opts.job Data for the job to process.
  * @param {String} opts.queue Name of the queue for the job the worker is
  *   processing.
@@ -56,7 +53,6 @@ const optsSchema = joi.object({
  */
 class Worker {
   attempt: number;
-  done: Function;
   errorCat: ErrorCat;
   finalRetryFn: Function;
   jobSchema: Object;
@@ -308,7 +304,6 @@ class Worker {
         if (timer) {
           timer.stop()
         }
-        return this.done()
       })
   }
 

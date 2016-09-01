@@ -21,8 +21,7 @@ describe('Worker', () => {
       queue: 'do.something.command',
       task: (data) => { return Promise.resolve(data) },
       job: { message: 'hello world' },
-      log: logger.child({ module: 'ponos:test' }),
-      done: () => { return Promise.resolve() }
+      log: logger.child({ module: 'ponos:test' })
     }
   })
 
@@ -36,13 +35,6 @@ describe('Worker', () => {
       assert.throws(() => {
         Worker.create(testOpts)
       }, /"job" is required/)
-    })
-
-    it('should enforce default opts', () => {
-      const testOpts = omit(opts, 'done')
-      assert.throws(() => {
-        Worker.create(testOpts)
-      }, /"done" is required/)
     })
 
     it('should enforce default opts', () => {
@@ -595,7 +587,6 @@ describe('Worker', () => {
         sinon.stub(worker.errorCat, 'report').resolves()
         sinon.stub(worker, '_handleWorkerStopError').resolves()
         sinon.stub(worker, '_retryWithDelay').resolves()
-        sinon.stub(worker, 'done').resolves()
       })
 
       afterEach(() => {
@@ -614,7 +605,6 @@ describe('Worker', () => {
             sinon.assert.notCalled(worker.errorCat.report)
             sinon.assert.notCalled(worker._handleWorkerStopError)
             sinon.assert.notCalled(worker._retryWithDelay)
-            sinon.assert.calledOnce(worker.done)
             sinon.assert.calledOnce(timerStub)
           })
       })
@@ -638,7 +628,6 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker.errorCat.report)
             sinon.assert.notCalled(worker._handleWorkerStopError)
             sinon.assert.calledOnce(worker._retryWithDelay)
-            sinon.assert.calledOnce(worker.done)
             sinon.assert.calledOnce(timerStub)
           })
       })
@@ -662,7 +651,6 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker.errorCat.report)
             sinon.assert.calledOnce(worker._handleWorkerStopError)
             sinon.assert.notCalled(worker._retryWithDelay)
-            sinon.assert.calledOnce(worker.done)
             sinon.assert.calledOnce(timerStub)
           })
       })
@@ -686,7 +674,6 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker.errorCat.report)
             sinon.assert.notCalled(worker._handleWorkerStopError)
             sinon.assert.calledOnce(worker._retryWithDelay)
-            sinon.assert.calledOnce(worker.done)
             sinon.assert.calledOnce(timerStub)
           })
       })

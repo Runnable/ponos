@@ -304,12 +304,13 @@ class Server {
         queue: queueName,
         job: job,
         task: handler,
-        done: done,
         log: this.log,
         errorCat: this.errorCat
       })
       const worker = Worker.create(opts)
-      return worker.run()
+      return worker.run().finally(() => {
+        done()
+      })
     })
   }
 }

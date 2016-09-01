@@ -277,14 +277,19 @@ describe('Server', () => {
         })
     })
 
-    it('should provide the given done function', () => {
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, noop))
+    it('should call done if worker rejected', () => {
+      const stub = sinon.stub().rejects(new Error('Baggins'))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, stub))
         .then(() => {
-          sinon.assert.calledOnce(Worker.create)
-          sinon.assert.calledWithExactly(
-            Worker.create,
-            sinon.match.has('done', noop)
-          )
+          sinon.assert.calledOnce(stub)
+        })
+    })
+
+    it('should call done if worker resolved', () => {
+      const stub = sinon.stub().resolves(new Error('Bombadil'))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, stub))
+        .then(() => {
+          sinon.assert.calledOnce(stub)
         })
     })
 
