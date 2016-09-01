@@ -309,6 +309,7 @@ class Server {
       })
       const worker = Worker.create(opts)
       return worker.run().finally(() => {
+        // done has to be called with no arguments
         done()
       })
     })
