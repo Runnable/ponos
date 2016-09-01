@@ -100,7 +100,8 @@ class Worker {
 
   /**
    * validate job against schema if passed
-   * @return {[type]} [description]
+   * @return {Promise}
+   * @rejects {WorkerStopError} when job does not match schema
    */
   _validateJob (): Promise<void> {
     return Promise.try(() => {
