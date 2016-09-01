@@ -17,7 +17,7 @@ module.exports = (job) => {
         throw new WorkerStopError('eventName is required')
       }
       if (!job.message) {
-        throw new WorkerStopError('message is required')
+        throw new WorkerStopError('fail test message is required')
       }
     })
     .then(() => {

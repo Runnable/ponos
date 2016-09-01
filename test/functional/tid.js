@@ -19,9 +19,9 @@ describe('Basic Example', () => {
       tasks: Object.keys(tasks)
     })
     server = new ponos.Server({ tasks: tasks })
-    return server.start()
+    return rabbitmq.connect()
       .then(() => {
-        return rabbitmq.connect()
+        return server.start()
       })
   })
 

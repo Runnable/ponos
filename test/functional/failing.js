@@ -36,9 +36,9 @@ describe('Basic Failing Task', () => {
     server = new ponos.Server({
       tasks: tasks
     })
-    return server.start()
+    return rabbitmq.connect()
       .then(() => {
-        return rabbitmq.connect()
+        return server.start()
       })
   })
 
@@ -72,28 +72,30 @@ describe('Basic Failing Task', () => {
     rabbitmq.publishTask('ponos-test:one', job)
 
     // wait until .run is called
-    return Promise.resolve().then(function loop () {
+    return Promise.try(function loop () {
       if (!_Worker.prototype.run.calledOnce) {
         return Promise.delay(5).then(loop)
       }
     })
-      .then(() => {
-        assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
-        /*
-         *  We can get the promise and assure that it was fulfilled!
-         *  This should be _fulfilled_ because it threw a WorkerStopError and
-         *  acknowledged that the task was completed (even though the task
-         *  rejected with an error)
-         */
-        const workerRunPromise = _Worker.prototype.run.firstCall.returnValue
-        assert.isFulfilled(workerRunPromise)
-        assert.ok(
-          ErrorCat.report.calledOnce,
-          'worker.report called once'
-        )
-        const err = ErrorCat.report.firstCall.args[0]
-        assert.instanceOf(err, WorkerStopError)
-        assert.match(err, /message.+required/)
-      })
+    .then(() => {
+      assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
+      /*
+       *  We can get the promise and assure that it was fulfilled!
+       *  This should be _fulfilled_ because it threw a WorkerStopError and
+       *  acknowledged that the task was completed (even though the task
+       *  rejected with an error)
+       */
+      const workerRunPromise = _Worker.prototype.run.firstCall.returnValue
+      assert.isFulfilled(workerRunPromise)
+      assert.ok(
+        ErrorCat.report.calledOnce,
+        'worker.report called once'
+      )
+      const err = ErrorCat.report.firstCall.args[0]
+      assert.instanceOf(err, WorkerStopError)
+      assert.match(err, /fail test message is required/)
+
+      return Promise.resolve()
+    })
   })
 })

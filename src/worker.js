@@ -27,8 +27,8 @@ const optsSchema = joi.object({
   }).unknown(),
   job: joi.object().required(),
   log: joi.object().required(),
-  maxNumRetries: joi.number().integer().min(0),
-  msTimeout: joi.number().integer().min(0),
+  maxNumRetries: joi.number().integer().min(0).required(),
+  msTimeout: joi.number().integer().min(0).required(),
   queue: joi.string().required(),
   retryDelay: joi.number().integer().min(1).required(),
   maxRetryDelay: joi.number().integer().min(0).required(),
@@ -277,17 +277,33 @@ class Worker {
     })
 
     return this._validateJob()
-      .bind(this)
-      .then(this._wrapTask)
-      .then(this._handleTaskSuccess)
-      .catch(this._addDataToError)
+      .then(() => {
+        return this._wrapTask()
+      })
+      .then(() => {
+        return this._handleTaskSuccess()
+      })
+      .catch((err) => {
+        return this._addDataToError(err)
+      })
       // if the type is TimeoutError, we will log and retry
-      .catch(TimeoutError, this._handleTimeoutError)
-      .catch(this._enforceRetryLimit)
+      .catch(TimeoutError, (err) => {
+        return this._handleTimeoutError(err)
+      })
+      .catch((err) => {
+        return this._enforceRetryLimit(err)
+      })
       // if it's a WorkerStopError, we stop this task
-      .catch(this.errorCat.report)
-      .catch(WorkerStopError, this._handleWorkerStopError)
-      .catch(this._retryWithDelay)
+      .catch((err) => {
+        this.errorCat.report(err)
+        throw err
+      })
+      .catch(WorkerStopError, (err) => {
+        return this._handleWorkerStopError(err)
+      })
+      .catch((err) => {
+        return this._retryWithDelay(err)
+      })
       .finally(() => {
         if (timer) {
           timer.stop()

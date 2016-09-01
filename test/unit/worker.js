@@ -275,38 +275,47 @@ describe('Worker', () => {
     })
 
     describe('_wrapTask', () => {
+      let clock
       beforeEach(() => {
+        clock = sinon.useFakeTimers()
         sinon.stub(worker, 'task')
       })
 
       afterEach(() => {
-        worker.task.restore()
+        clock.restore()
       })
 
       it('should timeout the job', () => {
-        worker.msTimeout = 1
+        worker.msTimeout = 50
         worker.task.returns(() => {
-          return Promise.delay(10000)
+          return Promise.delay(100)
         })
-        return assert.isRejected(worker._wrapTask(), TimeoutError)
-          .then(() => {
+        return Promise.join([
+          assert.isRejected(worker._wrapTask(), TimeoutError),
+          Promise.try(() => {
             sinon.assert.calledOnce(worker.task)
+            clock.tick(60)
           })
+        ])
       })
 
       it('should not timeout the job', () => {
-        worker.msTimeout = 1000000
+        worker.msTimeout = 100
         worker.task.returns(() => {
-          return Promise.delay(1)
+          return Promise.delay(10)
         })
-        return assert.isFulfilled(worker._wrapTask())
-          .then(() => {
+        return Promise.join([
+          assert.isFulfilled(worker._wrapTask()),
+          Promise.try(() => {
             sinon.assert.calledOnce(worker.task)
+            clock.tick(20)
           })
+        ])
       })
 
       it('should run task', () => {
         const TestJob = { who: 'ami' }
+        worker.timeout = null
         worker.job = TestJob
         return assert.isFulfilled(worker._wrapTask())
           .then(() => {

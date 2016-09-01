@@ -37,16 +37,17 @@ describe('Retry limit task', function () {
       tasks: Object.keys(tasks)
     })
     server = new ponos.Server({ tasks: tasks })
-    return server.start()
+    return rabbitmq.connect()
       .then(() => {
-        return rabbitmq.connect()
+        return server.start()
       })
   })
+
   after(() => {
     _Worker.prototype.run.restore()
-    return server.stop()
+    return rabbitmq.disconnect()
       .then(() => {
-        return rabbitmq.disconnect()
+        return server.stop()
       })
   })
 
