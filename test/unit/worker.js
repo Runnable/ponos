@@ -74,11 +74,6 @@ describe('Worker', () => {
       }, /"isJoi" must be one of \[true\]/)
     })
 
-    it('should default the timeout to not exist', () => {
-      const w = Worker.create(opts)
-      assert.equal(w.msTimeout, 0, 'set the timeout correctly')
-    })
-
     it('should use the given logger', () => {
       const testLogger = {
         info: noop
@@ -97,35 +92,109 @@ describe('Worker', () => {
       assert.deepEqual(w.errorCat, { mew: 2 })
     })
 
-    describe('with worker timeout', () => {
-      let prevTimeout
-
-      before(() => {
-        prevTimeout = process.env.WORKER_TIMEOUT
-        process.env.WORKER_TIMEOUT = 4000
-      })
-
-      after(() => { process.env.WORKER_TIMEOUT = prevTimeout })
-
-      it('should use the environment timeout', () => {
+    describe('finalErrorFn', function () {
+      it('should use passed for function to resolve', () => {
+        opts.finalRetryFn = sinon.stub().rejects(new Error('Glorfindel'))
         const w = Worker.create(opts)
-        assert.equal(w.msTimeout, 4 * 1000, 'set the timeout correctly')
+        return assert.isRejected(w.finalRetryFn(), Error, /Glorfindel/)
       })
 
-      it('should throw when given a non-integer', () => {
-        opts.msTimeout = 'foobar'
-        assert.throws(() => {
-          Worker.create(opts)
-        }, /"msTimeout" must be a number/)
+      it('should default to resolve', () => {
+        const w = Worker.create(opts)
+        return assert.isFulfilled(w.finalRetryFn())
+      })
+    }) // end finalErrorFn
+    describe('maxNumRetries', function () {
+      beforeEach(() => {
+        delete process.env.WORKER_MAX_NUM_RETRIES
       })
 
-      it('should throw when given a negative timeout', () => {
-        opts.msTimeout = -230
-        assert.throws(() => {
-          Worker.create(opts)
-        }, /must be larger than or equal to 0/)
+      it('should used passed maxNumRetries', () => {
+        opts.maxNumRetries = 1
+        const w = Worker.create(opts)
+        assert.equal(w.maxNumRetries, 1, 'set the maxNumRetries correctly')
       })
-    })
+
+      it('should use ENV for maxNumRetries', () => {
+        process.env.WORKER_MAX_NUM_RETRIES = 2
+        const w = Worker.create(opts)
+        assert.equal(w.maxNumRetries, 2, 'set the maxNumRetries correctly')
+      })
+
+      it('should default the maxNumRetries to max int', () => {
+        const w = Worker.create(opts)
+        assert.equal(w.maxNumRetries, Number.MAX_SAFE_INTEGER, 'set the maxNumRetries correctly')
+      })
+    }) // end maxNumRetries
+
+    describe('msTimeout', function () {
+      beforeEach(() => {
+        delete process.env.WORKER_TIMEOUT
+      })
+
+      it('should used passed msTimeout', () => {
+        opts.msTimeout = 1
+        const w = Worker.create(opts)
+        assert.equal(w.msTimeout, 1, 'set the msTimeout correctly')
+      })
+
+      it('should use ENV for msTimeout', () => {
+        process.env.WORKER_TIMEOUT = 2
+        const w = Worker.create(opts)
+        assert.equal(w.msTimeout, 2, 'set the msTimeout correctly')
+      })
+
+      it('should default the msTimeout to 0', () => {
+        const w = Worker.create(opts)
+        assert.equal(w.msTimeout, 0, 'set the msTimeout correctly')
+      })
+    }) // end msTimeout
+
+    describe('maxRetryDelay', function () {
+      beforeEach(() => {
+        delete process.env.WORKER_MAX_RETRY_DELAY
+      })
+
+      it('should used passed maxRetryDelay', () => {
+        opts.maxRetryDelay = 1
+        const w = Worker.create(opts)
+        assert.equal(w.maxRetryDelay, 1, 'set the maxRetryDelay correctly')
+      })
+
+      it('should use ENV for maxRetryDelay', () => {
+        process.env.WORKER_MAX_RETRY_DELAY = 2
+        const w = Worker.create(opts)
+        assert.equal(w.maxRetryDelay, 2, 'set the maxRetryDelay correctly')
+      })
+
+      it('should default the maxRetryDelay to max int', () => {
+        const w = Worker.create(opts)
+        assert.equal(w.maxRetryDelay, Number.MAX_SAFE_INTEGER, 'set the maxRetryDelay correctly')
+      })
+    }) // end maxRetryDelay
+
+    describe('retryDelay', function () {
+      beforeEach(() => {
+        delete process.env.WORKER_MIN_RETRY_DELAY
+      })
+
+      it('should used passed retryDelay', () => {
+        opts.retryDelay = 3
+        const w = Worker.create(opts)
+        assert.equal(w.retryDelay, 3, 'set the retryDelay correctly')
+      })
+
+      it('should use ENV for retryDelay', () => {
+        process.env.WORKER_MIN_RETRY_DELAY = 2
+        const w = Worker.create(opts)
+        assert.equal(w.retryDelay, 2, 'set the retryDelay correctly')
+      })
+
+      it('should default the retryDelay 1', () => {
+        const w = Worker.create(opts)
+        assert.equal(w.retryDelay, 1, 'set the retryDelay correctly')
+      })
+    }) // end retryDelay
   })
 
   describe('prototype methods', () => {
