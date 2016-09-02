@@ -110,6 +110,10 @@ class Worker {
       }
     })
     .catch((err) => {
+      if (!err.isJoi) {
+        throw err
+      }
+
       throw new WorkerStopError('Invalid job', {
         queue: this.queue,
         job: this.job,
@@ -150,7 +154,7 @@ class Worker {
    * @param  {Error} err error to augment
    * @throws {Error}     error with extra data
    */
-  _addDataToError (err: Object) {
+  _addWorkerDataToError (err: Object) {
     if (err.cause) {
       err = err.cause
     }
@@ -274,33 +278,21 @@ class Worker {
     })
 
     return this._validateJob()
-      .then(() => {
-        return this._wrapTask()
-      })
-      .then(() => {
-        return this._handleTaskSuccess()
-      })
-      .catch((err) => {
-        return this._addDataToError(err)
-      })
-      // if the type is TimeoutError, we will log and retry
-      .catch(TimeoutError, (err) => {
-        return this._handleTimeoutError(err)
-      })
-      .catch((err) => {
-        return this._enforceRetryLimit(err)
-      })
-      // if it's a WorkerStopError, we stop this task
+      .bind(this)
+      .then(this._wrapTask)
+      .then(this._handleTaskSuccess)
+      .catch(this._addWorkerDataToError)
+      // If the type is TimeoutError, log and re-throw error
+      .catch(TimeoutError, this._handleTimeoutError)
+      .catch(this._enforceRetryLimit)
       .catch((err) => {
         this.errorCat.report(err)
         throw err
       })
-      .catch(WorkerStopError, (err) => {
-        return this._handleWorkerStopError(err)
-      })
-      .catch((err) => {
-        return this._retryWithDelay(err)
-      })
+      // If it's a WorkerStopError, we stop this task by swallowing error
+      .catch(WorkerStopError, this._handleWorkerStopError)
+      // If we made it here we retry by calling run again (recursion)
+      .catch(this._retryWithDelay)
       .finally(() => {
         if (timer) {
           timer.stop()

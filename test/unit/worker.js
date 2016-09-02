@@ -398,15 +398,33 @@ describe('Worker', () => {
         worker.job = '123123'
         return assert.isFulfilled(worker._validateJob())
       })
+
+      describe('mocked joi', () => {
+        beforeEach(() => {
+          sinon.stub(joi, 'assert')
+        })
+
+        afterEach(() => {
+          joi.assert.restore()
+        })
+
+        it('should throw original error if not joi', () => {
+          const testError = new Error('Adrahil')
+          worker.jobSchema = joi.string()
+          joi.assert.throws(testError)
+
+          return assert.isRejected(worker._validateJob(), Error, /Adrahil/)
+        })
+      }) // end mocked joi
     }) // end _validateJob
 
-    describe('_addDataToError', () => {
+    describe('_addWorkerDataToError', () => {
       it('should make err cause if it has a cause', () => {
         const testError = {
           cause: new Error('Frodo')
         }
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.deepEqual(err, testError.cause)
         }
@@ -415,7 +433,7 @@ describe('Worker', () => {
       it('should use passed error', () => {
         const testError = new Error('Gandalf')
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.deepEqual(err, testError)
         }
@@ -425,7 +443,7 @@ describe('Worker', () => {
         const testError = new Error('Samwise')
         testError.data = 'string'
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.isObject(err.data)
         }
@@ -437,7 +455,7 @@ describe('Worker', () => {
           Merry: 'Brandybuck'
         }
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.deepEqual(err, testError)
         }
@@ -447,7 +465,7 @@ describe('Worker', () => {
         const testError = new Error('Peregrin')
         worker.queue = 'Pippin'
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.equal(err.data.queue, worker.queue)
         }
@@ -460,7 +478,7 @@ describe('Worker', () => {
           queue: 'Gondor'
         }
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.equal(err.data.queue, testError.data.queue)
         }
@@ -470,7 +488,7 @@ describe('Worker', () => {
         const testError = new Error('Peregrin')
         worker.job = 'Pippin'
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.equal(err.data.job, worker.job)
         }
@@ -483,12 +501,12 @@ describe('Worker', () => {
           job: 'Gondor'
         }
         try {
-          worker._addDataToError(testError)
+          worker._addWorkerDataToError(testError)
         } catch (err) {
           assert.equal(err.data.job, testError.data.job)
         }
       })
-    }) // end _addDataToError
+    }) // end _addWorkerDataToError
 
     describe('_retryWithDelay', () => {
       beforeEach(() => {
@@ -650,7 +668,7 @@ describe('Worker', () => {
         })
         sinon.stub(worker, '_wrapTask').resolves()
         sinon.stub(worker, '_handleTaskSuccess').resolves()
-        sinon.stub(worker, '_addDataToError').resolves()
+        sinon.stub(worker, '_addWorkerDataToError').resolves()
         sinon.stub(worker, '_handleTimeoutError').resolves()
         sinon.stub(worker, '_enforceRetryLimit').resolves()
         sinon.stub(worker.errorCat, 'report').resolves()
@@ -668,7 +686,7 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker._createTimer)
             sinon.assert.calledOnce(worker._wrapTask)
             sinon.assert.calledOnce(worker._handleTaskSuccess)
-            sinon.assert.notCalled(worker._addDataToError)
+            sinon.assert.notCalled(worker._addWorkerDataToError)
             sinon.assert.notCalled(worker._handleTimeoutError)
             sinon.assert.notCalled(worker._enforceRetryLimit)
             sinon.assert.notCalled(worker.errorCat.report)
@@ -689,7 +707,7 @@ describe('Worker', () => {
       it('should call correct timeout handlers', () => {
         const timeoutError = new TimeoutError('Nazgûl')
         worker._wrapTask.rejects(timeoutError)
-        worker._addDataToError.rejects(timeoutError)
+        worker._addWorkerDataToError.rejects(timeoutError)
         worker._handleTimeoutError.rejects(timeoutError)
         worker._enforceRetryLimit.rejects(timeoutError)
         worker.errorCat.report.rejects(timeoutError)
@@ -699,7 +717,7 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker._createTimer)
             sinon.assert.calledOnce(worker._wrapTask)
             sinon.assert.notCalled(worker._handleTaskSuccess)
-            sinon.assert.calledOnce(worker._addDataToError)
+            sinon.assert.calledOnce(worker._addWorkerDataToError)
             sinon.assert.calledOnce(worker._handleTimeoutError)
             sinon.assert.calledOnce(worker._enforceRetryLimit)
             sinon.assert.calledOnce(worker.errorCat.report)
@@ -712,7 +730,7 @@ describe('Worker', () => {
       it('should call correct worker stop handlers', () => {
         const workerStopError = new WorkerStopError('Gollum')
         worker._wrapTask.rejects(workerStopError)
-        worker._addDataToError.rejects(workerStopError)
+        worker._addWorkerDataToError.rejects(workerStopError)
         worker._handleTimeoutError.rejects(workerStopError)
         worker._enforceRetryLimit.rejects(workerStopError)
         worker.errorCat.report.rejects(workerStopError)
@@ -722,7 +740,7 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker._createTimer)
             sinon.assert.calledOnce(worker._wrapTask)
             sinon.assert.notCalled(worker._handleTaskSuccess)
-            sinon.assert.calledOnce(worker._addDataToError)
+            sinon.assert.calledOnce(worker._addWorkerDataToError)
             sinon.assert.notCalled(worker._handleTimeoutError)
             sinon.assert.calledOnce(worker._enforceRetryLimit)
             sinon.assert.calledOnce(worker.errorCat.report)
@@ -735,7 +753,7 @@ describe('Worker', () => {
       it('should call correct error handlers', () => {
         const normalErr = new Error('Bilbo')
         worker._wrapTask.rejects(normalErr)
-        worker._addDataToError.rejects(normalErr)
+        worker._addWorkerDataToError.rejects(normalErr)
         worker._handleTimeoutError.rejects(normalErr)
         worker._enforceRetryLimit.rejects(normalErr)
         worker.errorCat.report.rejects(normalErr)
@@ -745,7 +763,7 @@ describe('Worker', () => {
             sinon.assert.calledOnce(worker._createTimer)
             sinon.assert.calledOnce(worker._wrapTask)
             sinon.assert.notCalled(worker._handleTaskSuccess)
-            sinon.assert.calledOnce(worker._addDataToError)
+            sinon.assert.calledOnce(worker._addWorkerDataToError)
             sinon.assert.notCalled(worker._handleTimeoutError)
             sinon.assert.calledOnce(worker._enforceRetryLimit)
             sinon.assert.calledOnce(worker.errorCat.report)
