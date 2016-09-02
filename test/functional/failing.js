@@ -4,7 +4,7 @@ const chai = require('chai')
 const Promise = require('bluebird')
 const sinon = require('sinon')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
-
+const ErrorCat = require('error-cat')
 const assert = chai.assert
 
 // Ponos Tooling
@@ -26,23 +26,25 @@ describe('Basic Failing Task', () => {
 
   before(() => {
     sinon.spy(_Worker.prototype, 'run')
-    sinon.spy(_Worker.prototype, '_reportError')
+    sinon.spy(ErrorCat, 'report')
     const tasks = {
       'ponos-test:one': testWorker
     }
     rabbitmq = new RabbitMQ({
       tasks: Object.keys(tasks)
     })
-    server = new ponos.Server({ tasks: tasks })
-    return server.start()
+    server = new ponos.Server({
+      tasks: tasks
+    })
+    return rabbitmq.connect()
       .then(() => {
-        return rabbitmq.connect()
+        return server.start()
       })
   })
 
   after(() => {
     _Worker.prototype.run.restore()
-    _Worker.prototype._reportError.restore()
+    ErrorCat.report.restore()
     return server.stop()
       .then(() => {
         return rabbitmq.disconnect()
@@ -70,28 +72,30 @@ describe('Basic Failing Task', () => {
     rabbitmq.publishTask('ponos-test:one', job)
 
     // wait until .run is called
-    return Promise.resolve().then(function loop () {
+    return Promise.try(function loop () {
       if (!_Worker.prototype.run.calledOnce) {
         return Promise.delay(5).then(loop)
       }
     })
-      .then(() => {
-        assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
-        /*
-         *  We can get the promise and assure that it was fulfilled!
-         *  This should be _fulfilled_ because it threw a WorkerStopError and
-         *  acknowledged that the task was completed (even though the task
-         *  rejected with an error)
-         */
-        const workerRunPromise = _Worker.prototype.run.firstCall.returnValue
-        assert.isFulfilled(workerRunPromise)
-        assert.ok(
-          _Worker.prototype._reportError.calledOnce,
-          'worker._reportError called once'
-        )
-        const err = _Worker.prototype._reportError.firstCall.args[0]
-        assert.instanceOf(err, WorkerStopError)
-        assert.match(err, /message.+required/)
-      })
+    .then(() => {
+      assert.ok(_Worker.prototype.run.calledOnce, '.run called once')
+      /*
+       *  We can get the promise and assure that it was fulfilled!
+       *  This should be _fulfilled_ because it threw a WorkerStopError and
+       *  acknowledged that the task was completed (even though the task
+       *  rejected with an error)
+       */
+      const workerRunPromise = _Worker.prototype.run.firstCall.returnValue
+      assert.isFulfilled(workerRunPromise)
+      assert.ok(
+        ErrorCat.report.calledOnce,
+        'worker.report called once'
+      )
+      const err = ErrorCat.report.firstCall.args[0]
+      assert.instanceOf(err, WorkerStopError)
+      assert.match(err, /fail test message is required/)
+
+      return Promise.resolve()
+    })
   })
 })

@@ -1,49 +1,39 @@
 'use strict'
-
-const chai = require('chai')
 const sinon = require('sinon')
 const Promise = require('bluebird')
-
-const assert = chai.assert
 
 // Ponos Tooling
 const ponos = require('../../src')
 const RabbitMQ = require('../../src/rabbitmq')
 
-// require the Worker class so we can verify the task is running
-const _Worker = require('../../src/worker')
 /*
  *  In this example, we are going to have a job handler that times out at
  *  decreasing intervals, throwing TimeoutErrors, until it passes.
  */
-describe('Basic Timeout Task', function () {
+describe('Retry limit task', function () {
   let server
   let rabbitmq
-  let testRecover
+  const testRecoverStub = sinon.stub().resolves()
+  const taskStub = sinon.stub().rejects(new Error('death to all'))
   before(() => {
-    sinon.spy(_Worker.prototype, 'run')
     const tasks = {
       'ponos-test:one': {
-        task: () => {
-          return Promise.reject(new Error('death to all'))
-        },
-        finalRetryFn: (job) => {
-          return testRecover(job)
-        },
-        maxNumRetries: 5
+        task: taskStub,
+        finalRetryFn: testRecoverStub,
+        maxNumRetries: 3
       }
     }
     rabbitmq = new RabbitMQ({
       tasks: Object.keys(tasks)
     })
     server = new ponos.Server({ tasks: tasks })
-    return server.start()
+    return rabbitmq.connect()
       .then(() => {
-        return rabbitmq.connect()
+        return server.start()
       })
   })
+
   after(() => {
-    _Worker.prototype.run.restore()
     return server.stop()
       .then(() => {
         return rabbitmq.disconnect()
@@ -51,22 +41,25 @@ describe('Basic Timeout Task', function () {
   })
 
   const job = {
-    message: 'hello world'
+    message: 'hello world',
+    tid: 'test-tid'
   }
 
   describe('with maxNumRetries', function () {
-    it('should fail 4 times and pass the fifth time', (done) => {
-      testRecover = function (testJob) {
-        try {
-          assert.equal(job.message, testJob.message)
-          sinon.assert.callCount(_Worker.prototype.run, 5)
-        } catch (err) {
-          return done(err)
-        }
-        done()
-        return Promise.resolve()
-      }
+    it('should fail 3 times and run recovery function', () => {
       rabbitmq.publishTask('ponos-test:one', job)
+
+      return Promise.try(function loop () {
+        if (taskStub.callCount !== 3) {
+          return Promise.delay(3).then(loop)
+        }
+      })
+      .then(() => {
+        sinon.assert.calledOnce(testRecoverStub)
+        sinon.assert.calledWith(testRecoverStub, job)
+        sinon.assert.callCount(taskStub, 3)
+        sinon.assert.alwaysCalledWithExactly(taskStub, job)
+      })
     })
   })
 })

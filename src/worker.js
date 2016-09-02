@@ -1,5 +1,5 @@
 /* @flow */
-/* global Logger WorkerError DDTimer */
+/* global Logger DDTimer */
 'use strict'
 
 const cls = require('continuation-local-storage').createNamespace('ponos')
@@ -19,7 +19,6 @@ clsBlueBird(cls)
 
 const optsSchema = joi.object({
   attempt: joi.number().integer().min(0).required(),
-  done: joi.func().required(),
   errorCat: joi.object(),
   finalRetryFn: joi.func(),
   jobSchema: joi.object({
@@ -27,11 +26,11 @@ const optsSchema = joi.object({
   }).unknown(),
   job: joi.object().required(),
   log: joi.object().required(),
-  maxNumRetries: joi.number().integer().min(0),
-  msTimeout: joi.number().integer().min(0),
+  maxNumRetries: joi.number().integer().min(0).required(),
+  msTimeout: joi.number().integer().min(0).required(),
   queue: joi.string().required(),
-  retryDelay: joi.number().integer().min(0).required(),
-  runNow: joi.bool(),
+  retryDelay: joi.number().integer().min(1).required(),
+  maxRetryDelay: joi.number().integer().min(0).required(),
   task: joi.func().required()
 }).unknown()
 
@@ -41,8 +40,6 @@ const optsSchema = joi.object({
  * @author Bryan Kendall
  * @author Ryan Sandor Richards
  * @param {Object} opts Options for the worker.
- * @param {Function} opts.done Callback to execute when the job has successfully
- *   been completed.
  * @param {Object} opts.job Data for the job to process.
  * @param {String} opts.queue Name of the queue for the job the worker is
  *   processing.
@@ -53,12 +50,9 @@ const optsSchema = joi.object({
  *   from the worker.
  * @param {number} [opts.msTimeout] A specific millisecond timeout for this
  *   worker.
- * @param {boolean} [opts.runNow] Whether or not to run the job immediately,
- *   defaults to `true`.
  */
 class Worker {
   attempt: number;
-  done: Function;
   errorCat: ErrorCat;
   finalRetryFn: Function;
   jobSchema: Object;
@@ -68,6 +62,7 @@ class Worker {
   msTimeout: number;
   queue: String;
   retryDelay: number;
+  maxRetryDelay: number
   task: Function;
   tid: String;
 
@@ -75,13 +70,13 @@ class Worker {
     defaults(opts, {
       // default non-required user options
       errorCat: ErrorCat,
-      runNow: true,
       // other options
       attempt: 0,
       finalRetryFn: () => { return Promise.resolve() },
-      maxNumRetries: process.env.WORKER_MAX_NUM_RETRIES || 0,
-      msTimeout: process.env.WORKER_TIMEOUT || 0,
-      retryDelay: process.env.WORKER_MIN_RETRY_DELAY || 1
+      maxNumRetries: parseInt(process.env.WORKER_MAX_NUM_RETRIES, 10) || Number.MAX_SAFE_INTEGER,
+      msTimeout: parseInt(process.env.WORKER_TIMEOUT, 10) || 0,
+      maxRetryDelay: parseInt(process.env.WORKER_MAX_RETRY_DELAY, 10) || Number.MAX_SAFE_INTEGER,
+      retryDelay: parseInt(process.env.WORKER_MIN_RETRY_DELAY, 10) || 1
     })
     // managed required fields
     joi.assert(opts, optsSchema)
@@ -89,11 +84,6 @@ class Worker {
     opts.log = opts.log.child({ tid: this.tid, module: 'ponos:worker' })
     // put all opts on this
     Object.assign(this, opts)
-    this.log.info({ queue: this.queue, job: this.job }, 'Worker created')
-
-    if (this.runNow) {
-      this.run()
-    }
   }
 
   /**
@@ -109,6 +99,169 @@ class Worker {
   }
 
   /**
+   * validate job against schema if passed
+   * @return {Promise}
+   * @rejects {WorkerStopError} when job does not match schema
+   */
+  _validateJob (): Promise<void> {
+    return Promise.try(() => {
+      if (this.jobSchema) {
+        joi.assert(this.job, this.jobSchema)
+      }
+    })
+    .catch((err) => {
+      if (!err.isJoi) {
+        throw err
+      }
+
+      throw new WorkerStopError('Invalid job', {
+        queue: this.queue,
+        job: this.job,
+        validationErr: err
+      })
+    })
+  }
+  /**
+   * Wraps tasks with CLS and timeout
+   * @returns {Promise}
+   * @resolves {Object} when task is complete
+   * @rejects {Error} if job errored
+   */
+  _wrapTask (): Promise<any> {
+    return Promise.fromCallback((cb) => {
+      cls.run(() => {
+        cls.set('tid', this.tid)
+        Promise.try(() => {
+          this.log.info({
+            attempt: this.attempt++,
+            timeout: this.msTimeout
+          }, 'running task')
+          let taskPromise = Promise.try(() => {
+            return this.task(this.job)
+          })
+
+          if (this.msTimeout) {
+            taskPromise = taskPromise.timeout(this.msTimeout)
+          }
+          return taskPromise
+        }).asCallback(cb)
+      })
+    })
+  }
+
+  /**
+   * adds worker properties to error
+   * @param  {Error} err error to augment
+   * @throws {Error}     error with extra data
+   */
+  _addWorkerDataToError (err: Object) {
+    if (err.cause) {
+      err = err.cause
+    }
+    if (!isObject(err.data)) {
+      err.data = {}
+    }
+    if (!err.data.queue) {
+      err.data.queue = this.queue
+    }
+    if (!err.data.job) {
+      err.data.job = this.job
+    }
+    throw err
+  }
+
+  /**
+   * retry task with delay function
+   * @param  {Error} err error that is causing retry
+   * @return {Promise}
+   * @resolves {Object} when task is resolved
+   */
+  _retryWithDelay (err: Object) {
+    this.log.warn({
+      err: err,
+      nextAttemptDelay: this.retryDelay,
+      attemptCount: this.attempt
+    }, 'Task failed, retrying')
+    this._incMonitor('ponos.finish', { result: 'task-error' })
+
+    // Try again after a delay
+    return Promise.delay(this.retryDelay)
+      .then(() => {
+        // Exponentially increase the retry delay to max
+        if (this.retryDelay < this.maxRetryDelay) {
+          this.retryDelay *= 2
+        }
+        return this.run()
+      })
+  }
+
+  /**
+   * throw Worker Stop Error if we reached retry limit
+   * @param  {Error} err error that worker threw
+   * @return {Promise}
+   * @resolves should never resolve
+   * @rejects {Error} when attempt limit not reached
+   * @rejects {WorkerStopErrpr} when attempt limit reached
+   */
+  _enforceRetryLimit (err: Object) {
+    if (this.attempt < this.maxNumRetries) {
+      return Promise.reject(err)
+    }
+
+    this.log.error({
+      attempt: this.attempt,
+      maxNumRetries: this.maxNumRetries
+    }, 'retry limit reached, trying handler')
+
+    return Promise.try(() => {
+      return this.finalRetryFn(this.job)
+    })
+    .catch((finalErr) => {
+      this._incMonitor('ponos.finish-retry-fn-error', { result: 'retry-fn-error' })
+      this.log.warn({ err: finalErr }, 'final function errored')
+    })
+    .finally(() => {
+      this._incMonitor('ponos.finish-error', { result: 'retry-error' })
+      throw new WorkerStopError('final retry handler finished', {
+        queue: this.queue,
+        job: this.job,
+        attempt: this.attempt
+      })
+    })
+  }
+
+  /**
+   * Do not propagate error and log
+   * @param  {WorkerStopError} err error that caused worker to stop
+   * @return {undefined}
+   */
+  _handleWorkerStopError (err: Object) {
+    this.log.error({ err: err }, 'Worker task fatally errored')
+    this._incMonitor('ponos.finish-error', { result: 'fatal-error' })
+  }
+
+  /**
+   * Propagate error and log
+   * @param  {TimeoutError} err error that caused worker to stop
+   * @return {undefined}
+   */
+  _handleTimeoutError (err: Object) {
+    this.log.warn({ err: err }, 'Task timed out')
+    this._incMonitor('ponos.finish-error', { result: 'timeout-error' })
+    // by throwing this type of error, we will retry :)
+    throw err
+  }
+
+  /**
+   * log task complete
+   * @return {undefined}
+   */
+  _handleTaskSuccess () {
+    this.log.info('Task complete')
+    this._incMonitor('ponos.finish', { result: 'success' })
+  }
+
+  /**
    * Runs the worker. If the task for the job fails, then this method will retry
    * the task (with an exponential backoff) as set by the environment.
    *
@@ -118,145 +271,33 @@ class Worker {
   run (): Promise<void> {
     this._incMonitor('ponos')
     const timer = this._createTimer()
-    const log = this.log.child({
+    this.log = this.log.child({
       method: 'run',
       queue: this.queue,
       job: this.job
     })
 
-    return Promise.fromCallback((cb) => {
-      cls.run(() => {
-        cls.set('tid', this.tid)
-        Promise.try(() => {
-          const attemptData = {
-            attempt: this.attempt++,
-            timeout: this.msTimeout
-          }
-          log.info(attemptData, 'running task')
-          let taskPromise = Promise
-            .try(() => {
-              if (this.jobSchema) {
-                joi.assert(this.job, this.jobSchema)
-              }
-            })
-            .catch((err) => {
-              throw new WorkerStopError('Invalid job', {
-                queue: this.queue,
-                job: this.job,
-                validationErr: err
-              })
-            })
-            .then(() => {
-              return this.task(this.job)
-            })
-
-          if (this.msTimeout) {
-            taskPromise = taskPromise.timeout(this.msTimeout)
-          }
-          return taskPromise
-        }).asCallback(cb)
-      })
-    })
-    .then((result) => {
-      log.info({ result: result }, 'Task complete')
-      this._incMonitor('ponos.finish', { result: 'success' })
-      return this.done()
-    })
-    // if the type is TimeoutError, we will log and retry
-    .catch(TimeoutError, (err) => {
-      log.warn({ err: err }, 'Task timed out')
-      this._incMonitor('ponos.finish', { result: 'timeout-error' })
-      // by throwing this type of error, we will retry :)
-      throw err
-    })
-    .catch((err) => {
-      if (err.cause) {
-        err = err.cause
-      }
-      if (!isObject(err.data)) {
-        err.data = {}
-      }
-      if (!err.data.queue) {
-        err.data.queue = this.queue
-      }
-      if (!err.data.job) {
-        err.data.job = this.job
-      }
-      throw err
-    })
-    // if it's a WorkerStopError, we can't accomplish the task
-    .catch(WorkerStopError, (err) => {
-      log.error({ err: err }, 'Worker task fatally errored')
-      this._incMonitor('ponos.finish', { result: 'fatal-error' })
-      this._reportError(err)
-      // If we encounter a fatal error we should no longer try to schedule
-      // the job.
-      return this.done()
-    })
-    .catch((err) => {
-      // if maxNumRetries is set, call finalRetryFn and stop
-      if (!this.maxNumRetries || this.attempt < this.maxNumRetries) {
+    return this._validateJob()
+      .bind(this)
+      .then(this._wrapTask)
+      .then(this._handleTaskSuccess)
+      .catch(this._addWorkerDataToError)
+      // If the type is TimeoutError, log and re-throw error
+      .catch(TimeoutError, this._handleTimeoutError)
+      .catch(this._enforceRetryLimit)
+      .catch((err) => {
+        this.errorCat.report(err)
         throw err
-      }
-
-      log.error({
-        attempt: this.attempt
-      }, 'retry limit reached, trying handler')
-
-      return this.finalRetryFn(this.job)
-        .catch((finalErr) => {
-          log.warn({ err: finalErr }, 'final function errored')
-        })
-        .finally(() => {
-          const err = new WorkerStopError('final retry handler finished', {
-            queue: this.queue,
-            job: this.job,
-            attempt: this.attempt
-          })
-          log.error('final retry handler finished')
-          this._incMonitor('ponos.finish', { result: 'retry-error' })
-          this._reportError(err)
-          // If we reach attempt limit we should no longer try to schedule the job.
-          return this.done()
-        })
-    })
-    .catch((err) => {
-      const attemptData = {
-        err: err,
-        nextAttemptDelay: this.retryDelay
-      }
-      log.warn(attemptData, 'Task failed, retrying')
-      this._incMonitor('ponos.finish', { result: 'task-error' })
-      this._reportError(err)
-
-      // Try again after a delay
-      return Promise.delay(this.retryDelay)
-        .then(() => {
-          // Exponentially increase the retry delay
-          const retryDelay = parseInt(process.env.WORKER_MAX_RETRY_DELAY) || 0
-          if (this.retryDelay < retryDelay) {
-            this.retryDelay *= 2
-          }
-          return this.run()
-        })
-    })
-    .finally(() => {
-      if (timer) {
-        timer.stop()
-      }
-    })
-  }
-
-  // Private Methods
-
-  /**
-   * Helper function for reporting errors to rollbar via error-cat.
-   *
-   * @private
-   * @param {Error} err Error to report.
-   */
-  _reportError (err: WorkerError|WorkerStopError): void {
-    this.errorCat.report(err)
+      })
+      // If it's a WorkerStopError, we stop this task by swallowing error
+      .catch(WorkerStopError, this._handleWorkerStopError)
+      // If we made it here we retry by calling run again (recursion)
+      .catch(this._retryWithDelay)
+      .finally(() => {
+        if (timer) {
+          timer.stop()
+        }
+      })
   }
 
   /**

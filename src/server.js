@@ -259,20 +259,20 @@ class Server {
     const events = this._events
     return Promise.map(tasks.keySeq(), (queue) => {
       return this._rabbitmq.subscribeToQueue(queue, (job, done) => {
-        this._runWorker(queue, tasks.get(queue), job, done)
+        return this._runWorker(queue, tasks.get(queue), job, done)
       })
     })
-      .then(() => {
-        return Promise.map(events.keySeq(), (exchange) => {
-          return this._rabbitmq.subscribeToFanoutExchange(
-            exchange,
-            (job, done) => {
-              this._runWorker(exchange, events.get(exchange), job, done)
-            }
-          )
-        })
+    .then(() => {
+      return Promise.map(events.keySeq(), (exchange) => {
+        return this._rabbitmq.subscribeToFanoutExchange(
+          exchange,
+          (job, done) => {
+            return this._runWorker(exchange, events.get(exchange), job, done)
+          }
+        )
       })
-      .return()
+    })
+    .return()
   }
 
   /**
@@ -283,28 +283,36 @@ class Server {
    * @param {Function} handler Handler to perform the work.
    * @param {Object} job Job for the worker to perform.
    * @param {Function} done RabbitMQ acknowledgement callback.
+   * @return {Promise}
+   * @resolves {undefined} when worker is successful
+   * @rejects {Error} when creating Worker fails
    */
   _runWorker (
     queueName: string,
     handler: Function,
     job: Object,
     done: Function
-  ): void {
-    this.log.trace({
-      queue: queueName,
-      job: job,
-      method: '_runWorker'
-    }, 'running worker')
-    const opts = clone(this._workerOptions[queueName])
-    defaults(opts, {
-      queue: queueName,
-      job: job,
-      task: handler,
-      done: done,
-      log: this.log,
-      errorCat: this.errorCat
+  ): Promise<*> {
+    return Promise.try(() => {
+      this.log.trace({
+        queue: queueName,
+        job: job,
+        method: '_runWorker'
+      }, 'running worker')
+      const opts = clone(this._workerOptions[queueName])
+      defaults(opts, {
+        queue: queueName,
+        job: job,
+        task: handler,
+        log: this.log,
+        errorCat: this.errorCat
+      })
+      const worker = Worker.create(opts)
+      return worker.run().finally(() => {
+        // done has to be called with no arguments
+        done()
+      })
     })
-    Worker.create(opts)
   }
 }
 
