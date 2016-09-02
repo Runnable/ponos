@@ -13,6 +13,7 @@ const Promise = require('bluebird')
 
 const logger = require('./logger')
 const RabbitMQ = require('./rabbitmq')
+const RedisRateLimiter = require('./rate-limiters/redis-rate-limiter')
 const Worker = require('./worker')
 
 /**
@@ -72,7 +73,9 @@ class Server {
     }
 
     this.errorCat = this._opts.errorCat || ErrorCat
-
+    if (this._opts.redisRateLimiter) {
+      this.redisRateLimiter = new RedisRateLimiter(this._opts.redisRateLimiter)
+    }
     // add the name to RabbitMQ options
     const rabbitmqOpts = defaults(
       this._opts.rabbitmq || {},
@@ -101,6 +104,11 @@ class Server {
   start (): Bluebird$Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
+      .then(() => {
+        if (this.redisRateLimiter) {
+          return this.redisRateLimiter.connect()
+        }
+      })
       .then(() => {
         return this._subscribeAll()
       })
@@ -258,23 +266,27 @@ class Server {
     const tasks = this._tasks
     const events = this._events
     return Promise.map(tasks.keySeq(), (queue) => {
-      return this._rabbitmq.subscribeToQueue(queue, (job, done) => {
-        return this._runWorker(queue, tasks.get(queue), job, done)
-      })
+      return this._rabbitmq.subscribeToQueue(
+        queue,
+        this._queueAndRun(queue, tasks.get(queue))
+      )
     })
     .then(() => {
       return Promise.map(events.keySeq(), (exchange) => {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
-          (job, done) => {
-            return this._runWorker(exchange, events.get(exchange), job, done)
-          }
+          this._queueAndRun(exchange, events.get(exchange))
         )
       })
     })
     .return()
   }
 
+  _queueAndRun (exchange, worker) {
+    return (job, done) => {
+      return this._runWorker(exchange, worker, job, done)
+    }
+  }
   /**
    * Runs a worker for the given queue name, job, and acknowledgement callback.
    *
