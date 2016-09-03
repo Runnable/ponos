@@ -13,6 +13,7 @@ const Promise = require('bluebird')
 
 const logger = require('./logger')
 const RabbitMQ = require('./rabbitmq')
+const RedisRateLimiter = require('./rate-limiters/redis-rate-limiter')
 const Worker = require('./worker')
 
 /**
@@ -55,9 +56,10 @@ class Server {
   _tasks: Map<string, Function>;
   _workerOptions: Object;
   _workQueues: Object;
+  _redisRateLimiter: Object;
+
   errorCat: ErrorCat;
   log: Logger;
-
   constructor (opts: Object) {
     this._opts = assign({}, opts)
     this.log = this._opts.log || logger.child({ module: 'ponos:server' })
@@ -74,6 +76,10 @@ class Server {
     }
 
     this.errorCat = this._opts.errorCat || ErrorCat
+
+    if (this._opts.redisRateLimiter) {
+      this._redisRateLimiter = new RedisRateLimiter(this._opts.redisRateLimiter)
+    }
 
     // add the name to RabbitMQ options
     const rabbitmqOpts = defaults(
@@ -103,6 +109,11 @@ class Server {
   start (): Bluebird$Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
+      .then(() => {
+        if (this._redisRateLimiter) {
+          return this._redisRateLimiter.connect()
+        }
+      })
       .then(() => {
         return this._subscribeAll()
       })
@@ -291,17 +302,24 @@ class Server {
     // we are already processing _workQueues
     if (this._workQueues[name].length === 1) {
       // this is first job in _workQueues, start the loop
-      this._workLoop(this._workQueues[name])
+      this._workLoop(name)
     }
   }
 
-  _workLoop (queue: Array<Function>) {
-    const worker = queue.pop()
-    if (worker) {
-      // run worker and start next task in parallel
-      worker()
-      this._workLoop(queue)
-    }
+  _workLoop (name: string) {
+    return Promise.try(() => {
+      if (this._redisRateLimiter) {
+        return this._redisRateLimiter.waitForSpace(name)
+      }
+    })
+    .then(() => {
+      const worker = this._workQueues[name].pop()
+      if (worker) {
+        // run worker and start next task in parallel
+        worker()
+        this._workLoop(name)
+      }
+    })
   }
 
   /**
