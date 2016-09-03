@@ -13,7 +13,6 @@ const Promise = require('bluebird')
 
 const logger = require('./logger')
 const RabbitMQ = require('./rabbitmq')
-const RedisRateLimiter = require('./rate-limiters/redis-rate-limiter')
 const Worker = require('./worker')
 
 /**
@@ -75,9 +74,6 @@ class Server {
     }
 
     this.errorCat = this._opts.errorCat || ErrorCat
-    if (this._opts.redisRateLimiter) {
-      this._redisRateLimiter = new RedisRateLimiter(this._opts.redisRateLimiter)
-    }
 
     // add the name to RabbitMQ options
     const rabbitmqOpts = defaults(
@@ -107,11 +103,6 @@ class Server {
   start (): Bluebird$Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
-      .then(() => {
-        if (this._redisRateLimiter) {
-          return this._redisRateLimiter.connect()
-        }
-      })
       .then(() => {
         return this._subscribeAll()
       })
@@ -302,11 +293,6 @@ class Server {
 
   _workLoop (name) {
     return Promise
-      .try(() => {
-        if (this._redisRateLimiter) {
-          return this._waitForSpace(name)
-        }
-      })
       .then(() => {
         const item = this._workQueues[name].pop()
         if (item) {
