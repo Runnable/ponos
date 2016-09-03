@@ -264,21 +264,21 @@ class Server {
     return Promise.map(tasks.keySeq(), (queue) => {
       return this._rabbitmq.subscribeToQueue(
         queue,
-        (job, done) => { this._queueAndRun(queue, tasks.get(queue), job, done) }
+        (job, done) => { this._enqueue(queue, tasks.get(queue), job, done) }
       )
     })
     .then(() => {
       return Promise.map(events.keySeq(), (exchange) => {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
-          (job, done) => { this._queueAndRun(exchange, events.get(exchange), job, done) }
+          (job, done) => { this._enqueue(exchange, events.get(exchange), job, done) }
         )
       })
     })
     .return()
   }
 
-  _queueAndRun (name, worker, job, done) {
+  _enqueue (name: string, worker: Function, job: Object, done: Function) {
     this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, done))
     // we are already processing _workQueues
     if (this._workQueues[name].length !== 1) {
@@ -291,19 +291,19 @@ class Server {
     })
   }
 
-  _workLoop (name) {
-    return Promise
-      .then(() => {
-        const item = this._workQueues[name].pop()
-        if (item) {
-          item().finally(() => {
-            // continue if there are items left in _workQueues
-            if (this._workQueues[name].length) {
-              this._workLoop()
-            }
-          })
-        }
-      })
+  _workLoop (name: string) {
+    return Promise.try(() => {
+      const worker = this._workQueues[name].pop()
+      if (worker) {
+        this.log.fatal({worker: worker}, 'XXXX')
+        worker().finally(() => {
+          // continue if there are items left in _workQueues
+          if (this._workQueues[name].length) {
+            this._workLoop(name)
+          }
+        })
+      }
+    })
   }
 
   /**
