@@ -286,24 +286,19 @@ class Server {
     }
 
     // this is first job in _workQueues, start the loop
-    Promise.try(() => {
-      return this._workLoop(name)
-    })
+    this._workLoop(this._workQueues[name])
   }
 
-  _workLoop (name: string) {
-    return Promise.try(() => {
-      const worker = this._workQueues[name].pop()
-      if (worker) {
-        this.log.fatal({worker: worker}, 'XXXX')
-        worker().finally(() => {
-          // continue if there are items left in _workQueues
-          if (this._workQueues[name].length) {
-            this._workLoop(name)
-          }
-        })
-      }
-    })
+  _workLoop (queue: Array<Function>) {
+    const worker = queue.pop()
+    if (worker) {
+      worker().finally(() => {
+        // continue if there are items left in _workQueues
+        if (queue.length) {
+          this._workLoop(queue)
+        }
+      })
+    }
   }
 
   /**
