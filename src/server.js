@@ -278,26 +278,29 @@ class Server {
     .return()
   }
 
-  _enqueue (name: string, worker: Function, job: Object, done: Function) {
+  /**
+   * Adds worker to queue and starts work loop if there is work to do
+   * @param  {String}   name    name of queue
+   * @param  {Promise}  worker  worker promise to run
+   * @param  {Object}   job     job for worker
+   * @param  {Function} done    worker callback
+   * @return {undefined}
+   */
+  _enqueue (name: string, worker: Promise<*>, job: Object, done: Function) {
     this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, done))
     // we are already processing _workQueues
-    if (this._workQueues[name].length !== 1) {
-      return
+    if (this._workQueues[name].length === 1) {
+      // this is first job in _workQueues, start the loop
+      this._workLoop(this._workQueues[name])
     }
-
-    // this is first job in _workQueues, start the loop
-    this._workLoop(this._workQueues[name])
   }
 
   _workLoop (queue: Array<Function>) {
     const worker = queue.pop()
     if (worker) {
-      worker().finally(() => {
-        // continue if there are items left in _workQueues
-        if (queue.length) {
-          this._workLoop(queue)
-        }
-      })
+      // run worker and start next task in parallel
+      worker()
+      this._workLoop(queue)
     }
   }
 
@@ -315,7 +318,7 @@ class Server {
    */
   _runWorker (
     queueName: string,
-    handler: Function,
+    handler: Promise<*>,
     job: Object,
     done: Function
   ): Promise<*> {
