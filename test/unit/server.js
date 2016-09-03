@@ -206,20 +206,20 @@ describe('Server', () => {
       const mockDone = () => {}
 
       beforeEach(() => {
-        sinon.stub(ponos.Server.prototype, '_runWorker').returns()
+        sinon.stub(ponos.Server.prototype, '_enqueue').returns()
         return server._subscribeAll()
       })
 
       afterEach(() => {
-        ponos.Server.prototype._runWorker.restore()
+        ponos.Server.prototype._enqueue.restore()
       })
 
       it('should be created on subscribeToQueue', () => {
         const worker = RabbitMQ.prototype.subscribeToQueue.firstCall.args.pop()
         worker(mockJob, mockDone)
-        sinon.assert.calledOnce(ponos.Server.prototype._runWorker)
+        sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
-          ponos.Server.prototype._runWorker,
+          ponos.Server.prototype._enqueue,
           'test-queue-01',
           sinon.match.func,
           mockJob,
@@ -231,9 +231,9 @@ describe('Server', () => {
         const worker = RabbitMQ.prototype.subscribeToFanoutExchange
           .firstCall.args.pop()
         worker(mockJob, mockDone)
-        sinon.assert.calledOnce(ponos.Server.prototype._runWorker)
+        sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
-          ponos.Server.prototype._runWorker,
+          ponos.Server.prototype._enqueue,
           'test-queue-01',
           sinon.match.func,
           mockJob,
