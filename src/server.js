@@ -55,6 +55,7 @@ class Server {
   _rabbitmq: RabbitMQ;
   _tasks: Map<string, Function>;
   _workerOptions: Object;
+  _workQueues: Object;
   errorCat: ErrorCat;
   log: Logger;
 
@@ -62,6 +63,7 @@ class Server {
     this._opts = assign({}, opts)
     this.log = this._opts.log || logger.child({ module: 'ponos:server' })
     this._workerOptions = {}
+    this._workQueues = {}
 
     this._tasks = new Immutable.Map()
     if (this._opts.tasks) {
@@ -74,8 +76,9 @@ class Server {
 
     this.errorCat = this._opts.errorCat || ErrorCat
     if (this._opts.redisRateLimiter) {
-      this.redisRateLimiter = new RedisRateLimiter(this._opts.redisRateLimiter)
+      this._redisRateLimiter = new RedisRateLimiter(this._opts.redisRateLimiter)
     }
+
     // add the name to RabbitMQ options
     const rabbitmqOpts = defaults(
       this._opts.rabbitmq || {},
@@ -105,8 +108,8 @@ class Server {
     this.log.trace('starting')
     return this._rabbitmq.connect()
       .then(() => {
-        if (this.redisRateLimiter) {
-          return this.redisRateLimiter.connect()
+        if (this._redisRateLimiter) {
+          return this._redisRateLimiter.connect()
         }
       })
       .then(() => {
@@ -160,6 +163,7 @@ class Server {
       throw new Error('ponos.server: setAllTasks must be called with an object')
     }
     Object.keys(map).forEach((key) => {
+      this._workQueues[key] = []
       const value = map[key]
       if (isObject(value)) {
         if (!isFunction(value.task)) {
@@ -189,6 +193,7 @@ class Server {
       throw new Error('ponos.server: setAllEvents must be called with an object')
     }
     Object.keys(map).forEach((key) => {
+      this._workQueues[key] = []
       const value = map[key]
       if (isObject(value)) {
         if (!isFunction(value.task)) {
@@ -268,25 +273,53 @@ class Server {
     return Promise.map(tasks.keySeq(), (queue) => {
       return this._rabbitmq.subscribeToQueue(
         queue,
-        this._queueAndRun(queue, tasks.get(queue))
+        (job, done) => { this._queueAndRun(queue, tasks.get(queue), job, done) }
       )
     })
     .then(() => {
       return Promise.map(events.keySeq(), (exchange) => {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
-          this._queueAndRun(exchange, events.get(exchange))
+          (job, done) => { this._queueAndRun(exchange, events.get(exchange), job, done) }
         )
       })
     })
     .return()
   }
 
-  _queueAndRun (exchange, worker) {
-    return (job, done) => {
-      return this._runWorker(exchange, worker, job, done)
+  _queueAndRun (name, worker, job, done) {
+    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, done))
+    // we are already processing _workQueues
+    if (this._workQueues[name].length !== 1) {
+      return
     }
+
+    // this is first job in _workQueues, start the loop
+    Promise.try(() => {
+      return this._workLoop(name)
+    })
   }
+
+  _workLoop (name) {
+    return Promise
+      .try(() => {
+        if (this._redisRateLimiter) {
+          return this._waitForSpace(name)
+        }
+      })
+      .then(() => {
+        const item = this._workQueues[name].pop()
+        if (item) {
+          item().finally(() => {
+            // continue if there are items left in _workQueues
+            if (this._workQueues[name].length) {
+              this._workLoop()
+            }
+          })
+        }
+      })
+  }
+
   /**
    * Runs a worker for the given queue name, job, and acknowledgement callback.
    *
