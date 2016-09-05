@@ -53,13 +53,14 @@ class Server {
   _events: Map<string, Function>;
   _opts: Object;
   _rabbitmq: RabbitMQ;
+  _redisRateLimiter: RedisRateLimiter;
   _tasks: Map<string, Function>;
   _workerOptions: Object;
   _workQueues: Object;
-  _redisRateLimiter: Object;
 
   errorCat: ErrorCat;
   log: Logger;
+
   constructor (opts: Object) {
     this._opts = assign({}, opts)
     this.log = this._opts.log || logger.child({ module: 'ponos:server' })

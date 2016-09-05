@@ -1,7 +1,14 @@
 'use strict'
+const joi = require('joi')
+const Limiter = require('ratelimiter')
 const Promise = require('bluebird')
 const redis = require('redis')
-const Limiter = require('ratelimiter')
+
+const optsSchema = joi.object({
+  port: joi.string().required(),
+  host: joi.string().required(),
+  durationMs: joi.number().integer().min(0).required()
+})
 
 module.exports = class RedisRateLimiter {
   port: string;
@@ -19,6 +26,7 @@ module.exports = class RedisRateLimiter {
     this.host = opts.host
     // default to 1 second
     this.durationMs = opts.durationMs || 1000
+    joi.assert(this, optsSchema)
   }
 
   /**
