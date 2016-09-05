@@ -306,11 +306,22 @@ class Server {
     }
   }
 
+  /**
+   * Loop which pops items off the run queue and executes them
+   * this runs asynchronously to caller
+   * @param  {String} name  name of task or event
+   * @return {Promise}
+   * @resolves {undefined}
+   */
   _workLoop (name: string) {
     return Promise.try(() => {
       if (this._redisRateLimiter) {
-        return this._redisRateLimiter.waitForSpace(name)
+        return this._redisRateLimiter.limit(name, this._workerOptions[name])
       }
+    })
+    .catch((err) => {
+      // ignore rate limiter errors, just continue
+      this.errorCat.report(err)
     })
     .then(() => {
       const worker = this._workQueues[name].pop()

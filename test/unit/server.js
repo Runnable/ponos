@@ -4,13 +4,14 @@ const chai = require('chai')
 const clone = require('101/clone')
 const errorCat = require('error-cat')
 const noop = require('101/noop')
+const Promise = require('bluebird')
 const sinon = require('sinon')
-
-const assert = chai.assert
 
 const ponos = require('../../src')
 const Worker = require('../../src/worker')
 const RabbitMQ = require('../../src/rabbitmq')
+
+const assert = chai.assert
 
 const tasks = {
   'test-queue-01': worker,
@@ -275,7 +276,7 @@ describe('Server', () => {
     it('should run work loop if first item', () => {
       server._enqueue('Harry', Promise.resolve(), job, done)
       sinon.assert.calledOnce(server._workLoop)
-      sinon.assert.calledWith(server._workLoop, server._workQueues['Harry'])
+      sinon.assert.calledWith(server._workLoop, 'Harry')
     })
 
     it('should NOT run work loop if not item', () => {
@@ -285,8 +286,20 @@ describe('Server', () => {
   }) // end _enqueue
 
   describe('_workLoop', () => {
+    let stub1
+    let stub2
+    let stub3
+
     beforeEach(() => {
       sinon.spy(server, '_workLoop')
+      stub1 = sinon.stub()
+      stub2 = sinon.stub()
+      stub3 = sinon.stub()
+      server._workQueues = {
+        Rubeus: [stub1, stub2],
+        Hagrid: [stub3],
+        Draco: []
+      }
     })
 
     afterEach(() => {
@@ -294,19 +307,23 @@ describe('Server', () => {
     })
 
     it('should stop if nothing in queue', () => {
-      server._workLoop([])
+      server._workLoop('Draco')
       sinon.assert.calledOnce(server._workLoop)
     })
 
     it('should run each worker', () => {
-      const stub1 = sinon.stub()
-      const stub2 = sinon.stub()
-      const stub3 = sinon.stub()
-      server._workLoop([stub1, stub2, stub3])
-      sinon.assert.callCount(server._workLoop, 4)
-      sinon.assert.calledOnce(stub1)
-      sinon.assert.calledOnce(stub2)
-      sinon.assert.calledOnce(stub3)
+      server._workLoop('Rubeus')
+      return Promise.try(function loop () {
+        if (server._workLoop.callCount !== 3) {
+          return Promise.delay(5).then(loop)
+        }
+      })
+      .then(() => {
+        sinon.assert.callCount(server._workLoop, 3)
+        sinon.assert.calledOnce(stub1)
+        sinon.assert.calledOnce(stub2)
+        sinon.assert.notCalled(stub3)
+      })
     })
   }) // end _workLoop
 
