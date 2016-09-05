@@ -13,7 +13,7 @@ const Promise = require('bluebird')
 
 const logger = require('./logger')
 const RabbitMQ = require('./rabbitmq')
-const RedisRateLimiter = require('./rate-limiters/redis-rate-limiter')
+const RedisRateLimiter = require('./rate-limiters/redis')
 const Worker = require('./worker')
 
 /**
@@ -48,6 +48,8 @@ const Worker = require('./worker')
  *   with environment variable RABBITMQ_PASSWORD.
  * @param {Object<String, Function>} [opts.tasks] Mapping of queues to subscribe
  *   directly with handlers.
+ * @param {Object} [opts.redisRateLimiter] options for redis-rate-limiter. checkout
+ *   module for params
  */
 class Server {
   _events: Map<string, Function>;
