@@ -25,7 +25,7 @@ module.exports = class RedisRateLimiter {
    * @param  {Object} opts  redis connection options
    * @param  {String} opts.port redis connection port
    * @param  {String} opts.host redis connection host
-   * @param  {String} opts.log  worker server logger`
+   * @param  {Logger} opts.log  worker server logger
    * @return {RedisRateLimiter}
    */
   constructor (opts: Object) {
@@ -65,8 +65,8 @@ module.exports = class RedisRateLimiter {
    * Ensure promise's get resolved at a given rate
    * @param  {String} queueName  queueName of task or event to limit
    * @param  {Object} opts  rate limiting options
-   * @param  {String} opts.maxOperations  max number of operations per duration
-   * @param  {String} opts.durationMs  time period to limit operations in milliseconds
+   * @param  {Number} opts.maxOperations  max number of operations per duration
+   * @param  {Number} opts.durationMs  time period to limit operations in milliseconds
    * @return {Promise}
    */
   limit (queueName: string, opts: Object): Bluebird$Promise<void> {
