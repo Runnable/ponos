@@ -206,20 +206,20 @@ describe('Server', () => {
       const mockDone = () => {}
 
       beforeEach(() => {
-        sinon.stub(ponos.Server.prototype, '_runWorker').returns()
+        sinon.stub(ponos.Server.prototype, '_enqueue').returns()
         return server._subscribeAll()
       })
 
       afterEach(() => {
-        ponos.Server.prototype._runWorker.restore()
+        ponos.Server.prototype._enqueue.restore()
       })
 
       it('should be created on subscribeToQueue', () => {
         const worker = RabbitMQ.prototype.subscribeToQueue.firstCall.args.pop()
         worker(mockJob, mockDone)
-        sinon.assert.calledOnce(ponos.Server.prototype._runWorker)
+        sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
-          ponos.Server.prototype._runWorker,
+          ponos.Server.prototype._enqueue,
           'test-queue-01',
           sinon.match.func,
           mockJob,
@@ -231,9 +231,9 @@ describe('Server', () => {
         const worker = RabbitMQ.prototype.subscribeToFanoutExchange
           .firstCall.args.pop()
         worker(mockJob, mockDone)
-        sinon.assert.calledOnce(ponos.Server.prototype._runWorker)
+        sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
-          ponos.Server.prototype._runWorker,
+          ponos.Server.prototype._enqueue,
           'test-queue-01',
           sinon.match.func,
           mockJob,
@@ -242,6 +242,73 @@ describe('Server', () => {
       })
     })
   })
+
+  describe('_enqueue', () => {
+    let job
+    let done
+
+    beforeEach(() => {
+      sinon.stub(server, '_workLoop').returns()
+      sinon.stub(server, '_runWorker').returns()
+      server._workQueues = {
+        'Harry': [],
+        'Potter': [Promise.resolve()]
+      }
+      job = {
+        Ron: 'Weasley'
+      }
+      done = sinon.stub()
+    })
+
+    it('should add job to work queue', () => {
+      server._enqueue('Harry', Promise.resolve(), job, done)
+      assert.equal(server._workQueues.Harry.length, 1)
+    })
+
+    it('should bind worker correctly', () => {
+      server._enqueue('Harry', 'Hermione', job, done)
+      server._workQueues.Harry[0]()
+      sinon.assert.calledOnce(server._runWorker)
+      sinon.assert.calledWith(server._runWorker, 'Harry', 'Hermione', job, done)
+    })
+
+    it('should run work loop if first item', () => {
+      server._enqueue('Harry', Promise.resolve(), job, done)
+      sinon.assert.calledOnce(server._workLoop)
+      sinon.assert.calledWith(server._workLoop, server._workQueues['Harry'])
+    })
+
+    it('should NOT run work loop if not item', () => {
+      server._enqueue('Potter', Promise.resolve(), job, done)
+      sinon.assert.notCalled(server._workLoop)
+    })
+  }) // end _enqueue
+
+  describe('_workLoop', () => {
+    beforeEach(() => {
+      sinon.spy(server, '_workLoop')
+    })
+
+    afterEach(() => {
+      server._workLoop.restore()
+    })
+
+    it('should stop if nothing in queue', () => {
+      server._workLoop([])
+      sinon.assert.calledOnce(server._workLoop)
+    })
+
+    it('should run each worker', () => {
+      const stub1 = sinon.stub()
+      const stub2 = sinon.stub()
+      const stub3 = sinon.stub()
+      server._workLoop([stub1, stub2, stub3])
+      sinon.assert.callCount(server._workLoop, 4)
+      sinon.assert.calledOnce(stub1)
+      sinon.assert.calledOnce(stub2)
+      sinon.assert.calledOnce(stub3)
+    })
+  }) // end _workLoop
 
   describe('_runWorker', () => {
     let server

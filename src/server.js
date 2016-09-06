@@ -54,6 +54,7 @@ class Server {
   _rabbitmq: RabbitMQ;
   _tasks: Map<string, Function>;
   _workerOptions: Object;
+  _workQueues: Object;
   errorCat: ErrorCat;
   log: Logger;
 
@@ -61,6 +62,7 @@ class Server {
     this._opts = assign({}, opts)
     this.log = this._opts.log || logger.child({ module: 'ponos:server' })
     this._workerOptions = {}
+    this._workQueues = {}
 
     this._tasks = new Immutable.Map()
     if (this._opts.tasks) {
@@ -152,6 +154,7 @@ class Server {
       throw new Error('ponos.server: setAllTasks must be called with an object')
     }
     Object.keys(map).forEach((key) => {
+      this._workQueues[key] = []
       const value = map[key]
       if (isObject(value)) {
         if (!isFunction(value.task)) {
@@ -181,6 +184,7 @@ class Server {
       throw new Error('ponos.server: setAllEvents must be called with an object')
     }
     Object.keys(map).forEach((key) => {
+      this._workQueues[key] = []
       const value = map[key]
       if (isObject(value)) {
         if (!isFunction(value.task)) {
@@ -258,21 +262,46 @@ class Server {
     const tasks = this._tasks
     const events = this._events
     return Promise.map(tasks.keySeq(), (queue) => {
-      return this._rabbitmq.subscribeToQueue(queue, (job, done) => {
-        return this._runWorker(queue, tasks.get(queue), job, done)
-      })
+      return this._rabbitmq.subscribeToQueue(
+        queue,
+        (job, done) => { this._enqueue(queue, tasks.get(queue), job, done) }
+      )
     })
     .then(() => {
       return Promise.map(events.keySeq(), (exchange) => {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
-          (job, done) => {
-            return this._runWorker(exchange, events.get(exchange), job, done)
-          }
+          (job, done) => { this._enqueue(exchange, events.get(exchange), job, done) }
         )
       })
     })
     .return()
+  }
+
+  /**
+   * Adds worker to queue and starts work loop if there is work to do
+   * @param  {String}   name    name of queue
+   * @param  {Promise}  worker  worker promise to run
+   * @param  {Object}   job     job for worker
+   * @param  {Function} done    worker callback
+   * @return {undefined}
+   */
+  _enqueue (name: string, worker: Promise<*>, job: Object, done: Function) {
+    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, done))
+    // we are already processing _workQueues
+    if (this._workQueues[name].length === 1) {
+      // this is first job in _workQueues, start the loop
+      this._workLoop(this._workQueues[name])
+    }
+  }
+
+  _workLoop (queue: Array<Function>) {
+    const worker = queue.pop()
+    if (worker) {
+      // run worker and start next task in parallel
+      worker()
+      this._workLoop(queue)
+    }
   }
 
   /**
@@ -289,7 +318,7 @@ class Server {
    */
   _runWorker (
     queueName: string,
-    handler: Function,
+    handler: Promise<*>,
     job: Object,
     done: Function
   ): Promise<*> {
