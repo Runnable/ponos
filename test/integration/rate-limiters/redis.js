@@ -29,7 +29,7 @@ describe('rate-limiters/redis integration test', () => {
   })
 
   it('should immediately resolve', () => {
-    return assert.isFulfilled(redisRateLimiter.limit('test'))
+    return assert.isFulfilled(redisRateLimiter.limit('test', {}))
   })
 
   it('should only call 1 in rate limit period', () => {
