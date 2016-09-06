@@ -61,7 +61,6 @@ module.exports = class RedisRateLimiter {
    * @return {Promise}
    */
   limit (queueName: string, opts: Object): Bluebird$Promise<void> {
-    opts = opts || {}
     const log = this.log.child({ queueName: queueName, opts: opts })
     const durationMs = opts.durationMs || this.durationMs
     const limiter = new RateLimiter({
