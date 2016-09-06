@@ -1,8 +1,8 @@
 /* @flow */
-/* global Bluebird$Promise Logger */
+/* global Bluebird$Promise Logger RedisClient*/
 'use strict'
 const joi = require('joi')
-const Limiter = require('ratelimiter')
+const RateLimiter = require('ratelimiter')
 const Promise = require('bluebird')
 const redis = require('redis')
 
@@ -17,6 +17,8 @@ module.exports = class RedisRateLimiter {
   port: string;
   host: string;
   log: Logger;
+  durationMs: number;
+  client: RedisClient;
 
   /**
    * creates RedisRateLimiter object
@@ -41,7 +43,7 @@ module.exports = class RedisRateLimiter {
    * @resolves {undefined} When connection is ready
    * @reject {Error} When there was an error connecting
    */
-  connect (): Bluebird$Promise {
+  connect (): Bluebird$Promise<*> {
     return Promise.fromCallback((cb) => {
       this.log.trace('connecting to redis')
       this.client = redis.createClient(this.port, this.host)
@@ -58,11 +60,11 @@ module.exports = class RedisRateLimiter {
    * @param  {String} opts.durationMs  time period to limit operations in milliseconds
    * @return {Promise}
    */
-  limit (queueName: string, opts: Object): Bluebird$Promise {
+  limit (queueName: string, opts: Object): Bluebird$Promise<void> {
     opts = opts || {}
     const log = this.log.child({ queueName: queueName, opts: opts })
     const durationMs = opts.durationMs || this.durationMs
-    const limiter = new Limiter({
+    const limiter = new RateLimiter({
       id: queueName,
       db: this.client,
       max: opts.maxOperations,
