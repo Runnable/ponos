@@ -7,6 +7,7 @@ const noop = require('101/noop')
 const Promise = require('bluebird')
 const sinon = require('sinon')
 
+const logger = require('../../src/logger')
 const ponos = require('../../src')
 const RabbitMQ = require('../../src/rabbitmq')
 const RedisRateLimiter = require('../../src/rate-limiters/redis')
@@ -696,7 +697,8 @@ describe('Server', () => {
     it('should call connect on redis', () => {
       server._redisRateLimiter = new RedisRateLimiter({
         host: 'localhost',
-        port: '4242'
+        port: '4242',
+        log: logger
       })
       return assert.isFulfilled(server.start())
         .then(() => {

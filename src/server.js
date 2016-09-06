@@ -1,7 +1,6 @@
 /* @flow */
 /* global Bluebird$Promise Logger */
 'use strict'
-
 const assign = require('101/assign')
 const clone = require('101/clone')
 const defaults = require('101/defaults')
@@ -10,6 +9,7 @@ const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
 const Promise = require('bluebird')
+const put = require('101/put')
 
 const logger = require('./logger')
 const RabbitMQ = require('./rabbitmq')
@@ -81,7 +81,9 @@ class Server {
     this.errorCat = this._opts.errorCat || ErrorCat
 
     if (this._opts.redisRateLimiter) {
-      this._redisRateLimiter = new RedisRateLimiter(this._opts.redisRateLimiter)
+      this._redisRateLimiter = new RedisRateLimiter(put(this._opts.redisRateLimiter, {
+        log: this.log
+      }))
     }
 
     // add the name to RabbitMQ options
