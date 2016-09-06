@@ -16,47 +16,68 @@ describe('redis', () => {
   let testRedisRateLimiter
 
   beforeEach(() => {
+    delete process.env.REDIS_PORT
+    delete process.env.REDIS_HOST
+    delete process.env.RATE_LIMIT_DURATION
+
     testOpts = {
-      port: '123',
-      host: 'localhost',
+      port: '1',
+      host: 'remotehost',
       log: logger
     }
     testRedisRateLimiter = new RedisRateLimiter(testOpts)
   })
 
   describe('constructor', () => {
-    let out
-    it('should throw validation error if missing port', () => {
+    it('should use passed port', () => {
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.port, testOpts.port)
+    })
+
+    it('should use env port', () => {
       delete testOpts.port
-      assert.throws(() => {
-        out = new RedisRateLimiter(testOpts)
-      }, Error, /"port" is required/)
-      assert.isUndefined(out)
+      process.env.REDIS_PORT = '1234'
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.port, process.env.REDIS_PORT)
     })
 
-    it('should throw validation error if missing host', () => {
+    it('should use default port', () => {
+      delete testOpts.port
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.port, '6379')
+    })
+
+    it('should use passed host', () => {
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.host, testOpts.host)
+    })
+
+    it('should use env host', () => {
       delete testOpts.host
-      assert.throws(() => {
-        out = new RedisRateLimiter(testOpts)
-      }, Error, /"host" is required/)
-      assert.isUndefined(out)
+      process.env.REDIS_HOST = 'moonhost'
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.host, process.env.REDIS_HOST)
     })
 
-    it('should throw validation error if missing log', () => {
-      delete testOpts.log
-      assert.throws(() => {
-        out = new RedisRateLimiter(testOpts)
-      }, Error, /"log" is required/)
-      assert.isUndefined(out)
+    it('should use default host', () => {
+      delete testOpts.host
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.host, 'localhost')
     })
 
     it('should default durationMs to 1000', () => {
-      out = new RedisRateLimiter(testOpts)
+      const out = new RedisRateLimiter(testOpts)
       assert.equal(out.durationMs, 1000)
     })
 
+    it('should use env durationMs', () => {
+      process.env.RATE_LIMIT_DURATION = '5678'
+      const out = new RedisRateLimiter(testOpts)
+      assert.equal(out.durationMs, process.env.RATE_LIMIT_DURATION)
+    })
+
     it('should use passed durationMs', () => {
-      out = new RedisRateLimiter(put({
+      const out = new RedisRateLimiter(put({
         durationMs: 1738
       }, testOpts))
       assert.equal(out.durationMs, 1738)

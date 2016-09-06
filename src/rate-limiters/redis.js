@@ -29,11 +29,20 @@ module.exports = class RedisRateLimiter {
    * @return {RedisRateLimiter}
    */
   constructor (opts: Object) {
-    this.port = opts.port
-    this.host = opts.host
+    this.port = opts.port ||
+      process.env.REDIS_PORT ||
+      '6379'
+
+    this.host = opts.host ||
+      process.env.REDIS_HOST ||
+      'localhost'
+
+    this.durationMs = opts.durationMs ||
+      parseInt(process.env.RATE_LIMIT_DURATION, 10) ||
+      1000
+
     this.log = opts.log
-    // default to 1 second
-    this.durationMs = opts.durationMs || 1000
+
     joi.assert(this, optsSchema)
   }
 

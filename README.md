@@ -14,14 +14,17 @@ An opinionated queue based worker server for node.
 
 For ease of use we provide options to set the host, port, username, and password to the RabbitMQ server. If not present in options, the server will attempt to use the following environment variables and final defaults:
 
-options                  | environment         | default
--------------------------|---------------------|--------------
-`opts.rabbitmq.hostname` | `RABBITMQ_HOSTNAME` | `'localhost'`
-`opts.rabbitmq.port`     | `RABBITMQ_PORT`     | `'5672'`
-`opts.rabbitmq.username` | `RABBITMQ_USERNAME` | _none_
-`opts.rabbitmq.password` | `RABBITMQ_PASSWORD` | _none_
-`opts.log`               | _N/A_               | Basic [bunyan](https://github.com/trentm/node-bunyan) instance with `stdout` stream (for logging)
-`opts.errorCat`          | _N/A_               | Basic [error-cat](https://github.com/runnable/error-cat) instance (for rollbar error reporting)
+options                             | environment                 | default
+------------------------------------|-----------------------------|--------------
+`opts.rabbitmq.hostname`            | `RABBITMQ_HOSTNAME`         | `'localhost'`
+`opts.rabbitmq.port`                | `RABBITMQ_PORT`             | `'5672'`
+`opts.rabbitmq.username`            | `RABBITMQ_USERNAME`         | _none_
+`opts.rabbitmq.password`            | `RABBITMQ_PASSWORD`         | _none_
+`opts.redisRateLimiting.host`       | `REDIS_HOST`                | `'localhost'`
+`opts.redisRateLimiting.port`       | `REDIS_PORT`                | `'6379'`
+`opts.redisRateLimiting.durationMs` | `RATE_LIMIT_DURATION`       | `1000`
+`opts.log`                          | _N/A_                       | Basic [bunyan](https://github.com/trentm/node-bunyan) instance with `stdout` stream (for logging)
+`opts.errorCat`                     | _N/A_                       | Basic [error-cat](https://github.com/runnable/error-cat) instance (for rollbar error reporting)
 
 Other options for Ponos are as follows:
 
@@ -141,11 +144,26 @@ server.setAllTasks({
   'queue-1': queueOneTaskFn,
   // This will use the specified timeout, maxNumRetries, ...
   'queue-2': {
+    // worker function to run
     task: queueTwoTaskFn,
+
+    // schema to validate job against
     jobSchema: Joi.object({ tid: Joi.string() }),
+
+    // time before job will throw timeout error
     msTimeout: 1337,
+
+    // number of times before job will stop retrying on failure
     maxNumRetries: 7,
-    finalRetryFn: () => { return Promise.try(...)}
+
+    // function to run when we hit max retries
+    finalRetryFn: () => { return Promise.try(...)},
+
+    // number of jobs that we can perform in given duration
+    maxOperations: 5,
+
+    // duration under which rate limit is accounted for
+    durationMs: 60000
   }
 })
 ```

@@ -8,11 +8,14 @@ cache:
 sudo: false
 services:
 - rabbitmq
+- redis
 env:
   global:
   - LOG_LEVEL=error
   - RABBITMQ_USERNAME=guest
   - RABBITMQ_PASSWORD=guest
+  - REDIS_HOST=localhost
+  - REDIS_PORT=6379
 script:
 - npm run lint
 - npm run coverage

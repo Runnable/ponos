@@ -1,7 +1,6 @@
 'use strict'
 const chai = require('chai')
 const Promise = require('bluebird')
-const put = require('101/put')
 const redis = require('redis')
 const sinon = require('sinon')
 
@@ -10,18 +9,14 @@ const RedisRateLimiter = require('../../../src/rate-limiters/redis')
 
 const assert = chai.assert
 
-const redisConfig = {
-  port: '6379',
-  host: 'localhost'
-}
 describe('rate-limiters/redis integration test', () => {
   let redisRateLimiter
-  const testClient = redis.createClient(redisConfig.port, redisConfig.host)
+  const testClient = redis.createClient('6379', 'localhost')
 
   beforeEach((done) => {
-    redisRateLimiter = new RedisRateLimiter(put(redisConfig, {
+    redisRateLimiter = new RedisRateLimiter({
       log: logger.child({ module: 'ponos:test' })
-    }))
+    })
     sinon.spy(Promise, 'delay')
     redisRateLimiter.connect()
       .then(() => {

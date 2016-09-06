@@ -17,6 +17,7 @@
     "docs": "npm run build && jsdoc --recurse --readme ./README.md lib/",
     "format": "standard --format",
     "functional": "mocha $npm_package_options_mocha test/functional",
+    "integration": "mocha $npm_package_options_mocha test/integration",
     "lint": "npm run lint:format && npm run lint:type",
     "lint:format": "standard --verbose",
     "lint:type": "flow --timeout 30",
@@ -40,6 +41,7 @@
   ],
   "author": "Ryan Sandor Richards <sandor.richards@gmail.com>",
   "contributors": [
+    "Anandkumar patel <anand@runnable.com>",
     "Bryan Kendall <bryan@runnable.com>"
   ],
   "license": "MIT",
