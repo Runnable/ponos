@@ -10,7 +10,7 @@ const optsSchema = joi.object({
   durationMs: joi.number().integer().min(0).required(),
   host: joi.string().required(),
   log: joi.object().required(),
-  port: joi.string().required()
+  port: joi.number().required()
 })
 
 module.exports = class RedisRateLimiter {
@@ -31,7 +31,7 @@ module.exports = class RedisRateLimiter {
   constructor (opts: Object) {
     this.port = opts.port ||
       process.env.REDIS_PORT ||
-      '6379'
+      6379
 
     this.host = opts.host ||
       process.env.REDIS_HOST ||
