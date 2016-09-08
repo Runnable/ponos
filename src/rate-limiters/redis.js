@@ -56,9 +56,19 @@ module.exports = class RedisRateLimiter {
     return Promise.fromCallback((cb) => {
       this.log.trace('connecting to redis')
       this.client = redis.createClient(this.port, this.host)
-      this.client.on('error', cb)
+      this.client.on('error', this._throwOnError.bind(this))
       this.client.on('ready', cb)
     })
+  }
+
+  /**
+   * log error and throw
+   * @param  {Error} err error from redis
+   * @throws {Error} always
+   */
+  _throwOnError (err: Error) {
+    this.log.fatal({ err: err }, 'redis error')
+    throw err
   }
 
   /**

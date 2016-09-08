@@ -84,10 +84,20 @@ describe('redis', () => {
     })
   }) // constructor
 
+  describe('_throwOnError', function () {
+    it('should throw on error', () => {
+      const testError = new Error('lost connection')
+      return assert.throws(() => {
+        testRedisRateLimiter._throwOnError(testError)
+      }, /lost connection/)
+    })
+  }) // end _throwOnError
+
   describe('connect', () => {
     let onStub
     beforeEach(() => {
       onStub = sinon.stub()
+      sinon.stub(testRedisRateLimiter, '_throwOnError')
       sinon.stub(redis, 'createClient').returns({
         on: onStub
       })
@@ -98,7 +108,7 @@ describe('redis', () => {
     })
 
     it('should create redis client', () => {
-      onStub.onFirstCall().yieldsAsync()
+      onStub.onSecondCall().yieldsAsync()
       return assert.isFulfilled(testRedisRateLimiter.connect())
         .then(() => {
           sinon.assert.calledOnce(redis.createClient)
@@ -107,22 +117,22 @@ describe('redis', () => {
     })
 
     it('should attach error handler', () => {
-      onStub.onFirstCall().yieldsAsync()
+      onStub.onSecondCall().yieldsAsync()
       return assert.isFulfilled(testRedisRateLimiter.connect())
         .then(() => {
           sinon.assert.calledTwice(onStub)
-          sinon.assert.calledWith(onStub, 'error', sinon.match.func)
           sinon.assert.calledWith(onStub, 'ready', sinon.match.func)
         })
     })
 
     it('should attach error handler', () => {
+      const testError = new Error('found')
+      onStub.onFirstCall().yields(testError)
       onStub.onSecondCall().yieldsAsync()
       return assert.isFulfilled(testRedisRateLimiter.connect())
         .then(() => {
-          sinon.assert.calledTwice(onStub)
-          sinon.assert.calledWith(onStub, 'error', sinon.match.func)
-          sinon.assert.calledWith(onStub, 'ready', sinon.match.func)
+          sinon.assert.calledOnce(testRedisRateLimiter._throwOnError)
+          sinon.assert.calledWith(testRedisRateLimiter._throwOnError, testError)
         })
     })
   }) // end connect
