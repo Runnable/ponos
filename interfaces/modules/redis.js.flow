@@ -1,0 +1,11 @@
+declare class Redis {
+  static createClient(port: string, host: string): RedisClient;
+}
+
+declare class RedisClient {
+  on(event: string, callback: function): void;
+}
+
+declare module 'redis' {
+  declare var exports: typeof Redis;
+}

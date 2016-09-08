@@ -17,11 +17,12 @@
     "docs": "npm run build && jsdoc --recurse --readme ./README.md lib/",
     "format": "standard --format",
     "functional": "mocha $npm_package_options_mocha test/functional",
+    "integration": "mocha $npm_package_options_mocha test/integration",
     "lint": "npm run lint:format && npm run lint:type",
     "lint:format": "standard --verbose",
     "lint:type": "flow --timeout 30",
     "prepublish": "not-in-install && npm run build || in-install",
-    "test": "npm run lint && npm run unit && npm run functional",
+    "test": "npm run lint && npm run unit && npm run functional && npm run integration",
     "unit": "mocha $npm_package_options_mocha test/unit"
   },
   "repository": {
@@ -40,6 +41,7 @@
   ],
   "author": "Ryan Sandor Richards <sandor.richards@gmail.com>",
   "contributors": [
+    "Anandkumar patel <anand@runnable.com>",
     "Bryan Kendall <bryan@runnable.com>"
   ],
   "license": "MIT",
@@ -72,6 +74,8 @@
     "immutable": "^3.8.1",
     "joi": "^9.0.4",
     "monitor-dog": "1.5.0",
+    "ratelimiter": "^2.1.3",
+    "redis": "^2.6.2",
     "uuid": "^2.0.2"
   },
   "devDependencies": {

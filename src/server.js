@@ -1,7 +1,6 @@
 /* @flow */
 /* global Bluebird$Promise Logger */
 'use strict'
-
 const assign = require('101/assign')
 const clone = require('101/clone')
 const defaults = require('101/defaults')
@@ -10,9 +9,11 @@ const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
 const Promise = require('bluebird')
+const put = require('101/put')
 
 const logger = require('./logger')
 const RabbitMQ = require('./rabbitmq')
+const RedisRateLimiter = require('./rate-limiters/redis')
 const Worker = require('./worker')
 
 /**
@@ -47,14 +48,18 @@ const Worker = require('./worker')
  *   with environment variable RABBITMQ_PASSWORD.
  * @param {Object<String, Function>} [opts.tasks] Mapping of queues to subscribe
  *   directly with handlers.
+ * @param {Object} [opts.redisRateLimiter] options for redis-rate-limiter. checkout
+ *   module for params
  */
 class Server {
   _events: Map<string, Function>;
   _opts: Object;
   _rabbitmq: RabbitMQ;
+  _redisRateLimiter: RedisRateLimiter;
   _tasks: Map<string, Function>;
   _workerOptions: Object;
   _workQueues: Object;
+
   errorCat: ErrorCat;
   log: Logger;
 
@@ -74,6 +79,12 @@ class Server {
     }
 
     this.errorCat = this._opts.errorCat || ErrorCat
+
+    if (this._opts.redisRateLimiter) {
+      this._redisRateLimiter = new RedisRateLimiter(put(this._opts.redisRateLimiter, {
+        log: this.log
+      }))
+    }
 
     // add the name to RabbitMQ options
     const rabbitmqOpts = defaults(
@@ -103,6 +114,11 @@ class Server {
   start (): Bluebird$Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
+      .then(() => {
+        if (this._redisRateLimiter) {
+          return this._redisRateLimiter.connect()
+        }
+      })
       .then(() => {
         return this._subscribeAll()
       })
@@ -291,17 +307,35 @@ class Server {
     // we are already processing _workQueues
     if (this._workQueues[name].length === 1) {
       // this is first job in _workQueues, start the loop
-      this._workLoop(this._workQueues[name])
+      this._workLoop(name)
     }
   }
 
-  _workLoop (queue: Array<Function>) {
-    const worker = queue.pop()
-    if (worker) {
-      // run worker and start next task in parallel
-      worker()
-      this._workLoop(queue)
-    }
+  /**
+   * Loop which pops items off the run queue and executes them
+   * this runs asynchronously to caller
+   * @param  {String} name  name of task or event
+   * @return {Promise}
+   * @resolves {undefined}
+   */
+  _workLoop (name: string) {
+    return Promise.try(() => {
+      if (this._redisRateLimiter) {
+        return this._redisRateLimiter.limit(name, this._workerOptions[name])
+      }
+    })
+    .catch((err) => {
+      // ignore rate limiter errors, just continue
+      this.errorCat.report(err)
+    })
+    .then(() => {
+      const worker = this._workQueues[name].pop()
+      if (worker) {
+        // run worker and start next task in parallel
+        worker()
+        this._workLoop(name)
+      }
+    })
   }
 
   /**

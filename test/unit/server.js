@@ -4,13 +4,16 @@ const chai = require('chai')
 const clone = require('101/clone')
 const errorCat = require('error-cat')
 const noop = require('101/noop')
+const Promise = require('bluebird')
 const sinon = require('sinon')
 
-const assert = chai.assert
-
+const logger = require('../../src/logger')
 const ponos = require('../../src')
-const Worker = require('../../src/worker')
 const RabbitMQ = require('../../src/rabbitmq')
+const RedisRateLimiter = require('../../src/rate-limiters/redis')
+const Worker = require('../../src/worker')
+
+const assert = chai.assert
 
 const tasks = {
   'test-queue-01': worker,
@@ -69,6 +72,23 @@ describe('Server', () => {
         ponos.Server.prototype.setAllTasks,
         tasks
       )
+    })
+
+    it('should create redisRateLimiter if options passed', () => {
+      const s = new ponos.Server({
+        redisRateLimiter: {
+          port: '1234',
+          host: 'localhost'
+        }
+      })
+      assert.ok(s)
+      assert.instanceOf(s._redisRateLimiter, RedisRateLimiter)
+    })
+
+    it('should not have redisRateLimiter if option not passed', () => {
+      const s = new ponos.Server()
+      assert.ok(s)
+      assert.isUndefined(s._redisRateLimiter)
     })
 
     it('should not call setAllTasks if they were not provided', () => {
@@ -246,7 +266,6 @@ describe('Server', () => {
   describe('_enqueue', () => {
     let job
     let done
-
     beforeEach(() => {
       sinon.stub(server, '_workLoop').returns()
       sinon.stub(server, '_runWorker').returns()
@@ -275,7 +294,7 @@ describe('Server', () => {
     it('should run work loop if first item', () => {
       server._enqueue('Harry', Promise.resolve(), job, done)
       sinon.assert.calledOnce(server._workLoop)
-      sinon.assert.calledWith(server._workLoop, server._workQueues['Harry'])
+      sinon.assert.calledWith(server._workLoop, 'Harry')
     })
 
     it('should NOT run work loop if not item', () => {
@@ -285,28 +304,90 @@ describe('Server', () => {
   }) // end _enqueue
 
   describe('_workLoop', () => {
+    let stub1
+    let stub2
+    let stub3
+
     beforeEach(() => {
       sinon.spy(server, '_workLoop')
+      sinon.stub(server.errorCat, 'report')
+      stub1 = sinon.stub()
+      stub2 = sinon.stub()
+      stub3 = sinon.stub()
+      server._workQueues = {
+        Rubeus: [stub1, stub2],
+        Hagrid: [stub3],
+        Draco: []
+      }
     })
 
     afterEach(() => {
-      server._workLoop.restore()
+      server.errorCat.report.restore()
     })
 
     it('should stop if nothing in queue', () => {
-      server._workLoop([])
-      sinon.assert.calledOnce(server._workLoop)
+      return server._workLoop('Draco')
+        .then(() => {
+          sinon.assert.calledOnce(server._workLoop)
+        })
     })
 
     it('should run each worker', () => {
-      const stub1 = sinon.stub()
-      const stub2 = sinon.stub()
-      const stub3 = sinon.stub()
-      server._workLoop([stub1, stub2, stub3])
-      sinon.assert.callCount(server._workLoop, 4)
-      sinon.assert.calledOnce(stub1)
-      sinon.assert.calledOnce(stub2)
-      sinon.assert.calledOnce(stub3)
+      return server._workLoop('Rubeus')
+        .then(function loop () {
+          if (server._workLoop.callCount !== 3) {
+            return Promise.delay(5).then(loop)
+          }
+        })
+        .then(() => {
+          sinon.assert.callCount(server._workLoop, 3)
+          sinon.assert.calledOnce(stub1)
+          sinon.assert.calledOnce(stub2)
+          sinon.assert.notCalled(stub3)
+        })
+    })
+
+    it('should call limit if it exits', () => {
+      const limitStub = sinon.stub().resolves()
+      server._redisRateLimiter = {
+        limit: limitStub
+      }
+      const testOpts = {
+        Hannah: 'Abbott'
+      }
+      const testName = 'Draco'
+      server._workerOptions[testName] = testOpts
+      return server._workLoop(testName)
+        .then(() => {
+          sinon.assert.calledOnce(limitStub)
+          sinon.assert.calledWith(limitStub, testName, testOpts)
+        })
+    })
+
+    it('should ignore rate limit error', () => {
+      const testErr = new Error('DeathEater')
+      const limitStub = sinon.stub().rejects(testErr)
+      server._redisRateLimiter = {
+        limit: limitStub
+      }
+      const testOpts = {
+        Hannah: 'Abbott'
+      }
+      const testName = 'Hagrid'
+      server._workerOptions[testName] = testOpts
+      return assert.isFulfilled(server._workLoop(testName))
+        .then(function loop () {
+          if (server._workLoop.callCount !== 2) {
+            return Promise.delay(5).then(loop)
+          }
+        })
+        .then(() => {
+          sinon.assert.calledTwice(server.errorCat.report)
+          sinon.assert.calledWith(server.errorCat.report, testErr)
+          sinon.assert.calledTwice(limitStub)
+          sinon.assert.calledWith(limitStub, testName, testOpts)
+          sinon.assert.calledOnce(stub3)
+        })
     })
   }) // end _workLoop
 
@@ -592,6 +673,7 @@ describe('Server', () => {
   describe('start', () => {
     beforeEach(() => {
       sinon.stub(RabbitMQ.prototype, 'connect').resolves()
+      sinon.stub(RedisRateLimiter.prototype, 'connect').resolves()
       sinon.stub(ponos.Server.prototype, '_subscribeAll').resolves()
       sinon.stub(ponos.Server.prototype, 'consume').resolves()
       sinon.stub(errorCat, 'report').returns()
@@ -599,6 +681,7 @@ describe('Server', () => {
 
     afterEach(() => {
       RabbitMQ.prototype.connect.restore()
+      RedisRateLimiter.prototype.connect.restore()
       ponos.Server.prototype._subscribeAll.restore()
       ponos.Server.prototype.consume.restore()
       errorCat.report.restore()
@@ -608,6 +691,18 @@ describe('Server', () => {
       return assert.isFulfilled(server.start())
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype.connect)
+        })
+    })
+
+    it('should call connect on redis', () => {
+      server._redisRateLimiter = new RedisRateLimiter({
+        host: 'localhost',
+        port: '4242',
+        log: logger
+      })
+      return assert.isFulfilled(server.start())
+        .then(() => {
+          sinon.assert.calledOnce(RedisRateLimiter.prototype.connect)
         })
     })
 

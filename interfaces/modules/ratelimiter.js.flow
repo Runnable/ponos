@@ -1,0 +1,7 @@
+declare class RateLimiter {
+  get(callback: Function): void;
+}
+
+declare module 'ratelimiter' {
+  declare var exports: typeof RateLimiter;
+}
