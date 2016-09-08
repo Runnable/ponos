@@ -270,9 +270,14 @@ class RabbitMQ {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
       const bufferContent = this._validatePublish(queue, content, 'tasks')
-      this.log.trace({ queue: queueName, job: content }, 'Publishing task')
+      const jobOpts = {
+        headers: {
+          publisher: this.name
+        }
+      }
+      this.log.info({ queue: queueName, job: content, jobOpts: jobOpts }, 'Publishing task')
       return Promise.resolve(
-        this.publishChannel.sendToQueue(queueName, bufferContent)
+        this.publishChannel.sendToQueue(queueName, bufferContent, jobOpts)
       )
     })
   }
@@ -288,10 +293,16 @@ class RabbitMQ {
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content, 'events')
-      this.log.trace({ event: exchange, job: content }, 'Publishing event')
+      const jobOpts = {
+        headers: {
+          publisher: this.name
+        }
+      }
+      this.log.info({ event: exchange, job: content, jobOpts: jobOpts }, 'Publishing event')
       // events do not need a routing key (so we send '')
+
       return Promise.resolve(
-        this.publishChannel.publish(exchange, '', bufferContent)
+        this.publishChannel.publish(exchange, '', bufferContent, jobOpts)
       )
     })
   }
@@ -465,6 +476,8 @@ class RabbitMQ {
       }
       function wrapper (msg) {
         let job
+        const msgOpts = msg.properties || {}
+        const headers = msgOpts.headers
         try {
           job = JSON.parse(msg.content)
         } catch (err) {
@@ -472,7 +485,7 @@ class RabbitMQ {
           log.error({ job: '' + msg.content }, 'content not valid JSON')
           return channel.ack(msg)
         }
-        handler(job, () => {
+        handler(job, headers, () => {
           channel.ack(msg)
         })
       }
@@ -651,6 +664,7 @@ class RabbitMQ {
    * @throws {Error} Must be connected to RabbitMQ.
    * @throws {Error} Name must be a non-empty string.
    * @throws {Error} Object must be an Object.
+   * @throws {Error} Joi validation error if jobSchema is provided and job is invalid
    * @return {Buffer} Content to send as job.
    */
   _validatePublish (name: string, content: Object, type: string): Buffer {

@@ -16,8 +16,8 @@ declare class RabbitMQChannel {
   consume(queue: string, handler: Function): void;
   on(event: string, handler: Function): void;
   prefetch(count: Number, global?: Boolean): Bluebird$Promise<void>;
-  publish(exchange: string, routingKey: string, content: Buffer): Bluebird$Promise<void>;
-  sendToQueue(queue: string, content: Buffer): Bluebird$Promise<void>;
+  publish(exchange: string, routingKey: string, content: Buffer, opts: ?Object): Bluebird$Promise<void>;
+  sendToQueue(queue: string, content: Buffer, opts: ?Object): Bluebird$Promise<void>;
 }
 
 declare class RabbitMQConfirmChannel extends RabbitMQChannel {
