@@ -280,14 +280,14 @@ class Server {
     return Promise.map(tasks.keySeq(), (queue) => {
       return this._rabbitmq.subscribeToQueue(
         queue,
-        (job, done) => { this._enqueue(queue, tasks.get(queue), job, done) }
+        (job, headers, done) => { this._enqueue(queue, tasks.get(queue), job, headers, done) }
       )
     })
     .then(() => {
       return Promise.map(events.keySeq(), (exchange) => {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
-          (job, done) => { this._enqueue(exchange, events.get(exchange), job, done) }
+          (job, headers, done) => { this._enqueue(exchange, events.get(exchange), job, headers, done) }
         )
       })
     })
@@ -302,8 +302,8 @@ class Server {
    * @param  {Function} done    worker callback
    * @return {undefined}
    */
-  _enqueue (name: string, worker: Promise<*>, job: Object, done: Function) {
-    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, done))
+  _enqueue (name: string, worker: Promise<*>, job: Object, headers: Object, done: Function) {
+    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, headers, done))
     // we are already processing _workQueues
     if (this._workQueues[name].length === 1) {
       // this is first job in _workQueues, start the loop
@@ -345,6 +345,7 @@ class Server {
    * @param {String} queueName Name of the queue.
    * @param {Function} handler Handler to perform the work.
    * @param {Object} job Job for the worker to perform.
+   * @param {Object} headers headers containing job metadata.
    * @param {Function} done RabbitMQ acknowledgement callback.
    * @return {Promise}
    * @resolves {undefined} when worker is successful
@@ -354,12 +355,14 @@ class Server {
     queueName: string,
     handler: Promise<*>,
     job: Object,
+    headers: Object,
     done: Function
   ): Promise<*> {
     return Promise.try(() => {
-      this.log.trace({
+      this.log.info({
         queue: queueName,
         job: job,
+        headers: headers,
         method: '_runWorker'
       }, 'running worker')
       const opts = clone(this._workerOptions[queueName])

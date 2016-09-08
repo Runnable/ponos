@@ -569,9 +569,15 @@ describe('rabbitmq', () => {
           sinon.assert.calledWithExactly(
             rabbitmq.publishChannel.sendToQueue,
             `test-client.${mockQueue}`,
-            testContent
+            testContent,
+            {
+              headers: {
+                publisher: testName
+              }
+            }
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
+          contentCall.args.pop()
           const content = contentCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
           assert.equal(content.toString(), JSON.stringify(mockJob))
@@ -615,8 +621,15 @@ describe('rabbitmq', () => {
             rabbitmq.publishChannel.publish,
             mockExchange,
             '',
-            testContent
+            testContent,
+            {
+              headers:
+              {
+                publisher: testName
+              }
+            }
           )
+          rabbitmq.publishChannel.publish.firstCall.args.pop()
           const content = rabbitmq.publishChannel.publish.firstCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
           assert.equal(content.toString(), JSON.stringify(mockJob))
@@ -1334,6 +1347,7 @@ describe('rabbitmq', () => {
         sinon.assert.calledWithExactly(
           mockHandler,
           { foo: 'bar' },
+          undefined,
           sinon.match.func
         )
       })
