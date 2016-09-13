@@ -2,6 +2,7 @@
 /* global Bluebird$Promise Logger RedisClient*/
 'use strict'
 const joi = require('joi')
+const pick = require('101/pick')
 const RateLimiter = require('ratelimiter')
 const Promise = require('bluebird')
 const redis = require('redis')
@@ -80,7 +81,10 @@ module.exports = class RedisRateLimiter {
    * @return {Promise}
    */
   limit (queueName: string, opts: Object): Bluebird$Promise<void> {
-    const log = this.log.child({ queueName: queueName, opts: opts })
+    const log = this.log.child({
+      queueName: queueName,
+      opts: pick(opts, ['msTimeout', 'maxNumRetries', 'durationMs', 'maxOperations'])
+    })
     const durationMs = opts.durationMs || this.durationMs
     const limiter = new RateLimiter({
       id: queueName,
