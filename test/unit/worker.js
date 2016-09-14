@@ -518,7 +518,7 @@ describe('Worker', () => {
         return assert.isFulfilled(worker._retryWithDelay())
           .then(() => {
             sinon.assert.calledOnce(worker._incMonitor)
-            sinon.assert.calledWith(worker._incMonitor, 'ponos.finish', {
+            sinon.assert.calledWith(worker._incMonitor, 'ponos.finish-error', {
               result: 'task-error'
             })
           })
@@ -627,8 +627,9 @@ describe('Worker', () => {
 
       it('should monitor error', () => {
         worker._handleWorkerStopError()
-        sinon.assert.calledOnce(worker._incMonitor)
+        sinon.assert.calledTwice(worker._incMonitor)
         sinon.assert.calledWith(worker._incMonitor, 'ponos.finish-error', { result: 'fatal-error' })
+        sinon.assert.calledWith(worker._incMonitor, 'ponos.finish', { result: 'fatal-error' })
       })
     }) // end _handleWorkerStopError
 

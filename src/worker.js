@@ -182,7 +182,7 @@ class Worker {
       nextAttemptDelay: this.retryDelay,
       attemptCount: this.attempt
     }, 'Task failed, retrying')
-    this._incMonitor('ponos.finish', { result: 'task-error' })
+    this._incMonitor('ponos.finish-error', { result: 'task-error' })
 
     // Try again after a delay
     return Promise.delay(this.retryDelay)
@@ -238,6 +238,7 @@ class Worker {
   _handleWorkerStopError (err: Object) {
     this.log.error({ err: err }, 'Worker task fatally errored')
     this._incMonitor('ponos.finish-error', { result: 'fatal-error' })
+    this._incMonitor('ponos.finish', { result: 'fatal-error' })
   }
 
   /**
