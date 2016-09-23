@@ -11,6 +11,7 @@ const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
 const isString = require('101/is-string')
 const joi = require('joi')
+const monitor = require('monitor-dog')
 const Promise = require('bluebird')
 const uuid = require('uuid')
 
@@ -276,6 +277,7 @@ class RabbitMQ {
         }
       }
       this.log.info({ queue: queueName, job: content, jobOpts: jobOpts }, 'Publishing task')
+      this._incMonitor('task', queueName)
       return Promise.resolve(
         this.publishChannel.sendToQueue(queueName, bufferContent, jobOpts)
       )
@@ -300,13 +302,32 @@ class RabbitMQ {
       }
       this.log.info({ event: exchange, job: content, jobOpts: jobOpts }, 'Publishing event')
       // events do not need a routing key (so we send '')
-
+      this._incMonitor('event', exchange)
       return Promise.resolve(
         this.publishChannel.publish(exchange, '', bufferContent, jobOpts)
       )
     })
   }
 
+  /**
+   * Helper function calling `monitor.increment`. Monitor won't be called if
+   * `WORKER_MONITOR_DISABLED` is set.
+   *
+   * @private
+   * @param {String} type either event or task
+   * @param {String} name name of the event or task
+   */
+  _incMonitor (type: string, name: string): void {
+    if (process.env.WORKER_MONITOR_DISABLED) {
+      return
+    }
+    const tags = {
+      type: type,
+      app_id: this.name,
+      name: name
+    }
+    monitor.increment('ponos.publish', tags)
+  }
   /**
    * Asserts exchanges on the channel.
    *
