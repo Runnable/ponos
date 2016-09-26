@@ -7,6 +7,7 @@ const clone = require('101/clone')
 const cls = require('continuation-local-storage')
 const Immutable = require('immutable')
 const joi = require('joi')
+const monitor = require('monitor-dog')
 const omit = require('101/omit')
 const Promise = require('bluebird')
 const sinon = require('sinon')
@@ -545,10 +546,12 @@ describe('rabbitmq', () => {
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish')
+      sinon.stub(RabbitMQ.prototype, '_incMonitor')
     })
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
+      RabbitMQ.prototype._incMonitor.restore()
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -583,6 +586,18 @@ describe('rabbitmq', () => {
           assert.equal(content.toString(), JSON.stringify(mockJob))
         })
     })
+
+    it('should call _incMonitor before publish', () => {
+      const testContent = new Buffer(JSON.stringify(mockJob))
+      RabbitMQ.prototype._validatePublish.returns(testContent)
+      return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob))
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._incMonitor)
+          const fullQueueName = `test-client.${mockQueue}`
+          sinon.assert.calledWith(RabbitMQ.prototype._incMonitor, 'task', fullQueueName)
+          sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
+        })
+    })
   })
 
   describe('publishEvent', () => {
@@ -594,10 +609,12 @@ describe('rabbitmq', () => {
       rabbitmq.publishChannel = {}
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish').returns(true)
+      sinon.stub(RabbitMQ.prototype, '_incMonitor')
     })
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
+      RabbitMQ.prototype._incMonitor.restore()
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -633,6 +650,18 @@ describe('rabbitmq', () => {
           const content = rabbitmq.publishChannel.publish.firstCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
           assert.equal(content.toString(), JSON.stringify(mockJob))
+        })
+    })
+    it('should call _incMonitor before publish', () => {
+      const testContent = new Buffer(JSON.stringify(mockJob))
+      RabbitMQ.prototype._validatePublish.returns(testContent)
+      return assert.isFulfilled(
+        rabbitmq.publishEvent(mockExchange, mockJob)
+      )
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.prototype._incMonitor)
+          sinon.assert.calledWith(RabbitMQ.prototype._incMonitor, 'event', mockExchange)
+          sinon.assert.calledOnce(rabbitmq.publishChannel.publish)
         })
     })
   })
@@ -1401,6 +1430,40 @@ describe('rabbitmq', () => {
         .then(() => {
           sinon.assert.notCalled(rabbitmq.channel.cancel)
         })
+    })
+  })
+
+  describe('_incMonitor', () => {
+    beforeEach(() => {
+      sinon.stub(monitor, 'increment')
+    })
+
+    afterEach(() => {
+      monitor.increment.restore()
+    })
+
+    it('should call monitor increment for event without result tag', () => {
+      rabbitmq._incMonitor('task', 'some-queue-name')
+      sinon.assert.calledOnce(monitor.increment)
+      sinon.assert.calledWith(monitor.increment, 'ponos.publish', {
+        app_id: 'test-client',
+        name: 'some-queue-name',
+        type: 'task' })
+    })
+
+    describe('with disabled monitoring', () => {
+      beforeEach(() => {
+        process.env.WORKER_MONITOR_DISABLED = 'true'
+      })
+
+      afterEach(() => {
+        delete process.env.WORKER_MONITOR_DISABLED
+      })
+
+      it('should not call monitor increment', () => {
+        rabbitmq._incMonitor('event', 'data.arrived')
+        sinon.assert.notCalled(monitor.increment)
+      })
     })
   })
 
