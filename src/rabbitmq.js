@@ -272,9 +272,7 @@ class RabbitMQ {
       const queueName = `${this.name}.${queue}`
       const bufferContent = this._validatePublish(queue, content, 'tasks')
       const jobOpts = {
-        headers: {
-          publisher: this.name
-        }
+        appId: this.name
       }
       this.log.info({ queue: queueName, job: content, jobOpts: jobOpts }, 'Publishing task')
       this._incMonitor('task', queueName)
@@ -296,9 +294,7 @@ class RabbitMQ {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content, 'events')
       const jobOpts = {
-        headers: {
-          publisher: this.name
-        }
+        appId: this.name
       }
       this.log.info({ event: exchange, job: content, jobOpts: jobOpts }, 'Publishing event')
       // events do not need a routing key (so we send '')

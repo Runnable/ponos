@@ -574,9 +574,7 @@ describe('rabbitmq', () => {
             `test-client.${mockQueue}`,
             testContent,
             {
-              headers: {
-                publisher: testName
-              }
+              appId: testName
             }
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
@@ -640,10 +638,7 @@ describe('rabbitmq', () => {
             '',
             testContent,
             {
-              headers:
-              {
-                publisher: testName
-              }
+              appId: testName
             }
           )
           rabbitmq.publishChannel.publish.firstCall.args.pop()
