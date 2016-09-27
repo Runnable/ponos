@@ -574,7 +574,8 @@ describe('rabbitmq', () => {
             `test-client.${mockQueue}`,
             testContent,
             {
-              appId: testName
+              appId: testName,
+              timestamp: sinon.match.number
             }
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
@@ -638,7 +639,8 @@ describe('rabbitmq', () => {
             '',
             testContent,
             {
-              appId: testName
+              appId: testName,
+              timestamp: sinon.match.number
             }
           )
           rabbitmq.publishChannel.publish.firstCall.args.pop()
