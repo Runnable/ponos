@@ -1,5 +1,5 @@
 /* @flow */
-/* global Bluebird$Promise Logger RedisClient*/
+/* global Bluebird$Promise Logger RedisClient */
 'use strict'
 const joi = require('joi')
 const pick = require('101/pick')

@@ -1,5 +1,5 @@
 /* @flow */
-/* global Bluebird$Promise RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions QueueObject*/
+/* global Bluebird$Promise RabbitMQChannel RabbitMQConfirmChannel RabbitMQConnection SubscribeObject RabbitMQOptions QueueObject */
 'use strict'
 
 const amqplib = require('amqplib')
