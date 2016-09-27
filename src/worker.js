@@ -25,6 +25,7 @@ const optsSchema = joi.object({
     isJoi: joi.bool().valid(true)
   }).unknown(),
   job: joi.object().required(),
+  jobMeta: joi.object().unknown(),
   log: joi.object().required(),
   maxNumRetries: joi.number().integer().min(0).required(),
   msTimeout: joi.number().integer().min(0).required(),
@@ -57,6 +58,7 @@ class Worker {
   finalRetryFn: Function;
   jobSchema: Object;
   job: Object;
+  jobMeta: Object;
   log: Logger;
   maxNumRetries: number;
   msTimeout: number;
@@ -137,7 +139,7 @@ class Worker {
             timeout: this.msTimeout
           }, 'running task')
           let taskPromise = Promise.try(() => {
-            return this.task(this.job)
+            return this.task(this.job, this.jobMeta)
           })
 
           if (this.msTimeout) {

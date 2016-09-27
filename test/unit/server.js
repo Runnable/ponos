@@ -28,7 +28,8 @@ describe('Server', () => {
   let server
   let runStub
   const testJobOpts = {
-    headers: { pubisher: 'Cedric' }
+    appId: 'Cedric',
+    timestamp: Date.now()
   }
 
   beforeEach(() => {
