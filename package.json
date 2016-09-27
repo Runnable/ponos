@@ -85,7 +85,7 @@
     "babel-plugin-transform-flow-strip-types": "^6.8.0",
     "babel-register": "^6.8.0",
     "chai": "^3.3.0",
-    "chai-as-promised": "^5.1.0",
+    "chai-as-promised": "^6.0.0",
     "coveralls": "^2.11.4",
     "eslint-config-standard": "^5.3.5",
     "flow-bin": "^0.32.0",
