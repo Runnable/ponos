@@ -18,6 +18,7 @@ describe('Basic Example', () => {
     const tasks = {}
     tasks[testQueue] = testWorker
     rabbitmq = new RabbitMQ({
+      name: 'ponos.test',
       tasks: Object.keys(tasks)
     })
     server = new ponos.Server({ tasks: tasks })
@@ -36,7 +37,7 @@ describe('Basic Example', () => {
 
   it('should queue a task that triggers an event', (done) => {
     testWorkerEmitter.on('task', function (data, jobMeta) {
-      console.log('qqqqqqq', data, jobMeta)
+      console.log('qqqqqqq', data, data.meta)
       assert.equal(data.data, 'hello world')
       done()
     })

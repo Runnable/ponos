@@ -281,6 +281,7 @@ class Server {
       return this._rabbitmq.subscribeToQueue(
         queue,
         (job, jobMeta, done) => {
+          console.log('queue meta subscribe', job, jobMeta)
           this._enqueue(queue, tasks.get(queue), job, jobMeta, done)
         }
       )
@@ -290,6 +291,7 @@ class Server {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
           (job, jobMeta, done) => {
+            console.log('exchange meta subscribe', job, jobMeta)
             this._enqueue(exchange, events.get(exchange), job, jobMeta, done)
           }
         )
@@ -374,10 +376,12 @@ class Server {
       defaults(opts, {
         queue: queueName,
         job: job,
+        jobMeta: jobMeta,
         task: handler,
         log: this.log,
         errorCat: this.errorCat
       })
+      console.log('worker options>>>', jobMeta, opts)
       const worker = Worker.create(opts)
       return worker.run().finally(() => {
         // done has to be called with no arguments

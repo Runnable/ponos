@@ -277,9 +277,10 @@ class Worker {
     this.log = this.log.child({
       method: 'run',
       queue: this.queue,
-      job: this.job
+      job: this.job,
+      jobMeta: this.jobMeta
     })
-
+    console.log('worker.run', this.job, this.jobMeta)
     return this._validateJob()
       .bind(this)
       .then(this._wrapTask)
