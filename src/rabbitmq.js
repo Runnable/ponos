@@ -675,9 +675,9 @@ class RabbitMQ {
     // add tid to message if one does not exist
     if (!content.tid) {
       const ns = getNamespace('ponos')
-      if (ns) {
-        console.log('aaaaaaa', ns.get('originEvent'))
-      }
+      // if (ns) {
+      //   console.log('aaaaaaa', ns.get('originEvent'))
+      // }
       const tid = ns && ns.get('tid')
       content.tid = tid || uuid()
     }
