@@ -282,7 +282,7 @@ class Server {
         queue,
         (job, jobMeta, done) => {
           console.log('queue meta subscribe', job, jobMeta)
-          this._enqueue(queue, tasks.get(queue), job, jobMeta, done)
+          this._enqueue(queue, tasks.get(queue), job, jobMeta || {}, done)
         }
       )
     })
@@ -292,7 +292,7 @@ class Server {
           exchange,
           (job, jobMeta, done) => {
             console.log('exchange meta subscribe', job, jobMeta)
-            this._enqueue(exchange, events.get(exchange), job, jobMeta, done)
+            this._enqueue(exchange, events.get(exchange), job, jobMeta || {}, done)
           }
         )
       })

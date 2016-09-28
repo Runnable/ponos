@@ -10,7 +10,7 @@ const WorkerStopError = require('error-cat/errors/worker-stop-error')
  * @param {string} job.queue Queue on which the message will be published.
  * @returns {promise} Resolved when the message is put on the queue.
  */
-module.exports = (job, jobMeta) => {
+module.exports = (job) => {
   return Promise.resolve()
     .then(() => {
       if (!job.eventName) {
@@ -21,7 +21,7 @@ module.exports = (job, jobMeta) => {
       }
     })
     .then(() => {
-      module.exports.emitter.emit(job.eventName, { data: job.message, meta: jobMeta })
+      module.exports.emitter.emit(job.eventName, { data: job.message })
     })
 }
 
