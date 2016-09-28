@@ -495,8 +495,7 @@ class RabbitMQ {
       }
       function wrapper (msg) {
         let job
-        const msgOpts = msg.properties || {}
-        const headers = msgOpts.headers
+        const jobMeta = msg.properties || {}
         try {
           job = JSON.parse(msg.content)
         } catch (err) {
@@ -504,7 +503,7 @@ class RabbitMQ {
           log.error({ job: '' + msg.content }, 'content not valid JSON')
           return channel.ack(msg)
         }
-        handler(job, headers, () => {
+        handler(job, jobMeta, () => {
           channel.ack(msg)
         })
       }

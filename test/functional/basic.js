@@ -36,8 +36,7 @@ describe('Basic Example', () => {
   })
 
   it('should queue a task that triggers an event', (done) => {
-    testWorkerEmitter.on('task', function (data) {
-      console.log('qqqqqqq', data, data.meta)
+    testWorkerEmitter.on('task', function (data, jobMeta) {
       assert.equal(data.data, 'hello world')
       done()
     })

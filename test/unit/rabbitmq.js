@@ -1368,12 +1368,15 @@ describe('rabbitmq', () => {
       })
 
       it('should call the handler with json parsed data', () => {
-        func({ content: JSON.stringify({ foo: 'bar' }) })
+        const jobMeta = {
+          appId: 'api'
+        }
+        func({ properties: jobMeta, content: JSON.stringify({ foo: 'bar' }) })
         sinon.assert.calledOnce(mockHandler)
         sinon.assert.calledWithExactly(
           mockHandler,
           { foo: 'bar' },
-          undefined,
+          jobMeta,
           sinon.match.func
         )
       })

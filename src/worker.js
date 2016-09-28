@@ -280,7 +280,6 @@ class Worker {
       job: this.job,
       jobMeta: this.jobMeta
     })
-    console.log('worker.run', this.job, this.jobMeta)
     return this._validateJob()
       .bind(this)
       .then(this._wrapTask)
