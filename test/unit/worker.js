@@ -378,10 +378,14 @@ describe('Worker', () => {
         const TestJob = { who: 'ami' }
         worker.timeout = null
         worker.job = TestJob
+        worker.jobMeta = {
+          appId: 'api',
+          timestamp: Date.now()
+        }
         return assert.isFulfilled(worker._wrapTask())
           .then(() => {
             sinon.assert.calledOnce(worker.task)
-            sinon.assert.calledWith(worker.task, TestJob)
+            sinon.assert.calledWith(worker.task, TestJob, worker.jobMeta)
           })
       })
     }) // end _wrapTask

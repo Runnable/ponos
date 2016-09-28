@@ -280,14 +280,18 @@ class Server {
     return Promise.map(tasks.keySeq(), (queue) => {
       return this._rabbitmq.subscribeToQueue(
         queue,
-        (job, headers, done) => { this._enqueue(queue, tasks.get(queue), job, headers, done) }
+        (job, jobMeta, done) => {
+          this._enqueue(queue, tasks.get(queue), job, jobMeta, done)
+        }
       )
     })
     .then(() => {
       return Promise.map(events.keySeq(), (exchange) => {
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
-          (job, headers, done) => { this._enqueue(exchange, events.get(exchange), job, headers, done) }
+          (job, jobMeta, done) => {
+            this._enqueue(exchange, events.get(exchange), job, jobMeta, done)
+          }
         )
       })
     })
@@ -299,11 +303,12 @@ class Server {
    * @param  {String}   name    name of queue
    * @param  {Promise}  worker  worker promise to run
    * @param  {Object}   job     job for worker
+   * @param  {Object}   jobMeta job metadata
    * @param  {Function} done    worker callback
    * @return {undefined}
    */
-  _enqueue (name: string, worker: Promise<*>, job: Object, headers: Object, done: Function) {
-    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, headers, done))
+  _enqueue (name: string, worker: Promise<*>, job: Object, jobMeta: Object, done: Function) {
+    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, jobMeta, done))
     // we are already processing _workQueues
     if (this._workQueues[name].length === 1) {
       // this is first job in _workQueues, start the loop
@@ -345,7 +350,7 @@ class Server {
    * @param {String} queueName Name of the queue.
    * @param {Function} handler Handler to perform the work.
    * @param {Object} job Job for the worker to perform.
-   * @param {Object} headers headers containing job metadata.
+   * @param {Object} jobMeta Job's metadata with appId, timestamp and additonal headers.
    * @param {Function} done RabbitMQ acknowledgement callback.
    * @return {Promise}
    * @resolves {undefined} when worker is successful
@@ -355,20 +360,21 @@ class Server {
     queueName: string,
     handler: Promise<*>,
     job: Object,
-    headers: Object,
+    jobMeta: Object,
     done: Function
   ): Promise<*> {
     return Promise.try(() => {
       this.log.info({
         queue: queueName,
         job: job,
-        headers: headers,
+        jobMeta: jobMeta,
         method: '_runWorker'
       }, 'running worker')
       const opts = clone(this._workerOptions[queueName])
       defaults(opts, {
         queue: queueName,
         job: job,
+        jobMeta: jobMeta,
         task: handler,
         log: this.log,
         errorCat: this.errorCat

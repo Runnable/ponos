@@ -271,13 +271,14 @@ class RabbitMQ {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
       const bufferContent = this._validatePublish(queue, content, 'tasks')
-      const jobOpts = {
-        appId: this.name
+      const jobMeta = {
+        appId: this.name,
+        timestamp: Date.now()
       }
-      this.log.info({ queue: queueName, job: content, jobOpts: jobOpts }, 'Publishing task')
+      this.log.info({ queue: queueName, job: content, jobMeta: jobMeta }, 'Publishing task')
       this._incMonitor('task', queueName)
       return Promise.resolve(
-        this.publishChannel.sendToQueue(queueName, bufferContent, jobOpts)
+        this.publishChannel.sendToQueue(queueName, bufferContent, jobMeta)
       )
     })
   }
@@ -293,14 +294,15 @@ class RabbitMQ {
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const bufferContent = this._validatePublish(exchange, content, 'events')
-      const jobOpts = {
-        appId: this.name
+      const jobMeta = {
+        appId: this.name,
+        timestamp: Date.now()
       }
-      this.log.info({ event: exchange, job: content, jobOpts: jobOpts }, 'Publishing event')
+      this.log.info({ event: exchange, job: content, jobMeta: jobMeta }, 'Publishing event')
       // events do not need a routing key (so we send '')
       this._incMonitor('event', exchange)
       return Promise.resolve(
-        this.publishChannel.publish(exchange, '', bufferContent, jobOpts)
+        this.publishChannel.publish(exchange, '', bufferContent, jobMeta)
       )
     })
   }
@@ -493,8 +495,7 @@ class RabbitMQ {
       }
       function wrapper (msg) {
         let job
-        const msgOpts = msg.properties || {}
-        const headers = msgOpts.headers
+        const jobMeta = msg.properties || {}
         try {
           job = JSON.parse(msg.content)
         } catch (err) {
@@ -502,7 +503,7 @@ class RabbitMQ {
           log.error({ job: '' + msg.content }, 'content not valid JSON')
           return channel.ack(msg)
         }
-        handler(job, headers, () => {
+        handler(job, jobMeta, () => {
           channel.ack(msg)
         })
       }
