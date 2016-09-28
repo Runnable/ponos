@@ -746,6 +746,20 @@ describe('rabbitmq', () => {
         })
       })
     })
+
+    it('should use previousEvent if in namespace', () => {
+      const testEvent = 'app.started'
+      const ns = cls.createNamespace('ponos')
+
+      return Promise.fromCallback((cb) => {
+        ns.run(() => {
+          ns.set('previousEvent', testEvent)
+          const payload = RabbitMQ.buildPayload({})
+          assert.isString(payload.jobMeta.headers.previousEvent, testEvent)
+          cb()
+        })
+      })
+    })
     describe('stringify error', function () {
       beforeEach(() => {
         sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))

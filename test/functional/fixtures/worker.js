@@ -21,8 +21,7 @@ module.exports = (job, jobMeta) => {
       }
     })
     .then(() => {
-      module.exports.emitter.emit(job.eventName, { data: job.message }, jobMeta)
+      module.exports.emitter.emit(job.eventName, job, jobMeta)
     })
 }
-
 module.exports.emitter = new EventEmitter()

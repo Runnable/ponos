@@ -672,21 +672,22 @@ class RabbitMQ {
    * @return {Object} payload with `jobBuffer` and `jobMeta` props
    */
   static buildPayload (content: Object) {
+    const jobMeta = {
+      appId: this.name,
+      timestamp: Date.now(),
+      headers: {}
+    }
     // add tid to message if one does not exist
     if (!content.tid) {
       const ns = getNamespace('ponos')
-      // if (ns) {
-      //   console.log('aaaaaaa', ns.get('originEvent'))
-      // }
+      if (ns) {
+        jobMeta.headers.previousEvent = ns.get('previousEvent')
+      }
       const tid = ns && ns.get('tid')
       content.tid = tid || uuid()
     }
     const stringContent = JSON.stringify(content)
     const jobBuffer = new Buffer(stringContent)
-    const jobMeta = {
-      appId: this.name,
-      timestamp: Date.now()
-    }
     return {
       jobBuffer: jobBuffer,
       jobMeta: jobMeta
