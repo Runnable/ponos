@@ -271,7 +271,7 @@ class RabbitMQ {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
       this._validatePublish(queue, content, 'tasks')
-      const payload = this._buildPayload(content)
+      const payload = RabbitMQ.buildPayload(content)
       this.log.info({ queue: queueName, job: content, jobMeta: payload.jobMeta }, 'Publishing task')
       this._incMonitor('task', queueName)
       return Promise.resolve(
@@ -291,7 +291,7 @@ class RabbitMQ {
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       this._validatePublish(exchange, content, 'events')
-      const payload = this._buildPayload(content)
+      const payload = RabbitMQ.buildPayload(content)
       this.log.info({ event: exchange, job: content, jobMeta: payload.jobMeta }, 'Publishing event')
       // events do not need a routing key (so we send '')
       this._incMonitor('event', exchange)
@@ -671,10 +671,13 @@ class RabbitMQ {
    * @param {Object} content Content to send.
    * @return {Object} payload with `jobBuffer` and `jobMeta` props
    */
-  _buildPayload (content: Object) {
+  static buildPayload (content: Object) {
     // add tid to message if one does not exist
     if (!content.tid) {
       const ns = getNamespace('ponos')
+      if (ns) {
+        console.log('aaaaaaa', ns.get('originEvent'))
+      }
       const tid = ns && ns.get('tid')
       content.tid = tid || uuid()
     }

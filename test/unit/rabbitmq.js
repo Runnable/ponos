@@ -547,11 +547,13 @@ describe('rabbitmq', () => {
       rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish')
       sinon.stub(RabbitMQ.prototype, '_incMonitor')
+      sinon.stub(RabbitMQ, 'buildPayload')
     })
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
       RabbitMQ.prototype._incMonitor.restore()
+      RabbitMQ.buildPayload.restore()
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -564,31 +566,42 @@ describe('rabbitmq', () => {
     })
 
     it('should publish with a buffer of the content', () => {
-      const testContent = new Buffer(JSON.stringify(mockJob))
-      RabbitMQ.prototype._validatePublish.returns(testContent)
+      const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
+      const payload = {
+        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
+        jobMeta: {
+          appId: testName,
+          timestamp: Date.now()
+        }
+      }
+      RabbitMQ.buildPayload.returns(payload)
       return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob))
         .then(() => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
-          sinon.assert.calledWithExactly(
+          sinon.assert.calledWith(
             rabbitmq.publishChannel.sendToQueue,
             `test-client.${mockQueue}`,
-            testContent,
-            {
-              appId: testName,
-              timestamp: sinon.match.number
-            }
+            payload.jobBuffer,
+            payload.jobMeta
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
           contentCall.args.pop()
           const content = contentCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
-          assert.equal(content.toString(), JSON.stringify(mockJob))
+          assert.equal(content.toString(), JSON.stringify(payloadWithTid))
         })
     })
 
     it('should call _incMonitor before publish', () => {
-      const testContent = new Buffer(JSON.stringify(mockJob))
-      RabbitMQ.prototype._validatePublish.returns(testContent)
+      const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
+      const payload = {
+        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
+        jobMeta: {
+          appId: testName,
+          timestamp: Date.now()
+        }
+      }
+      RabbitMQ.buildPayload.returns(payload)
       return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob))
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype._incMonitor)
@@ -609,11 +622,13 @@ describe('rabbitmq', () => {
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish').returns(true)
       sinon.stub(RabbitMQ.prototype, '_incMonitor')
+      sinon.stub(RabbitMQ, 'buildPayload')
     })
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
       RabbitMQ.prototype._incMonitor.restore()
+      RabbitMQ.buildPayload.restore()
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -626,8 +641,15 @@ describe('rabbitmq', () => {
     })
 
     it('should publish with a buffer of the content', () => {
-      const testContent = new Buffer(JSON.stringify(mockJob))
-      RabbitMQ.prototype._validatePublish.returns(testContent)
+      const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
+      const payload = {
+        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
+        jobMeta: {
+          appId: testName,
+          timestamp: Date.now()
+        }
+      }
+      RabbitMQ.buildPayload.returns(payload)
       return assert.isFulfilled(
         rabbitmq.publishEvent(mockExchange, mockJob)
       )
@@ -637,21 +659,25 @@ describe('rabbitmq', () => {
             rabbitmq.publishChannel.publish,
             mockExchange,
             '',
-            testContent,
-            {
-              appId: testName,
-              timestamp: sinon.match.number
-            }
+            payload.jobBuffer,
+            payload.jobMeta
           )
           rabbitmq.publishChannel.publish.firstCall.args.pop()
           const content = rabbitmq.publishChannel.publish.firstCall.args.pop()
           assert.ok(Buffer.isBuffer(content))
-          assert.equal(content.toString(), JSON.stringify(mockJob))
+          assert.equal(content.toString(), JSON.stringify(payloadWithTid))
         })
     })
     it('should call _incMonitor before publish', () => {
-      const testContent = new Buffer(JSON.stringify(mockJob))
-      RabbitMQ.prototype._validatePublish.returns(testContent)
+      const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
+      const payload = {
+        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
+        jobMeta: {
+          appId: testName,
+          timestamp: Date.now()
+        }
+      }
+      RabbitMQ.buildPayload.returns(payload)
       return assert.isFulfilled(
         rabbitmq.publishEvent(mockExchange, mockJob)
       )
@@ -684,6 +710,58 @@ describe('rabbitmq', () => {
       assert.equal(out.jobSchema._inner.children[1].key, 'tid')
     })
   }) // end _formatJobs
+
+  describe('buildPayload', function () {
+    it('should add tid if not in namespace', () => {
+      const ns = cls.createNamespace('other')
+
+      return Promise.fromCallback((cb) => {
+        ns.run(() => {
+          const payload = RabbitMQ.buildPayload({})
+          const outObject = JSON.parse(payload.jobBuffer.toString())
+          assert.isString(outObject.tid)
+          cb()
+        })
+      })
+    })
+
+    it('should use tid if passed', () => {
+      const testTid = '123-2134-234-234-235'
+      const payload = RabbitMQ.buildPayload({ tid: testTid })
+      const outObject = JSON.parse(payload.jobBuffer.toString())
+      return assert.isString(outObject.tid, testTid)
+    })
+
+    it('should use tid if in namespace', () => {
+      const testTid = '3-1-11-11-235'
+      const ns = cls.createNamespace('ponos')
+
+      return Promise.fromCallback((cb) => {
+        ns.run(() => {
+          ns.set('tid', this.tid)
+          const payload = RabbitMQ.buildPayload({})
+          const outObject = JSON.parse(payload.jobBuffer.toString())
+          assert.isString(outObject.tid, testTid)
+          cb()
+        })
+      })
+    })
+    describe('stringify error', function () {
+      beforeEach(() => {
+        sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))
+      })
+
+      afterEach(() => {
+        JSON.stringify.restore()
+      })
+
+      it('should throw if content fails to be stringified', () => {
+        return assert.throws(() => {
+          RabbitMQ.buildPayload({})
+        }, Error, /custom json error/)
+      })
+    }) // end stringify error
+  })
 
   describe('_validatePublish', function () {
     const mockExchangeName = 'some-exchange'
@@ -767,63 +845,6 @@ describe('rabbitmq', () => {
         rabbitmq._validatePublish('test', { b: 1 }, 'events')
       }, Error, /"a" is required/)
     })
-
-    it('should add tid if missing', () => {
-      const out = rabbitmq._validatePublish(mockExchangeName, {}, 'events')
-      const outObject = JSON.parse(out)
-      return assert.isString(outObject.tid)
-    })
-
-    it('should add tid if not in namespace', () => {
-      const ns = cls.createNamespace('other')
-
-      return Promise.fromCallback((cb) => {
-        ns.run(() => {
-          const out = rabbitmq._validatePublish(mockExchangeName, {}, 'events')
-          const outObject = JSON.parse(out)
-          assert.isString(outObject.tid)
-          cb()
-        })
-      })
-    })
-
-    it('should use tid if passed', () => {
-      const testTid = '123-2134-234-234-235'
-      const out = rabbitmq._validatePublish(mockExchangeName, { tid: testTid }, 'events')
-      const outObject = JSON.parse(out)
-      return assert.isString(outObject.tid, testTid)
-    })
-
-    it('should use tid if in namespace', () => {
-      const testTid = '3-1-11-11-235'
-      const ns = cls.createNamespace('ponos')
-
-      return Promise.fromCallback((cb) => {
-        ns.run(() => {
-          ns.set('tid', this.tid)
-          const out = rabbitmq._validatePublish(mockExchangeName, mockJob, 'events')
-          const outObject = JSON.parse(out)
-          assert.isString(outObject.tid, testTid)
-          cb()
-        })
-      })
-    })
-
-    describe('stringify error', function () {
-      beforeEach(() => {
-        sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))
-      })
-
-      afterEach(() => {
-        JSON.stringify.restore()
-      })
-
-      it('should throw if content fails to be stringified', () => {
-        return assert.throws(() => {
-          rabbitmq._validatePublish(mockExchangeName, mockJob, 'events')
-        }, Error, /custom json error/)
-      })
-    }) // end stringify error
   }) // end _validatePublish
 
   describe('_connectionErrorHandler', () => {

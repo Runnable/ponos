@@ -133,7 +133,7 @@ class Worker {
     return Promise.fromCallback((cb) => {
       cls.run(() => {
         cls.set('tid', this.tid)
-        cls.set('originEvent', this.queue)
+        // cls.set('originEvent', this.queue)
         Promise.try(() => {
           this.log.info({
             attempt: this.attempt++,
