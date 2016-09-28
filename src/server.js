@@ -308,7 +308,7 @@ class Server {
    * @return {undefined}
    */
   _enqueue (name: string, worker: Promise<*>, job: Object, jobMeta: Object, done: Function) {
-    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, jobMeta || {}, done))
+    this._workQueues[name].push(this._runWorker.bind(this, name, worker, job, jobMeta, done))
     // we are already processing _workQueues
     if (this._workQueues[name].length === 1) {
       // this is first job in _workQueues, start the loop
