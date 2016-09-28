@@ -302,13 +302,6 @@ describe('Server', () => {
       sinon.assert.calledWith(server._runWorker, 'Harry', 'Hermione', job, jobMeta, done)
     })
 
-    it('should default jobMeta to {}', () => {
-      server._enqueue('Harry', 'Hermione', job, null, done)
-      server._workQueues.Harry[0]()
-      sinon.assert.calledOnce(server._runWorker)
-      sinon.assert.calledWith(server._runWorker, 'Harry', 'Hermione', job, {}, done)
-    })
-
     it('should run work loop if first item', () => {
       server._enqueue('Harry', Promise.resolve(), job, jobMeta, done)
       sinon.assert.calledOnce(server._workLoop)
