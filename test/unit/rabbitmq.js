@@ -760,6 +760,12 @@ describe('rabbitmq', () => {
         })
       })
     })
+
+    it('should not set previousEvent if namespace does not exist', () => {
+      const payload = RabbitMQ.buildPayload({})
+      assert.isUndefined(payload.jobMeta.headers.previousEvent)
+    })
+
     describe('stringify error', function () {
       beforeEach(() => {
         sinon.stub(JSON, 'stringify').throws(new Error('custom json error'))

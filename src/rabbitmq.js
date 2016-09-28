@@ -677,12 +677,10 @@ class RabbitMQ {
       timestamp: Date.now(),
       headers: {}
     }
+    const ns = getNamespace('ponos')
+    jobMeta.headers.previousEvent = ns && ns.get('previousEvent')
     // add tid to message if one does not exist
     if (!content.tid) {
-      const ns = getNamespace('ponos')
-      if (ns) {
-        jobMeta.headers.previousEvent = ns.get('previousEvent')
-      }
       const tid = ns && ns.get('tid')
       content.tid = tid || uuid()
     }
