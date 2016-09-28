@@ -27,7 +27,7 @@ function worker (job, headers, done) {} // eslint-disable-line no-unused-vars
 describe('Server', () => {
   let server
   let runStub
-  const testJobOpts = {
+  const testJobMeta = {
     appId: 'Cedric',
     timestamp: Date.now()
   }
@@ -241,14 +241,14 @@ describe('Server', () => {
 
       it('should be created on subscribeToQueue', () => {
         const worker = RabbitMQ.prototype.subscribeToQueue.firstCall.args.pop()
-        worker(mockJob, testJobOpts, mockDone)
+        worker(mockJob, testJobMeta, mockDone)
         sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
           ponos.Server.prototype._enqueue,
           'test-queue-01',
           sinon.match.func,
           mockJob,
-          testJobOpts,
+          testJobMeta,
           mockDone
         )
       })
@@ -256,14 +256,14 @@ describe('Server', () => {
       it('should be created on subscribeToFanoutExchange', () => {
         const worker = RabbitMQ.prototype.subscribeToFanoutExchange
           .firstCall.args.pop()
-        worker(mockJob, testJobOpts, mockDone)
+        worker(mockJob, testJobMeta, mockDone)
         sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
           ponos.Server.prototype._enqueue,
           'test-queue-01',
           sinon.match.func,
           mockJob,
-          testJobOpts,
+          testJobMeta,
           mockDone
         )
       })
@@ -272,6 +272,7 @@ describe('Server', () => {
 
   describe('_enqueue', () => {
     let job
+    let jobMeta
     let done
     beforeEach(() => {
       sinon.stub(server, '_workLoop').returns()
@@ -283,23 +284,33 @@ describe('Server', () => {
       job = {
         Ron: 'Weasley'
       }
+      jobMeta = {
+        appId: 'api'
+      }
       done = sinon.stub()
     })
 
     it('should add job to work queue', () => {
-      server._enqueue('Harry', Promise.resolve(), job, done)
+      server._enqueue('Harry', Promise.resolve(), job, jobMeta, done)
       assert.equal(server._workQueues.Harry.length, 1)
     })
 
     it('should bind worker correctly', () => {
-      server._enqueue('Harry', 'Hermione', job, done)
+      server._enqueue('Harry', 'Hermione', job, jobMeta, done)
       server._workQueues.Harry[0]()
       sinon.assert.calledOnce(server._runWorker)
-      sinon.assert.calledWith(server._runWorker, 'Harry', 'Hermione', job, done)
+      sinon.assert.calledWith(server._runWorker, 'Harry', 'Hermione', job, jobMeta, done)
+    })
+
+    it('should default jobMeta to {}', () => {
+      server._enqueue('Harry', 'Hermione', job, null, done)
+      server._workQueues.Harry[0]()
+      sinon.assert.calledOnce(server._runWorker)
+      sinon.assert.calledWith(server._runWorker, 'Harry', 'Hermione', job, {}, done)
     })
 
     it('should run work loop if first item', () => {
-      server._enqueue('Harry', Promise.resolve(), job, done)
+      server._enqueue('Harry', Promise.resolve(), job, jobMeta, done)
       sinon.assert.calledOnce(server._workLoop)
       sinon.assert.calledWith(server._workLoop, 'Harry')
     })
@@ -411,7 +422,7 @@ describe('Server', () => {
     })
 
     it('should provide the correct queue name', () => {
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledOnce(Worker.create)
           sinon.assert.calledWithExactly(
@@ -423,7 +434,7 @@ describe('Server', () => {
 
     it('should provide the given job', () => {
       const job = { bar: 'baz' }
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, job, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, job, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledWithExactly(
             Worker.create,
@@ -434,7 +445,7 @@ describe('Server', () => {
 
     it('should call done if worker rejected', () => {
       const stub = sinon.stub().rejects(new Error('Baggins'))
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobOpts, stub))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobMeta, stub))
         .then(() => {
           sinon.assert.calledOnce(stub)
         })
@@ -442,14 +453,14 @@ describe('Server', () => {
 
     it('should call done if worker resolved', () => {
       const stub = sinon.stub().resolves(new Error('Bombadil'))
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobOpts, stub))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobMeta, stub))
         .then(() => {
           sinon.assert.calledOnce(stub)
         })
     })
 
     it('should provide the correct task handler', () => {
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledOnce(Worker.create)
           sinon.assert.calledWithExactly(
@@ -460,7 +471,7 @@ describe('Server', () => {
     })
 
     it('should provide the correct logger', () => {
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledOnce(Worker.create)
           sinon.assert.calledWithExactly(
@@ -471,7 +482,7 @@ describe('Server', () => {
     })
 
     it('should provide the correct errorCat', () => {
-      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-01', taskHandler, { bar: 'baz' }, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledOnce(Worker.create)
           sinon.assert.calledWithExactly(
@@ -482,7 +493,7 @@ describe('Server', () => {
     })
 
     it('should correctly provide custom worker options', () => {
-      assert.isFulfilled(server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledOnce(Worker.create)
           sinon.assert.calledWithExactly(
@@ -493,7 +504,7 @@ describe('Server', () => {
     })
 
     it('should call run on new worker', () => {
-      assert.isFulfilled(server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, testJobOpts, noop))
+      assert.isFulfilled(server._runWorker('test-queue-02', taskHandler, { bar: 'baz' }, testJobMeta, noop))
         .then(() => {
           sinon.assert.calledOnce(runStub)
         })
