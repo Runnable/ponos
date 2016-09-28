@@ -845,6 +845,15 @@ describe('rabbitmq', () => {
         rabbitmq._validatePublish('test', { b: 1 }, 'events')
       }, Error, /"a" is required/)
     })
+
+    it('should return if jobSchema is not defined', function () {
+      const mockJob = {
+        name: 'test'
+      }
+      rabbitmq.events = [mockJob]
+      const result = rabbitmq._validatePublish('test', { b: 1 }, 'events')
+      assert.isUndefined(result)
+    })
   }) // end _validatePublish
 
   describe('_connectionErrorHandler', () => {
