@@ -547,13 +547,15 @@ describe('rabbitmq', () => {
       rabbitmq.publishChannel.sendToQueue = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish')
       sinon.stub(RabbitMQ.prototype, '_incMonitor')
-      sinon.stub(RabbitMQ, 'buildPayload')
+      sinon.stub(RabbitMQ, 'buildJobPayload')
+      sinon.stub(RabbitMQ, 'buildJobMeta')
     })
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
       RabbitMQ.prototype._incMonitor.restore()
-      RabbitMQ.buildPayload.restore()
+      RabbitMQ.buildJobPayload.restore()
+      RabbitMQ.buildJobMeta.restore()
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -567,22 +569,21 @@ describe('rabbitmq', () => {
 
     it('should publish with a buffer of the content', () => {
       const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
-      const payload = {
-        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
-        jobMeta: {
-          appId: testName,
-          timestamp: Date.now()
-        }
+      const jobBuffer = new Buffer(JSON.stringify(payloadWithTid))
+      const jobMeta = {
+        appId: testName,
+        timestamp: Date.now()
       }
-      RabbitMQ.buildPayload.returns(payload)
+      RabbitMQ.buildJobPayload.returns(jobBuffer)
+      RabbitMQ.buildJobMeta.returns(jobMeta)
       return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob))
         .then(() => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
           sinon.assert.calledWith(
             rabbitmq.publishChannel.sendToQueue,
             `test-client.${mockQueue}`,
-            payload.jobBuffer,
-            payload.jobMeta
+            jobBuffer,
+            jobMeta
           )
           const contentCall = rabbitmq.publishChannel.sendToQueue.firstCall
           contentCall.args.pop()
@@ -594,14 +595,13 @@ describe('rabbitmq', () => {
 
     it('should call _incMonitor before publish', () => {
       const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
-      const payload = {
-        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
-        jobMeta: {
-          appId: testName,
-          timestamp: Date.now()
-        }
+      const jobBuffer = new Buffer(JSON.stringify(payloadWithTid))
+      const jobMeta = {
+        appId: testName,
+        timestamp: Date.now()
       }
-      RabbitMQ.buildPayload.returns(payload)
+      RabbitMQ.buildJobPayload.returns(jobBuffer)
+      RabbitMQ.buildJobMeta.returns(jobMeta)
       return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob))
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype._incMonitor)
@@ -622,13 +622,15 @@ describe('rabbitmq', () => {
       rabbitmq.publishChannel.publish = sinon.stub().resolves()
       sinon.stub(RabbitMQ.prototype, '_validatePublish').returns(true)
       sinon.stub(RabbitMQ.prototype, '_incMonitor')
-      sinon.stub(RabbitMQ, 'buildPayload')
+      sinon.stub(RabbitMQ, 'buildJobPayload')
+      sinon.stub(RabbitMQ, 'buildJobMeta')
     })
 
     afterEach(() => {
       RabbitMQ.prototype._validatePublish.restore()
       RabbitMQ.prototype._incMonitor.restore()
-      RabbitMQ.buildPayload.restore()
+      RabbitMQ.buildJobPayload.restore()
+      RabbitMQ.buildJobMeta.restore()
     })
 
     it('should reject if _validatePublish throws', () => {
@@ -642,14 +644,13 @@ describe('rabbitmq', () => {
 
     it('should publish with a buffer of the content', () => {
       const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
-      const payload = {
-        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
-        jobMeta: {
-          appId: testName,
-          timestamp: Date.now()
-        }
+      const jobBuffer = new Buffer(JSON.stringify(payloadWithTid))
+      const jobMeta = {
+        appId: testName,
+        timestamp: Date.now()
       }
-      RabbitMQ.buildPayload.returns(payload)
+      RabbitMQ.buildJobPayload.returns(jobBuffer)
+      RabbitMQ.buildJobMeta.returns(jobMeta)
       return assert.isFulfilled(
         rabbitmq.publishEvent(mockExchange, mockJob)
       )
@@ -659,8 +660,8 @@ describe('rabbitmq', () => {
             rabbitmq.publishChannel.publish,
             mockExchange,
             '',
-            payload.jobBuffer,
-            payload.jobMeta
+            jobBuffer,
+            jobMeta
           )
           rabbitmq.publishChannel.publish.firstCall.args.pop()
           const content = rabbitmq.publishChannel.publish.firstCall.args.pop()
@@ -670,14 +671,13 @@ describe('rabbitmq', () => {
     })
     it('should call _incMonitor before publish', () => {
       const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
-      const payload = {
-        jobBuffer: new Buffer(JSON.stringify(payloadWithTid)),
-        jobMeta: {
-          appId: testName,
-          timestamp: Date.now()
-        }
+      const jobBuffer = new Buffer(JSON.stringify(payloadWithTid))
+      const jobMeta = {
+        appId: testName,
+        timestamp: Date.now()
       }
-      RabbitMQ.buildPayload.returns(payload)
+      RabbitMQ.buildJobPayload.returns(jobBuffer)
+      RabbitMQ.buildJobMeta.returns(jobMeta)
       return assert.isFulfilled(
         rabbitmq.publishEvent(mockExchange, mockJob)
       )
@@ -711,14 +711,14 @@ describe('rabbitmq', () => {
     })
   }) // end _formatJobs
 
-  describe('buildPayload', function () {
+  describe('buildJobPayload', function () {
     it('should add tid if not in namespace', () => {
       const ns = cls.createNamespace('other')
 
       return Promise.fromCallback((cb) => {
         ns.run(() => {
-          const payload = RabbitMQ.buildPayload({})
-          const outObject = JSON.parse(payload.jobBuffer.toString())
+          const payload = RabbitMQ.buildJobPayload({})
+          const outObject = JSON.parse(payload.toString())
           assert.isString(outObject.tid)
           cb()
         })
@@ -727,8 +727,8 @@ describe('rabbitmq', () => {
 
     it('should use tid if passed', () => {
       const testTid = '123-2134-234-234-235'
-      const payload = RabbitMQ.buildPayload({ tid: testTid })
-      const outObject = JSON.parse(payload.jobBuffer.toString())
+      const payload = RabbitMQ.buildJobPayload({ tid: testTid })
+      const outObject = JSON.parse(payload.toString())
       return assert.isString(outObject.tid, testTid)
     })
 
@@ -739,31 +739,12 @@ describe('rabbitmq', () => {
       return Promise.fromCallback((cb) => {
         ns.run(() => {
           ns.set('tid', this.tid)
-          const payload = RabbitMQ.buildPayload({})
-          const outObject = JSON.parse(payload.jobBuffer.toString())
+          const payload = RabbitMQ.buildJobPayload({})
+          const outObject = JSON.parse(payload.toString())
           assert.isString(outObject.tid, testTid)
           cb()
         })
       })
-    })
-
-    it('should use currentWorkerName if in namespace', () => {
-      const testEvent = 'app.started'
-      const ns = cls.createNamespace('ponos')
-
-      return Promise.fromCallback((cb) => {
-        ns.run(() => {
-          ns.set('currentWorkerName', testEvent)
-          const payload = RabbitMQ.buildPayload({})
-          assert.isString(payload.jobMeta.headers.previousEvent, testEvent)
-          cb()
-        })
-      })
-    })
-
-    it('should not set previousEvent if namespace does not exist', () => {
-      const payload = RabbitMQ.buildPayload({})
-      assert.isUndefined(payload.jobMeta.headers.previousEvent)
     })
 
     describe('stringify error', function () {
@@ -777,10 +758,31 @@ describe('rabbitmq', () => {
 
       it('should throw if content fails to be stringified', () => {
         return assert.throws(() => {
-          RabbitMQ.buildPayload({})
+          RabbitMQ.buildJobPayload({})
         }, Error, /custom json error/)
       })
     }) // end stringify error
+  })
+
+  describe('buildJobMeta', function () {
+    it('should use currentWorkerName if in namespace', () => {
+      const testEvent = 'app.started'
+      const ns = cls.createNamespace('ponos')
+
+      return Promise.fromCallback((cb) => {
+        ns.run(() => {
+          ns.set('currentWorkerName', testEvent)
+          const jobMeta = RabbitMQ.buildJobMeta('api')
+          assert.isString(jobMeta.headers.previousEvent, testEvent)
+          cb()
+        })
+      })
+    })
+
+    it('should not set previousEvent if namespace does not exist', () => {
+      const jobMeta = RabbitMQ.buildJobMeta('api')
+      assert.isUndefined(jobMeta.headers.previousEvent)
+    })
   })
 
   describe('_validatePublish', function () {

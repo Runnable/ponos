@@ -271,11 +271,12 @@ class RabbitMQ {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
       this._validatePublish(queue, content, 'tasks')
-      const payload = RabbitMQ.buildPayload(content)
-      this.log.info({ queue: queueName, job: content, jobMeta: payload.jobMeta }, 'Publishing task')
+      const payload = RabbitMQ.buildJobPayload(content)
+      const meta = RabbitMQ.buildJobMeta(this.name)
+      this.log.info({ queue: queueName, job: content, jobMeta: meta }, 'Publishing task')
       this._incMonitor('task', queueName)
       return Promise.resolve(
-        this.publishChannel.sendToQueue(queueName, payload.jobBuffer, payload.jobMeta)
+        this.publishChannel.sendToQueue(queueName, payload, meta)
       )
     })
   }
@@ -291,12 +292,13 @@ class RabbitMQ {
   publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       this._validatePublish(exchange, content, 'events')
-      const payload = RabbitMQ.buildPayload(content)
-      this.log.info({ event: exchange, job: content, jobMeta: payload.jobMeta }, 'Publishing event')
+      const payload = RabbitMQ.buildJobPayload(content)
+      const meta = RabbitMQ.buildJobMeta(this.name)
+      this.log.info({ event: exchange, job: content, jobMeta: meta }, 'Publishing event')
       // events do not need a routing key (so we send '')
       this._incMonitor('event', exchange)
       return Promise.resolve(
-        this.publishChannel.publish(exchange, '', payload.jobBuffer, payload.jobMeta)
+        this.publishChannel.publish(exchange, '', payload, meta)
       )
     })
   }
@@ -665,31 +667,27 @@ class RabbitMQ {
         this.subscribed = this.subscribed.add(subscribedKey)
       })
   }
-  /**
-   * Create payload object with `jobBuffer` and `jobMeta` props
-   * @private
-   * @param {Object} content Content to send.
-   * @return {Object} payload with `jobBuffer` and `jobMeta` props
-   */
-  static buildPayload (content: Object) {
-    const jobMeta = {
-      appId: this.name,
-      timestamp: Date.now(),
-      headers: {}
-    }
+
+  static getKeyFromClsNamespace (key) {
     const ns = getNamespace('ponos')
-    jobMeta.headers.previousEvent = ns && ns.get('currentWorkerName')
-    // add tid to message if one does not exist
+    return ns && ns.get(key)
+  }
+  static buildJobPayload (content: Object) {
     if (!content.tid) {
-      const tid = ns && ns.get('tid')
+      const tid = RabbitMQ.getKeyFromClsNamespace('tid')
       content.tid = tid || uuid()
     }
     const stringContent = JSON.stringify(content)
-    const jobBuffer = new Buffer(stringContent)
-    return {
-      jobBuffer: jobBuffer,
-      jobMeta: jobMeta
+    return new Buffer(stringContent)
+  }
+  static buildJobMeta (name) {
+    const jobMeta = {
+      appId: name,
+      timestamp: Date.now(),
+      headers: {}
     }
+    jobMeta.headers.previousEvent = RabbitMQ.getKeyFromClsNamespace('currentWorkerName')
+    return jobMeta
   }
   /**
    * Validate publish params. Adds a TID to the job it does not already have
