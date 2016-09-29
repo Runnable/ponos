@@ -41,8 +41,9 @@
   ],
   "author": "Ryan Sandor Richards <sandor.richards@gmail.com>",
   "contributors": [
-    "Anandkumar patel <anand@runnable.com>",
-    "Bryan Kendall <bryan@runnable.com>"
+    "Anandkumar Patel <anand@runnable.com>",
+    "Bryan Kendall <bryan@runnable.com>",
+    "Anton Podviaznikov <anton@podviaznikov.com>"
   ],
   "license": "MIT",
   "bugs": {
