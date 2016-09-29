@@ -8,6 +8,7 @@ const ErrorCat = require('error-cat')
 const Immutable = require('immutable')
 const isFunction = require('101/is-function')
 const isObject = require('101/is-object')
+const joi = require('joi')
 const Promise = require('bluebird')
 const put = require('101/put')
 
@@ -50,10 +51,12 @@ const Worker = require('./worker')
  *   directly with handlers.
  * @param {Object} [opts.redisRateLimiter] options for redis-rate-limiter. checkout
  *   module for params
+ * @param {Object} [opts.enableWorkerErrorEvents] option to enable global worker error events
  */
 class Server {
   _events: Map<string, Function>;
   _opts: Object;
+  _publisher: RabbitMQ;
   _rabbitmq: RabbitMQ;
   _redisRateLimiter: RedisRateLimiter;
   _tasks: Map<string, Function>;
@@ -92,6 +95,27 @@ class Server {
       { name: this._opts.name }
     )
     this._rabbitmq = new RabbitMQ(rabbitmqOpts)
+    if (this._opts.enableErrorEvents) {
+      const publisherAppName = this._opts.name ? this._opts.name + '.error.publisher' : 'ponos.error.publisher'
+      const rabbitmqPublisherOpts = defaults(
+        this._opts.rabbitmq || {},
+        {
+          name: publisherAppName,
+          events: [
+            {
+              name: 'worker.errored',
+              jobSchema: joi.object({
+                originalJobPayload: joi.object().unknown().required(),
+                originalJobMeta: joi.object().unknown().required(),
+                originalTaskName: joi.string().required(),
+                error: joi.object().required()
+              }).unknown()
+            }
+          ]
+        }
+      )
+      this._publisher = new RabbitMQ(rabbitmqPublisherOpts)
+    }
   }
 
   /**
@@ -114,6 +138,11 @@ class Server {
   start (): Bluebird$Promise<void> {
     this.log.trace('starting')
     return this._rabbitmq.connect()
+      .then(() => {
+        if (this._publisher) {
+          return this._publisher.connect()
+        }
+      })
       .then(() => {
         if (this._redisRateLimiter) {
           return this._redisRateLimiter.connect()
@@ -144,6 +173,11 @@ class Server {
     return this._rabbitmq.unsubscribe()
       .then(() => {
         return this._rabbitmq.disconnect()
+      })
+      .then(() => {
+        if (this._publisher) {
+          return this._publisher.disconnect()
+        }
       })
       .then(() => {
         this.log.trace('stopped')
