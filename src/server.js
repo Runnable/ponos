@@ -56,7 +56,6 @@ const Worker = require('./worker')
 class Server {
   _events: Map<string, Function>;
   _opts: Object;
-  _publisher: RabbitMQ;
   _rabbitmq: RabbitMQ;
   _redisRateLimiter: RedisRateLimiter;
   _tasks: Map<string, Function>;
@@ -65,6 +64,7 @@ class Server {
 
   errorCat: ErrorCat;
   log: Logger;
+  publisher: RabbitMQ;
 
   constructor (opts: Object) {
     this._opts = assign({}, opts)
@@ -114,7 +114,7 @@ class Server {
           ]
         }
       )
-      this._publisher = new RabbitMQ(rabbitmqPublisherOpts)
+      this.publisher = new RabbitMQ(rabbitmqPublisherOpts)
     }
   }
 
@@ -139,8 +139,8 @@ class Server {
     this.log.trace('starting')
     return this._rabbitmq.connect()
       .then(() => {
-        if (this._publisher) {
-          return this._publisher.connect()
+        if (this.publisher) {
+          return this.publisher.connect()
         }
       })
       .then(() => {
@@ -175,8 +175,8 @@ class Server {
         return this._rabbitmq.disconnect()
       })
       .then(() => {
-        if (this._publisher) {
-          return this._publisher.disconnect()
+        if (this.publisher) {
+          return this.publisher.disconnect()
         }
       })
       .then(() => {
@@ -411,7 +411,8 @@ class Server {
         jobMeta: jobMeta,
         task: handler,
         log: this.log,
-        errorCat: this.errorCat
+        errorCat: this.errorCat,
+        publisher: this.publisher
       })
       const worker = Worker.create(opts)
       return worker.run().finally(() => {
