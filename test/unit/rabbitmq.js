@@ -773,15 +773,15 @@ describe('rabbitmq', () => {
         ns.run(() => {
           ns.set('currentWorkerName', testEvent)
           const jobMeta = RabbitMQ.buildJobMeta('api')
-          assert.isString(jobMeta.headers.previousEvent, testEvent)
+          assert.isString(jobMeta.headers.publisherWorkerName, testEvent)
           cb()
         })
       })
     })
 
-    it('should not set previousEvent if namespace does not exist', () => {
+    it('should not set publisherWorkerName if namespace does not exist', () => {
       const jobMeta = RabbitMQ.buildJobMeta('api')
-      assert.isUndefined(jobMeta.headers.previousEvent)
+      assert.isUndefined(jobMeta.headers.publisherWorkerName)
     })
   })
 

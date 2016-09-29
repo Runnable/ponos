@@ -686,7 +686,7 @@ class RabbitMQ {
       timestamp: Date.now(),
       headers: {}
     }
-    jobMeta.headers.previousEvent = RabbitMQ.getKeyFromClsNamespace('currentWorkerName')
+    jobMeta.headers.publisherWorkerName = RabbitMQ.getKeyFromClsNamespace('currentWorkerName')
     return jobMeta
   }
   /**

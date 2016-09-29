@@ -57,7 +57,7 @@ describe('Basic Example', () => {
 
   it('should trigger series of events', (done) => {
     testWorkerTwoEmitter.on('task', function (job, jobMeta) {
-      assert.equal(jobMeta.headers.previousEvent, testQueueOne)
+      assert.equal(jobMeta.headers.publisherWorkerName, testQueueOne)
       assert.equal(job.message, 'hello world2')
       done()
     })
