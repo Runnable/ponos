@@ -747,13 +747,13 @@ describe('rabbitmq', () => {
       })
     })
 
-    it('should use previousEvent if in namespace', () => {
+    it('should use currentWorkerName if in namespace', () => {
       const testEvent = 'app.started'
       const ns = cls.createNamespace('ponos')
 
       return Promise.fromCallback((cb) => {
         ns.run(() => {
-          ns.set('previousEvent', testEvent)
+          ns.set('currentWorkerName', testEvent)
           const payload = RabbitMQ.buildPayload({})
           assert.isString(payload.jobMeta.headers.previousEvent, testEvent)
           cb()

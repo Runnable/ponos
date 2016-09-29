@@ -8,8 +8,8 @@ const testClsData = (step) => {
   if (typeof getNamespace('ponos').get('tid') !== 'string') {
     throw new Error('tid not found after Promise.' + step)
   }
-  if (getNamespace('ponos').get('previousEvent') !== 'ponos-test:one') {
-    throw new Error('previousEvent not found after Promise.' + step)
+  if (getNamespace('ponos').get('currentWorkerName') !== 'ponos-test:one') {
+    throw new Error('currentWorkerName not found after Promise.' + step)
   }
 }
 

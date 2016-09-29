@@ -133,7 +133,7 @@ class Worker {
     return Promise.fromCallback((cb) => {
       cls.run(() => {
         cls.set('tid', this.tid)
-        cls.set('previousEvent', this.queue)
+        cls.set('currentWorkerName', this.queue)
         Promise.try(() => {
           this.log.info({
             attempt: this.attempt++,

@@ -678,7 +678,7 @@ class RabbitMQ {
       headers: {}
     }
     const ns = getNamespace('ponos')
-    jobMeta.headers.previousEvent = ns && ns.get('previousEvent')
+    jobMeta.headers.previousEvent = ns && ns.get('currentWorkerName')
     // add tid to message if one does not exist
     if (!content.tid) {
       const tid = ns && ns.get('tid')
