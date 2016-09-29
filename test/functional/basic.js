@@ -7,23 +7,31 @@ const assert = chai.assert
 // Ponos Tooling
 const ponos = require('../../src')
 const RabbitMQ = require('../../src/rabbitmq')
-const testWorker = require('./fixtures/worker')
-const testWorkerEmitter = testWorker.emitter
+const basicWorker = require('./fixtures/worker')
+const basicWorkerTwoEmitter = basicWorker.emitter
+const testWorkerOne = require('./fixtures/worker-one')
+const testWorkerTwo = require('./fixtures/worker-two')
+const testWorkerTwoEmitter = testWorkerTwo.emitter
 
 describe('Basic Example', () => {
   let server
   let rabbitmq
-  const testQueue = 'ponos-test:one'
+  const testQueueBasic = 'ponos-test:zero'
+  const testQueueOne = 'ponos-test:one'
+  const testQueueTwo = 'ponos-test:two'
   before(() => {
     const tasks = {}
-    tasks[testQueue] = testWorker
     rabbitmq = new RabbitMQ({
       name: 'ponos.test',
-      tasks: Object.keys(tasks)
+      tasks: [ testQueueBasic, testQueueOne, testQueueTwo ]
     })
+    tasks[testQueueBasic] = basicWorker
+    tasks[testQueueOne] = testWorkerOne
+    tasks[testQueueTwo] = testWorkerTwo
     server = new ponos.Server({ name: 'ponos.test', tasks: tasks })
     return rabbitmq.connect()
       .then(() => {
+        testWorkerOne.setPublisher(rabbitmq)
         return server.start()
       })
   })
@@ -36,14 +44,27 @@ describe('Basic Example', () => {
   })
 
   it('should queue a task that triggers an event', (done) => {
-    testWorkerEmitter.on('task', function (data, jobMeta) {
-      assert.equal(data.data, 'hello world')
+    basicWorkerTwoEmitter.on('task', function (job, jobMeta) {
+      assert.equal(job.message, 'hello world')
       done()
     })
     const job = {
       eventName: 'task',
       message: 'hello world'
     }
-    rabbitmq.publishTask(testQueue, job)
+    rabbitmq.publishTask(testQueueBasic, job)
+  })
+
+  it('should trigger series of events', (done) => {
+    testWorkerTwoEmitter.on('task', function (job, jobMeta) {
+      assert.equal(jobMeta.headers.publisherWorkerName, testQueueOne)
+      assert.equal(job.message, 'hello world2')
+      done()
+    })
+    const job = {
+      eventName: 'task',
+      message: 'hello world'
+    }
+    rabbitmq.publishTask(testQueueOne, job)
   })
 })
