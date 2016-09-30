@@ -96,6 +96,37 @@ describe('Server', () => {
       assert.isUndefined(s._redisRateLimiter)
     })
 
+    it('should create errorPublisher if options passed', () => {
+      const s = new ponos.Server({
+        enableErrorEvents: true
+      })
+      assert.ok(s)
+      assert.instanceOf(s.errorPublisher, RabbitMQ)
+      assert.equal(s.errorPublisher.name, 'ponos.error.publisher')
+      assert.equal(s.errorPublisher.events.length, 1)
+      assert.equal(s.errorPublisher.events[0].name, 'worker.errored')
+      assert.isNotNull(s.errorPublisher.events[0].jobSchema)
+    })
+
+    it('should set errorPublisher name depending on name opt', () => {
+      const s = new ponos.Server({
+        enableErrorEvents: true,
+        name: 'api'
+      })
+      assert.ok(s)
+      assert.instanceOf(s.errorPublisher, RabbitMQ)
+      assert.equal(s.errorPublisher.name, 'api.error.publisher')
+      assert.equal(s.errorPublisher.events.length, 1)
+      assert.equal(s.errorPublisher.events[0].name, 'worker.errored')
+      assert.isNotNull(s.errorPublisher.events[0].jobSchema)
+    })
+
+    it('should not have errorPublisher if option not passed', () => {
+      const s = new ponos.Server()
+      assert.ok(s)
+      assert.isUndefined(s.errorPublisher)
+    })
+
     it('should not call setAllTasks if they were not provided', () => {
       const s = new ponos.Server()
       assert.ok(s)
@@ -682,15 +713,20 @@ describe('Server', () => {
   })
 
   describe('start', () => {
+    let errorPublisher
     beforeEach(() => {
       sinon.stub(RabbitMQ.prototype, 'connect').resolves()
       sinon.stub(RedisRateLimiter.prototype, 'connect').resolves()
       sinon.stub(ponos.Server.prototype, '_subscribeAll').resolves()
       sinon.stub(ponos.Server.prototype, 'consume').resolves()
       sinon.stub(errorCat, 'report').returns()
+      errorPublisher = new RabbitMQ({
+        name: 'api'
+      })
     })
 
     afterEach(() => {
+      server.errorPublisher = null
       RabbitMQ.prototype.connect.restore()
       RedisRateLimiter.prototype.connect.restore()
       ponos.Server.prototype._subscribeAll.restore()
@@ -702,6 +738,14 @@ describe('Server', () => {
       return assert.isFulfilled(server.start())
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype.connect)
+        })
+    })
+
+    it('should connect to errorPublisher if exists', () => {
+      server.errorPublisher = errorPublisher
+      return assert.isFulfilled(server.start())
+        .then(() => {
+          sinon.assert.calledTwice(RabbitMQ.prototype.connect)
         })
     })
 
@@ -733,15 +777,20 @@ describe('Server', () => {
 
   describe('stop', () => {
     let server
+    let errorPublisher
 
     beforeEach(() => {
       server = new ponos.Server({ tasks: tasks })
+      errorPublisher = new RabbitMQ({
+        name: 'api'
+      })
       sinon.stub(RabbitMQ.prototype, 'unsubscribe').resolves()
       sinon.stub(RabbitMQ.prototype, 'disconnect').resolves()
       sinon.stub(errorCat, 'report')
     })
 
     afterEach(() => {
+      server.errorPublisher = null
       RabbitMQ.prototype.unsubscribe.restore()
       RabbitMQ.prototype.disconnect.restore()
       errorCat.report.restore()
@@ -758,6 +807,14 @@ describe('Server', () => {
       return assert.isFulfilled(server.stop())
         .then(() => {
           sinon.assert.calledOnce(RabbitMQ.prototype.disconnect)
+        })
+    })
+
+    it('should close errorPublisher connection if exists', () => {
+      server.errorPublisher = errorPublisher
+      return assert.isFulfilled(server.stop())
+        .then(() => {
+          sinon.assert.calledTwice(RabbitMQ.prototype.disconnect)
         })
     })
 

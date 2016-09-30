@@ -41,8 +41,9 @@
   ],
   "author": "Ryan Sandor Richards <sandor.richards@gmail.com>",
   "contributors": [
-    "Anandkumar patel <anand@runnable.com>",
-    "Bryan Kendall <bryan@runnable.com>"
+    "Anandkumar Patel <anand@runnable.com>",
+    "Bryan Kendall <bryan@runnable.com>",
+    "Anton Podviaznikov <anton@podviaznikov.com>"
   ],
   "license": "MIT",
   "bugs": {
@@ -87,8 +88,8 @@
     "chai": "^3.3.0",
     "chai-as-promised": "^6.0.0",
     "coveralls": "^2.11.4",
-    "eslint-config-standard": "^5.3.5",
-    "flow-bin": "^0.32.0",
+    "eslint-config-standard": "^6.2.0",
+    "flow-bin": "^0.33.0",
     "github-changes": "^1.0.0",
     "in-publish": "^2.0.0",
     "istanbul": "^1.0.0-alpha.2",

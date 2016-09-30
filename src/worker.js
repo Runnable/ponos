@@ -11,6 +11,7 @@ const joi = require('joi')
 const merge = require('101/put')
 const monitor = require('monitor-dog')
 const Promise = require('bluebird')
+const RabbitMQ = require('./rabbitmq')
 const uuid = require('uuid')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 
@@ -20,6 +21,7 @@ clsBlueBird(cls)
 const optsSchema = joi.object({
   attempt: joi.number().integer().min(0).required(),
   errorCat: joi.object(),
+  errorPublisher: joi.object(),
   finalRetryFn: joi.func(),
   jobSchema: joi.object({
     isJoi: joi.bool().valid(true)
@@ -55,6 +57,7 @@ const optsSchema = joi.object({
 class Worker {
   attempt: number;
   errorCat: ErrorCat;
+  errorPublisher: RabbitMQ;
   finalRetryFn: Function;
   jobSchema: Object;
   job: Object;
@@ -242,6 +245,15 @@ class Worker {
     this.log.error({ err: err }, 'Worker task fatally errored')
     this._incMonitor('ponos.finish-error', { result: 'fatal-error' })
     this._incMonitor('ponos.finish', { result: 'fatal-error' })
+    if (this.errorPublisher) {
+      const erroredJob = {
+        originalJobPayload: this.job,
+        originalJobMeta: this.jobMeta,
+        originalWorkerName: this.queue,
+        error: err
+      }
+      this.errorPublisher.publishEvent('worker.errored', erroredJob)
+    }
   }
 
   /**
