@@ -96,6 +96,20 @@ describe('Server', () => {
       assert.isUndefined(s._redisRateLimiter)
     })
 
+    it('should create errorPublisher if options passed', () => {
+      const s = new ponos.Server({
+        enableErrorEvents: true
+      })
+      assert.ok(s)
+      assert.instanceOf(s.errorPublisher, RabbitMQ)
+    })
+
+    it('should not have errorPublisher if option not passed', () => {
+      const s = new ponos.Server()
+      assert.ok(s)
+      assert.isUndefined(s.errorPublisher)
+    })
+
     it('should not call setAllTasks if they were not provided', () => {
       const s = new ponos.Server()
       assert.ok(s)

@@ -93,6 +93,12 @@ describe('Worker', () => {
       assert.deepEqual(w.errorCat, { mew: 2 })
     })
 
+    it('should use the given errorPublisher', () => {
+      opts.errorPublisher = { mew: 2 }
+      const w = Worker.create(opts)
+      assert.deepEqual(w.errorPublisher, { mew: 2 })
+    })
+
     describe('finalErrorFn', function () {
       it('should use passed for function to resolve', () => {
         opts.finalRetryFn = sinon.stub().rejects(new Error('Glorfindel'))
