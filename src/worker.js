@@ -21,7 +21,7 @@ clsBlueBird(cls)
 const optsSchema = joi.object({
   attempt: joi.number().integer().min(0).required(),
   errorCat: joi.object(),
-  publisher: joi.object(),
+  errorPublisher: joi.object(),
   finalRetryFn: joi.func(),
   jobSchema: joi.object({
     isJoi: joi.bool().valid(true)
@@ -57,7 +57,7 @@ const optsSchema = joi.object({
 class Worker {
   attempt: number;
   errorCat: ErrorCat;
-  publisher: RabbitMQ;
+  errorPublisher: RabbitMQ;
   finalRetryFn: Function;
   jobSchema: Object;
   job: Object;
@@ -245,14 +245,14 @@ class Worker {
     this.log.error({ err: err }, 'Worker task fatally errored')
     this._incMonitor('ponos.finish-error', { result: 'fatal-error' })
     this._incMonitor('ponos.finish', { result: 'fatal-error' })
-    if (this.publisher) {
+    if (this.errorPublisher) {
       const erroredJob = {
         originalJobPayload: this.job,
         originalJobMeta: this.jobMeta,
         originalTaskName: this.queue,
         error: err
       }
-      this.publisher.publishEvent('worker.errored', erroredJob)
+      this.errorPublisher.publishEvent('worker.errored', erroredJob)
     }
   }
 

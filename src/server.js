@@ -64,7 +64,7 @@ class Server {
 
   errorCat: ErrorCat;
   log: Logger;
-  publisher: RabbitMQ;
+  errorPublisher: RabbitMQ;
 
   constructor (opts: Object) {
     this._opts = assign({}, opts)
@@ -96,11 +96,11 @@ class Server {
     )
     this._rabbitmq = new RabbitMQ(rabbitmqOpts)
     if (this._opts.enableErrorEvents) {
-      const publisherAppName = this._opts.name ? this._opts.name + '.error.publisher' : 'ponos.error.publisher'
+      const errorPublisherAppName = this._opts.name ? this._opts.name + '.error.errorPublisher' : 'ponos.error.errorPublisher'
       const rabbitmqPublisherOpts = defaults(
         this._opts.rabbitmq || {},
         {
-          name: publisherAppName,
+          name: errorPublisherAppName,
           events: [
             {
               name: 'worker.errored',
@@ -114,7 +114,7 @@ class Server {
           ]
         }
       )
-      this.publisher = new RabbitMQ(rabbitmqPublisherOpts)
+      this.errorPublisher = new RabbitMQ(rabbitmqPublisherOpts)
     }
   }
 
@@ -139,8 +139,8 @@ class Server {
     this.log.trace('starting')
     return this._rabbitmq.connect()
       .then(() => {
-        if (this.publisher) {
-          return this.publisher.connect()
+        if (this.errorPublisher) {
+          return this.errorPublisher.connect()
         }
       })
       .then(() => {
@@ -175,8 +175,8 @@ class Server {
         return this._rabbitmq.disconnect()
       })
       .then(() => {
-        if (this.publisher) {
-          return this.publisher.disconnect()
+        if (this.errorPublisher) {
+          return this.errorPublisher.disconnect()
         }
       })
       .then(() => {
@@ -412,7 +412,7 @@ class Server {
         task: handler,
         log: this.log,
         errorCat: this.errorCat,
-        publisher: this.publisher
+        errorPublisher: this.errorPublisher
       })
       const worker = Worker.create(opts)
       return worker.run().finally(() => {
