@@ -34,5 +34,4 @@ module.exports = (job, jobMeta) => {
 module.exports.setPublisher = (publisher) => {
   rabbitmq = publisher
 }
-
 module.exports.emitter = new EventEmitter()

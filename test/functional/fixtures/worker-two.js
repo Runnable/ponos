@@ -24,5 +24,4 @@ module.exports = (job, jobMeta) => {
       module.exports.emitter.emit(job.eventName, job, jobMeta)
     })
 }
-
 module.exports.emitter = new EventEmitter()
