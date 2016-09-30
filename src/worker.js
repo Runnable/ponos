@@ -249,7 +249,7 @@ class Worker {
       const erroredJob = {
         originalJobPayload: this.job,
         originalJobMeta: this.jobMeta,
-        originalTaskName: this.queue,
+        originalWorkerName: this.queue,
         error: err
       }
       this.errorPublisher.publishEvent('worker.errored', erroredJob)
