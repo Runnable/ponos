@@ -3,6 +3,7 @@
 const chai = require('chai')
 const clone = require('101/clone')
 const errorCat = require('error-cat')
+const joi = require('joi')
 const noop = require('101/noop')
 const Promise = require('bluebird')
 const sinon = require('sinon')
@@ -106,6 +107,14 @@ describe('Server', () => {
       assert.equal(s.errorPublisher.events.length, 1)
       assert.equal(s.errorPublisher.events[0].name, 'worker.errored')
       assert.isNotNull(s.errorPublisher.events[0].jobSchema)
+      assert.deepEqual(s.errorPublisher.events[0].jobSchema.describe(),
+        joi.object({
+          originalJobPayload: joi.object().unknown().required(),
+          originalJobMeta: joi.object().unknown().required(),
+          originalWorkerName: joi.string().required(),
+          error: joi.object().required(),
+          tid: joi.string()
+        }).unknown().describe())
     })
 
     it('should set errorPublisher name depending on name opt', () => {
@@ -119,6 +128,14 @@ describe('Server', () => {
       assert.equal(s.errorPublisher.events.length, 1)
       assert.equal(s.errorPublisher.events[0].name, 'worker.errored')
       assert.isNotNull(s.errorPublisher.events[0].jobSchema)
+      assert.deepEqual(s.errorPublisher.events[0].jobSchema.describe(),
+        joi.object({
+          originalJobPayload: joi.object().unknown().required(),
+          originalJobMeta: joi.object().unknown().required(),
+          originalWorkerName: joi.string().required(),
+          error: joi.object().required(),
+          tid: joi.string()
+        }).unknown().describe())
     })
 
     it('should not have errorPublisher if option not passed', () => {

@@ -107,7 +107,7 @@ class Server {
               jobSchema: joi.object({
                 originalJobPayload: joi.object().unknown().required(),
                 originalJobMeta: joi.object().unknown().required(),
-                originalTaskName: joi.string().required(),
+                originalWorkerName: joi.string().required(),
                 error: joi.object().required()
               }).unknown()
             }
