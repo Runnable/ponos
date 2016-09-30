@@ -89,7 +89,7 @@
     "chai-as-promised": "^6.0.0",
     "coveralls": "^2.11.4",
     "eslint-config-standard": "^6.2.0",
-    "flow-bin": "^0.32.0",
+    "flow-bin": "^0.33.0",
     "github-changes": "^1.0.0",
     "in-publish": "^2.0.0",
     "istanbul": "^1.0.0-alpha.2",
