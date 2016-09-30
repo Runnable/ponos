@@ -7,6 +7,7 @@ const noop = require('101/noop')
 const omit = require('101/omit')
 const Promise = require('bluebird')
 const sinon = require('sinon')
+const RabbitMQ = require('../../src/rabbitmq')
 const WorkerStopError = require('error-cat/errors/worker-stop-error')
 const assert = chai.assert
 const TimeoutError = Promise.TimeoutError
@@ -627,6 +628,10 @@ describe('Worker', () => {
     describe('_handleWorkerStopError', () => {
       beforeEach(() => {
         sinon.stub(worker, '_incMonitor')
+        sinon.stub(RabbitMQ.prototype, 'publishEvent')
+      })
+      afterEach(() => {
+        RabbitMQ.prototype.publishEvent.restore()
       })
 
       it('should monitor error', () => {
@@ -634,6 +639,21 @@ describe('Worker', () => {
         sinon.assert.calledTwice(worker._incMonitor)
         sinon.assert.calledWith(worker._incMonitor, 'ponos.finish-error', { result: 'fatal-error' })
         sinon.assert.calledWith(worker._incMonitor, 'ponos.finish', { result: 'fatal-error' })
+        sinon.assert.notCalled(RabbitMQ.prototype.publishEvent)
+      })
+
+      it('should call errorPublisher.publishEvent', () => {
+        worker.errorPublisher = new RabbitMQ({})
+        const error = new Error('Failed')
+        worker._handleWorkerStopError(error)
+        sinon.assert.calledOnce(RabbitMQ.prototype.publishEvent)
+        const erroredJob = {
+          originalJobPayload: worker.job,
+          originalJobMeta: worker.jobMeta,
+          originalWorkerName: worker.queue,
+          error: error
+        }
+        sinon.assert.calledWith(RabbitMQ.prototype.publishEvent, 'worker.errored', erroredJob)
       })
     }) // end _handleWorkerStopError
 
