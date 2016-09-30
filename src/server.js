@@ -96,7 +96,7 @@ class Server {
     )
     this._rabbitmq = new RabbitMQ(rabbitmqOpts)
     if (this._opts.enableErrorEvents) {
-      const errorPublisherAppName = this._opts.name ? this._opts.name + '.error.errorPublisher' : 'ponos.error.errorPublisher'
+      const errorPublisherAppName = this._opts.name ? this._opts.name + '.error.publisher' : 'ponos.error.publisher'
       const rabbitmqPublisherOpts = defaults(
         this._opts.rabbitmq || {},
         {

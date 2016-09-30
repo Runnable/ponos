@@ -102,6 +102,23 @@ describe('Server', () => {
       })
       assert.ok(s)
       assert.instanceOf(s.errorPublisher, RabbitMQ)
+      assert.equal(s.errorPublisher.name, 'ponos.error.publisher')
+      assert.equal(s.errorPublisher.events.length, 1)
+      assert.equal(s.errorPublisher.events[0].name, 'worker.errored')
+      assert.isNotNull(s.errorPublisher.events[0].jobSchema)
+    })
+
+    it('should set errorPublisher name depending on name opt', () => {
+      const s = new ponos.Server({
+        enableErrorEvents: true,
+        name: 'api'
+      })
+      assert.ok(s)
+      assert.instanceOf(s.errorPublisher, RabbitMQ)
+      assert.equal(s.errorPublisher.name, 'api.error.publisher')
+      assert.equal(s.errorPublisher.events.length, 1)
+      assert.equal(s.errorPublisher.events[0].name, 'worker.errored')
+      assert.isNotNull(s.errorPublisher.events[0].jobSchema)
     })
 
     it('should not have errorPublisher if option not passed', () => {
