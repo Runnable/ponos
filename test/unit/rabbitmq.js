@@ -610,6 +610,22 @@ describe('rabbitmq', () => {
           sinon.assert.calledOnce(rabbitmq.publishChannel.sendToQueue)
         })
     })
+    it('should call buildJobMeta with opts', () => {
+      const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
+      const jobBuffer = new Buffer(JSON.stringify(payloadWithTid))
+      const jobMeta = {
+        appId: testName,
+        timestamp: Date.now(),
+        persistent: true
+      }
+      RabbitMQ.buildJobPayload.returns(jobBuffer)
+      RabbitMQ.buildJobMeta.returns(jobMeta)
+      return assert.isFulfilled(rabbitmq.publishTask(mockQueue, mockJob, {persistent: true}))
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.buildJobMeta)
+          sinon.assert.calledWith(RabbitMQ.buildJobMeta, testName, { persistent: true })
+        })
+    })
   })
 
   describe('publishEvent', () => {
@@ -685,6 +701,24 @@ describe('rabbitmq', () => {
           sinon.assert.calledOnce(RabbitMQ.prototype._incMonitor)
           sinon.assert.calledWith(RabbitMQ.prototype._incMonitor, 'event', mockExchange)
           sinon.assert.calledOnce(rabbitmq.publishChannel.publish)
+        })
+    })
+    it('should call buildJobMeta with opts', () => {
+      const payloadWithTid = Object.assign({ tid: 'test-tid' }, mockJob)
+      const jobBuffer = new Buffer(JSON.stringify(payloadWithTid))
+      const jobMeta = {
+        appId: testName,
+        timestamp: Date.now(),
+        persistent: true
+      }
+      RabbitMQ.buildJobPayload.returns(jobBuffer)
+      RabbitMQ.buildJobMeta.returns(jobMeta)
+      return assert.isFulfilled(
+        rabbitmq.publishEvent(mockExchange, mockJob, { persistent: true })
+      )
+        .then(() => {
+          sinon.assert.calledOnce(RabbitMQ.buildJobMeta)
+          sinon.assert.calledWith(RabbitMQ.buildJobMeta, testName, { persistent: true })
         })
     })
   })
@@ -782,6 +816,25 @@ describe('rabbitmq', () => {
     it('should not set publisherWorkerName if namespace does not exist', () => {
       const jobMeta = RabbitMQ.buildJobMeta('api')
       assert.isUndefined(jobMeta.headers.publisherWorkerName)
+    })
+
+    it('should use options without overwrite', () => {
+      const jobMeta = RabbitMQ.buildJobMeta('api', {
+        persistent: true,
+        appId: 'another',
+        timestamp: 123,
+        headers: {
+          publisherWorkerName: 'XXX',
+          anotherHeader: 'YYY'
+        }
+      })
+      assert.isTrue(jobMeta.persistent)
+      assert.equal(jobMeta.appId, 'api')
+      assert.notEqual(jobMeta.timestamp, 123)
+      assert.deepEqual(jobMeta.headers, {
+        publisherWorkerName: undefined,
+        anotherHeader: 'YYY'
+      })
     })
   })
 

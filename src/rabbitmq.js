@@ -265,14 +265,15 @@ class RabbitMQ {
    * appends passed in name to tasks
    * @param {String} queue Task queue to receive the message.
    * @param {Object} content Job to send.
+   * @param {Object} opts extra options for message.
    * @return {Promise} Promise resolved when message is sent to queue.
    */
-  publishTask (queue: string, content: Object): Bluebird$Promise<void> {
+  publishTask (queue: string, content: Object, opts?: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       const queueName = `${this.name}.${queue}`
       this._validatePublish(queue, content, 'tasks')
       const payload = RabbitMQ.buildJobPayload(content)
-      const meta = RabbitMQ.buildJobMeta(this.name)
+      const meta = RabbitMQ.buildJobMeta(this.name, opts)
       this.log.info({ queue: queueName, job: content, jobMeta: meta }, 'Publishing task')
       this._incMonitor('task', queueName)
       return Promise.resolve(
@@ -287,13 +288,14 @@ class RabbitMQ {
    *
    * @param {String} queue Exchange to receive the message.
    * @param {Object} content Content to send.
+   * @param {Object} opts extra options for message.
    * @return {Promise} Promise resolved when message is sent to the exchange.
    */
-  publishEvent (exchange: string, content: Object): Bluebird$Promise<void> {
+  publishEvent (exchange: string, content: Object, opts?: Object): Bluebird$Promise<void> {
     return Promise.try(() => {
       this._validatePublish(exchange, content, 'events')
       const payload = RabbitMQ.buildJobPayload(content)
-      const meta = RabbitMQ.buildJobMeta(this.name)
+      const meta = RabbitMQ.buildJobMeta(this.name, opts)
       this.log.info({ event: exchange, job: content, jobMeta: meta }, 'Publishing event')
       // events do not need a routing key (so we send '')
       this._incMonitor('event', exchange)
@@ -680,11 +682,13 @@ class RabbitMQ {
     const stringContent = JSON.stringify(content)
     return new Buffer(stringContent)
   }
-  static buildJobMeta (name) {
-    const jobMeta = {
+  static buildJobMeta (name, opts) {
+    const jobMeta = defaults({
       appId: name,
-      timestamp: Date.now(),
-      headers: {}
+      timestamp: Date.now()
+    }, opts || {})
+    if (jobMeta.headers == null) {
+      jobMeta.headers = {}
     }
     jobMeta.headers.publisherWorkerName = RabbitMQ.getKeyFromClsNamespace('currentWorkerName')
     return jobMeta
