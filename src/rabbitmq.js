@@ -682,11 +682,11 @@ class RabbitMQ {
     const stringContent = JSON.stringify(content)
     return new Buffer(stringContent)
   }
-  static buildJobMeta (name, opts = {}) {
+  static buildJobMeta (name, opts) {
     const jobMeta = defaults({
       appId: name,
       timestamp: Date.now()
-    }, opts)
+    }, opts || {})
     if (jobMeta.headers == null) {
       jobMeta.headers = {}
     }
