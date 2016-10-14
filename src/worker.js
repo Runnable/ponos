@@ -229,6 +229,7 @@ class Worker {
     .finally(() => {
       this._incMonitor('ponos.finish-error', { result: 'retry-error' })
       throw new WorkerStopError('final retry handler finished', {
+        originalError: err,
         queue: this.queue,
         job: this.job,
         attempt: this.attempt
@@ -297,10 +298,10 @@ class Worker {
       .bind(this)
       .then(this._wrapTask)
       .then(this._handleTaskSuccess)
-      .catch(this._addWorkerDataToError)
       // If the type is TimeoutError, log and re-throw error
       .catch(TimeoutError, this._handleTimeoutError)
       .catch(this._enforceRetryLimit)
+      .catch(this._addWorkerDataToError)
       .catch((err) => {
         this.errorCat.report(err)
         throw err
