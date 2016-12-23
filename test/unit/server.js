@@ -264,12 +264,52 @@ describe('Server', () => {
           sinon.assert.calledWithExactly(
             RabbitMQ.prototype.subscribeToFanoutExchange,
             'test-queue-01',
-            sinon.match.func
+            sinon.match.func,
+            undefined
           )
           sinon.assert.calledWithExactly(
             RabbitMQ.prototype.subscribeToFanoutExchange,
             'test-queue-02',
-            sinon.match.func
+            sinon.match.func,
+            undefined
+          )
+        })
+    })
+
+    it('should subscribe to all event queues using RabbitMQ with queue options', () => {
+      const queueOpts1 = {
+        autoDelete: true
+      }
+      const queueOpts2 = {
+        autoDelete: true,
+        exclusive: true
+      }
+      server = new ponos.Server({
+        events: {
+          'test-event-01': {
+            task: noop,
+            queueOptions: queueOpts1
+          },
+          'test-event-02': {
+            task: noop,
+            queueOptions: queueOpts2
+          }
+        }
+      })
+      return assert.isFulfilled(server._subscribeAll())
+        .then(() => {
+          sinon.assert.calledTwice(RabbitMQ.prototype.subscribeToFanoutExchange)
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype.subscribeToFanoutExchange,
+            'test-event-01',
+            sinon.match.func,
+            queueOpts1
+          )
+          sinon.assert.calledWithExactly(
+            RabbitMQ.prototype.subscribeToFanoutExchange,
+            'test-event-02',
+            sinon.match.func,
+            queueOpts2
           )
         })
     })
@@ -288,7 +328,8 @@ describe('Server', () => {
       })
 
       it('should be created on subscribeToQueue', () => {
-        const worker = RabbitMQ.prototype.subscribeToQueue.firstCall.args.pop()
+        const args = RabbitMQ.prototype.subscribeToQueue.firstCall.args
+        const worker = args.pop()
         worker(mockJob, testJobMeta, mockDone)
         sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
@@ -302,8 +343,8 @@ describe('Server', () => {
       })
 
       it('should be created on subscribeToFanoutExchange', () => {
-        const worker = RabbitMQ.prototype.subscribeToFanoutExchange
-          .firstCall.args.pop()
+        const args = RabbitMQ.prototype.subscribeToQueue.firstCall.args
+        const worker = args.pop()
         worker(mockJob, testJobMeta, mockDone)
         sinon.assert.calledOnce(ponos.Server.prototype._enqueue)
         sinon.assert.calledWithExactly(
