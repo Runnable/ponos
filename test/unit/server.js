@@ -265,13 +265,16 @@ describe('Server', () => {
             RabbitMQ.prototype.subscribeToFanoutExchange,
             'test-queue-01',
             sinon.match.func,
-            undefined
+            {}
           )
           sinon.assert.calledWithExactly(
             RabbitMQ.prototype.subscribeToFanoutExchange,
             'test-queue-02',
             sinon.match.func,
-            undefined
+            {
+              msTimeout: 4242,
+              task: sinon.match.func
+            }
           )
         })
     })
@@ -303,13 +306,19 @@ describe('Server', () => {
             RabbitMQ.prototype.subscribeToFanoutExchange,
             'test-event-01',
             sinon.match.func,
-            queueOpts1
+            {
+              task: noop,
+              queueOptions: queueOpts1
+            }
           )
           sinon.assert.calledWithExactly(
             RabbitMQ.prototype.subscribeToFanoutExchange,
             'test-event-02',
             sinon.match.func,
-            queueOpts2
+            {
+              task: noop,
+              queueOptions: queueOpts2
+            }
           )
         })
     })

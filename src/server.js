@@ -325,13 +325,12 @@ class Server {
       return Promise.map(events.keySeq(), (exchange) => {
         const worker = events.get(exchange)
         const options = this._workerOptions[exchange] || {}
-        const queueOptions = options.queueOptions
         return this._rabbitmq.subscribeToFanoutExchange(
           exchange,
           (job, jobMeta, done) => {
             this._enqueue(exchange, worker, job, jobMeta, done)
           },
-          queueOptions
+          options
         )
       })
     })
