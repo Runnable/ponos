@@ -415,6 +415,12 @@ class RabbitMQ {
     handler: Function,
     rabbitMQOptions?: RabbitMQOptions
   ): Bluebird$Promise<void> {
+    const log = this.log.child({
+      method: 'subscribeToFanoutExchange',
+      exchange,
+      rabbitMQOptions
+    })
+    log.info('subscribing to exchange')
     const opts = {
       exchange: exchange,
       type: 'fanout',
@@ -451,6 +457,12 @@ class RabbitMQ {
     handler: Function,
     rabbitMQOptions?: RabbitMQOptions
   ): Bluebird$Promise<void> {
+    const log = this.log.child({
+      method: 'subscribeToTopicExchange',
+      exchange,
+      rabbitMQOptions
+    })
+    log.info('subscribing to exchange')
     const opts = {
       exchange: exchange,
       type: 'topic',
