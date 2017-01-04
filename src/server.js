@@ -259,8 +259,9 @@ class Server {
    */
   setTask (queueName: string, task: Function, opts?: Object): Server {
     this.log.trace({
-      queue: queueName,
-      method: 'setTask'
+      method: 'setTask',
+      queueName,
+      opts
     }, 'setting task for queue')
     if (!isFunction(task)) {
       throw new Error('ponos.server: setTask task handler must be a function')
@@ -284,9 +285,10 @@ class Server {
    */
   setEvent (exchangeName: string, task: Function, opts?: Object): Server {
     this.log.trace({
-      exchange: exchangeName,
-      method: 'setEvent'
-    }, 'setting task for queue')
+      method: 'setEvent',
+      exchangeName,
+      opts
+    }, 'setting event for queue')
     if (!isFunction(task)) {
       throw new Error('ponos.server: setEvent task handler must be a function')
     }
