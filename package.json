@@ -96,7 +96,7 @@
     "jsdoc": "^3.4.0",
     "mocha": "^3.0.1",
     "sinon": "^1.17.0",
-    "sinon-as-promised": "^4.0.0",
+    "sinon-as-promised": "^4.0.3",
     "standard": "8.1.0"
   }
 }
